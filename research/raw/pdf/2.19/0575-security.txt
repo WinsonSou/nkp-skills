@@ -1,0 +1,661 @@
+
+--- page 575 ---
+      resources:
+        limits:
+          cpu: 1
+          memory: 2000Mi
+        requests:
+          cpu: 1
+          memory: 1500Mi
+Security
+Details on distributed authentication and authorization between clusters
+Authentication
+Nutanix Kubernetes Platform (NKP) user interface comes with a pre-configured authentication Dex identity
+broker and provider.
+Warning:  Kubernetes, Kommander, and Dex do not store any user identities. The Kommander installation
+comes with default admin static credentials. These credentials should only be used to access the NKP UI
+for configuring an external identity provider. Currently, there is no way to update these credentials, so they
+should be treated as backup credentials and not used for normal access.
+The NKP user interface admin credentials are stored as a secret. They never leave the boundary of the
+user interface cluster and are never shared with any other cluster.
+The Dex service issues an OIDC ID token for successful user authentication. For more information, see
+https://openid.net/specs/openid-connect-core-1_0.html#IDToken. Other platform services use ID tokens
+as a proof of authentication. The kube-oidc-proxy platform service that reads the identity from an ID
+token provides user identity to the Kubernetes API server. The traefik-forward-auth platform service
+authenticates the web requests to access the NKP user interface. For more information, see https://
+github.com/mesosphere/traefik-forward-auth.
+Note:  The kube-oidc-proxy service authenticates kubectl CLI requests using the Kubernetes API
+Server Go library. For more information, see https://github.com/jetstack/kube-oidc-proxy. When you
+configure the insecureSkipEmailVerified: true flag in Dex connector, the Kubernetes API Server
+Go library requires email_verified claim to be present and is set to true. This ensures that the OIDC
+provider is configured to set the email_verified field to true.
+A user identity is shared across a user interface cluster and all other attached clusters.
+Attached Clusters
+A newly attached cluster integrates kube-oidc-proxy, dex-k8s-authenticator, and traefik-forward-
+auth platform applications. These platform applications are configured to accept the Management or Pro
+cluster and the Dex issued ID tokens. For more information, see Cluster Types on page 21.
+When NKP uses the traefik-forward-auth platform service as an authenticator for Traefik Ingress,
+it verifies whether the user identity was issued by the Dex service of the Kommander cluster or the
+Management or Pro cluster. This process ensures proper authentication and confirmation of the user
+identity. For more information, see https://doc.traefik.io/traefik/v2.4/providers/kubernetes-ingress/
+The Dex service of the Kommander cluster issues the user identity for the attached clusters. On the
+Management or Pro cluster, use the static admin credentials or an external identity provider (IDP).
+Authorization
+Kommander does not have a centralized authorization component, and the service makes its own
+authorization decisions based on user identity.
+Nutanix Kubernetes Platform | Cluster Operations Management | 575
+
+--- page 576 ---
+OpenID Connect (OIDC)
+An introduction to OpenID Connect (OIDC) Authentication in Kubernetes.
+All Kubernetes clusters have two categories of users: service accounts and normal users. Kubernetes
+manages authentication for service accounts, but the cluster administrator, or a separate service, manages
+authentication for normal users.
+Kommander configures the cluster to use OpenID Connect (OIDC), a popular and extensible user
+authentication method and installs Dex. This popular, open-source software product integrates your
+existing Identity Providers with Kubernetes.
+To begin, set up an Identity Provider with Dex, then use OIDC as the Authentication method.
+Identity Providers
+An Identity Provider (IdP) is a service that lets you manage identity information for users, including groups.
+A cluster created in Kommander uses Dex as its IdP. Dex, in turn, delegates to one or more external IdPs.
+If you already use one or more of the following IdPs, you can configure Dex to use them:
+Table 58: Table
+Name
+Supports
+Refresh
+Tokens
+Supports
+Groups Claim
+Supports
+preferred_username
+Claim
+Status
+Notes
+LDAP
+yes
+yes
+yes
+stable
+GitHub
+yes
+yes
+yes
+stable
+SAML 2.0
+no
+yes
+no
+stable
+GitLab
+yes
+yes
+yes
+beta
+OpenID
+Connect
+yes
+yes
+yes
+beta
+Includes
+Salesforce,
+Azure, etc.
+Google
+yes
+yes
+yes
+alpha
+LinkedIn
+yes
+no
+no
+beta
+Microsoft
+yes
+yes
+no
+beta
+AuthProxy
+no
+no
+no
+alpha
+Authentication
+proxies such
+as Apache2
+mod_auth, etc.
+Bitbucket Cloud
+yes
+yes
+no
+alpha
+OpenShift
+no
+yes
+no
+stable
+Note:  These are the Identity Providers supported by Dex 2.22.0, the version used by NKP.
+Login Connectors
+Kommander uses Dex to provide OpenID Connect single sign-on (SSO) to the cluster. Dex can be
+configured to use multiple connectors, including GitHub, LDAP, and SAML 2.0. The Dex Connector
+documentation describes how to configure different connectors. You can add the configuration as the
+Nutanix Kubernetes Platform | Cluster Operations Management | 576
+
+--- page 577 ---
+values field in the Dex application. An example Dex configuration provided to the Kommander CLI’s
+install command is similar to this:
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  dex:
+    values: |
+      config:
+        connectors:
+        - type: oidc
+          id: google
+          name: Google
+          config:
+            issuer: https://accounts.google.com/o/oauth2/v2/auth
+            clientID: YOUR_CLIENT_ID
+            clientSecret: YOUR_CLIENT_SECRET
+            redirectURI: https://NKP_CLUSTER_DOMAIN/dex/callback
+            scopes:
+            - openid
+            - profile
+            - email
+            insecureSkipEmailVerified: true
+            insecureEnableGroups: true
+            userIDKey: email
+            userNameKey: email
+[...]
+Access Token Lifetime
+By default, the client access token lifetime is 24 hours. After this time, the token expires and cannot be
+used to authenticate.
+For more information on access token expiration and rotation settings, see https://dexidp.io/docs/
+configuration/tokens/#expiration-and-rotation-settings.
+Here is an example configuration for extending the token lifetime to 48 hours on non-Nutanix infrastructure
+installation:
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  dex:
+    values: |
+      config:
+        expiry:
+          idTokens: "48h"
+[...]
+For Nutanix installations, you must create the following custom configuration after the initial installation.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dex-overrides
+  namespace: kommander 
+ data:
+ values.yaml: |
+    ---
+    config:
+      expiry:
+        idTokens: <TIME>
+Nutanix Kubernetes Platform | Cluster Operations Management | 577
+
+--- page 578 ---
+Patch the `dex` AppDeployment int the `kommander` namespace
+spec:
+  configOverrides:
+    name: dex-overrides
+Authentication
+OpenID Connect is an extension of the OAuth2 authentication protocol. As required by OAuth2, the
+client must be registered with Dex. Do this by passing the name of the application and a callback/redirect
+URI. These handle the processing of the OpenID token after the user authenticates successfully. After
+registration, Dex returns a client_id and a secret. Authentication requests use these between the client
+and Dex to identify the client.
+For more information on OAuth2 authentication protocol, https://oauth.net/2/.
+Users access Kommander in two ways:
+•
+To interact with Kubernetes API, usually through kubectl.
+•
+To interact with the NKP UI, which has GUI dashboards for Prometheus, Grafana, etc.
+In Kommander, Dex comes pre-configured with a client for these access use cases. The clients talk to Dex
+for authentication. Dex talks to the configured Identity Provider, or IdP, (for example LDAP, SAML, etc) to
+perform the actual task of authenticating the user.
+If the user authenticates successfully, Dex pulls the user’s information from the IdP and forms an OpenID
+token. The token contains this information and returns it to the respective client’s callback URL. The client
+or end user uses this token for communicating with the NKP UI or Kubernetes API respectively.
+This figure illustrates these components and their interaction at a high level:
+Figure 14: OIDC Authentication Flow with Dex
+Nutanix Kubernetes Platform | Cluster Operations Management | 578
+
+--- page 579 ---
+Connecting Kommander to an IdP Using SAML
+About this task
+Use this procedure to connect Kommander to an external Identity Provider (IdP) using SAML. Kommander
+uses Dex as its OpenID Connect (OIDC) provider to federate authentication across your clusters.
+Integrating an IdP via SAML allows your organization's users to log in to the NKP UI using their existing
+enterprise credentials.
+Procedure
+1. Install NKP.
+2. Configure the IdP.
+Provide the issuer URL and the Assertion Consumer Service (ACS) or callback URL to your IdP. The
+issuer URL points to the authentication endpoint at the service provider (Dex), which issues a request
+towards the IdP via the user agent.
+The issuer URL follows this schema:
+https://<your-cluster-host>/dex
+The ACS URL points to the service provider (Dex) endpoint that receives SAML assertions issued by
+the IdP.
+The ACS or callback URL should look like this:
+https://<your-cluster-host>/dex/callback
+Depending on the IdP, you might be asked to provide the configuration in some form of an XML snippet.
+See the following example, making sure to replace <your-cluster-host> with your URL:
+<?xml version="1.0" encoding="UTF-8"?>
+<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://
+<your-cluster-host>/dex">
+    <SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="true"
+ protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+        <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</
+NameIDFormat>
+        <AssertionConsumerService index="0" isDefault="true"
+ Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://<your-
+cluster-host>/dex/callback" />
+    </SPSSODescriptor>
+</EntityDescriptor>
+Nutanix Kubernetes Platform | Cluster Operations Management | 579
+
+--- page 580 ---
+3. Modify the dex configuration.
+For this step, get the following from your IdP:
+•
+single sign-on URL or SAML URL: ssoURL
+•
+base64 encoded, PEM encoded CA certificate: caData
+•
+username attribute name in SAML response: usernameAttr
+•
+email attribute name in SAML response: emailAttr
+From above, you need the following:
+•
+issuer URL: entityIssuer
+•
+callback URL: redirectURI
+Ensure you base64 encode the contents of the PEM file. For example, the contents' prefix will result in
+this exact base64 prefix.
+LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tC[...]
+You can add the configuration as values field in the dex application.
+4. Modify the traefik-forward-auth-mgmt configuration and add a whitelist.
+This step is required to give a user access to the NKP UI. For each user, you must give access to
+Kubernetes resources (see Access Control on page 228) and add an entry in the whitelist below.
+The following YAML represents the Kommander Installation custom resource. Update the traefik-
+forward-auth-mgmt app values within it to add the allowed user email addresses to the whitelist.
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+...
+  traefik-forward-auth-mgmt:
+    values: |
+      traefikForwardAuth:
+        allowedUser:
+          valueFrom:
+            secretKeyRef: null
+        whitelist:
+        - < allowed email addresses >
+5. Run kommander install --installer-config kommander.yaml to deploy modified dex.
+6. Visit https://<your-cluster-host>/nkp/kommander/dashboard to login to the NKP UI.
+7. Select Launch Console and follow the authentication steps to complete the procedure.
+Enforcing Policies Using Gatekeeper
+Gatekeeper uses the OPA Constraint Framework to describe and enforce policy. Before you can define a
+constraint, you must first define a ConstraintTemplate, which describes both the Rego (a powerful query
+language) that enforces the constraint and the schema of the constraint. The schema of the constraint
+allows an admin to fine-tune the behavior of a constraint, much like arguments to a function.
+About this task
+For more information on the OPA Constraint Framework, see https://github.com/open-policy-agent/
+frameworks/tree/master/constraint. The Gatekeeper repository includes a library of policies to replace
+Pod Security Policies, which you will use. For more information, see https://github.com/open-policy-agent/
+gatekeeper-library/tree/master/library/pod-security-policy.
+Nutanix Kubernetes Platform | Cluster Operations Management | 580
+
+--- page 581 ---
+Learn how to enforce policies using Gatekeeper. Gatekeeper Gatekeeper is the policy controller for
+Kubernetes, allowing organizations to enforce configurable policies using the Open Policy Agent (See
+https://github.com/open-policy-agent/opa), a policy engine for Cloud Native environments hosted by CNCF
+as a graduate-level project. This tutorial describes how to use Gatekeeper to enforce policies by rejecting
+non-compliant resources. Specifically, this tutorial describes two constraints as a way to use Gatekeeper as
+an alternative to Pod Security Policies (see https://kubernetes.io/docs/concepts/policy/pod-security-policy/).
+Before you begin
+•
+You must have access to a Linux, macOS, or Windows computer with a supported operating system
+version.
+•
+You must have a properly deployed and running cluster. For information about deploying Kubernetes
+with default settings on different types of infrastructures, see the Custom Installation and Infrastructure
+Tools on page 665.
+•
+If you install Kommander with a custom configuration, make sure you enable Gatekeeper.
+Warning:  If you intend to disable Gatekeeper, keep in mind that the app is deployed pre-configured with
+constraint templates that enforce multi-tenancy in projects.
+Procedure
+1. Preventing the Running of Privileged Pods on page 581
+2. Preventing the Mounting of Host Path Volumes on page 582
+Preventing the Running of Privileged Pods
+Procedure
+1. Define the ConstraintTemplate.
+Create the privileged pod policy constraint template k8spspprivilegedcontainer by running the
+following command.
+kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper-
+library/master/library/pod-security-policy/privileged-containers/template.yaml
+2. Define the Constraint. Constraints are then used to inform
+The gatekeeper that the admin wants to enforce a constraint template he privileged pod policy
+constraint psp-privileged-container by running the following command.
+kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper-
+library/master/library/pod-security-policy/privileged-containers/samples/psp-
+privileged-container/constraint.yaml
+3. Test that the constraint is enforced.
+Create a privileged pod by running the following command:
+kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper-
+library/master/library/pod-security-policy/privileged-containers/samples/psp-
+privileged-container/example_disallowed.yaml
+You should see the following output:
+Error from server ([denied by psp-privileged-container] Privileged container is
+ not allowed: nginx, securityContext: {"privileged": true}): error when creating
+ "https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/master/
+library/pod-security-policy/privileged-containers/samples/psp-privileged-container/
+Nutanix Kubernetes Platform | Cluster Operations Management | 581
+
+--- page 582 ---
+example_disallowed.yaml": admission webhook "validation.gatekeeper.sh" denied the
+ request: [denied by psp-privileged-container] Privileged container is not allowed:
+ nginx, securityContext: {"privileged": true}
+Preventing the Mounting of Host Path Volumes
+Procedure
+1. Define the ConstraintTemplate.
+Create the host path volume policy constraint template k8spsphostfilesystem by running the following
+command.
+kubectl apply -f https://raw.githubusercontent.com/open-policy-agent/gatekeeper-
+library/master/library/pod-security-policy/host-filesystem/template.yaml
+2. Define the Constraint. Constraints are then used to inform Gatekeeper that the admin wants to enforce
+a ConstraintTemplate, and how.
+Create the host path volume policy constraint psp-host-filesystem by running the following
+command to only allow /foo to be mounted as a host path volume.
+cat <<EOF | kubectl apply -f -
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPHostFilesystem
+metadata:
+  name: psp-host-filesystem
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+  parameters:
+    allowedHostPaths:
+    - readOnly: true
+      pathPrefix: "/foo"
+EOF
+3. Test that the constraint is enforced.
+Create a privileged pod by running the following command:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-host-filesystem
+  labels:
+    app: nginx-host-filesystem
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - mountPath: /cache
+      name: cache-volume
+      readOnly: true
+  volumes:
+  - name: cache-volume
+    hostPath:
+      path: /tmp # directory location on host
+Nutanix Kubernetes Platform | Cluster Operations Management | 582
+
+--- page 583 ---
+EOF
+You should see the following output:
+Error from server ([denied by psp-host-filesystem] HostPath volume {"hostPath":
+ {"path": "/tmp", "type": ""}, "name": "cache-volume"} is not allowed, pod: nginx-
+host-filesystem. Allowed path: [{"readOnly": true, "pathPrefix": "/foo"}]): error
+ when creating "STDIN": admission webhook "validation.gatekeeper.sh" denied the
+ request: [denied by psp-host-filesystem] HostPath volume {"hostPath": {"path":
+ "/tmp", "type": ""}, "name": "cache-volume"} is not allowed, pod: nginx-host-
+filesystem. Allowed path: [{"readOnly": true, "pathPrefix": "/foo"}]
+4. Test that the constraint to check the allowed host paths.
+Create a pod that mounts an allowed host path by running the following command:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-host-filesystem
+  labels:
+    app: nginx-host-filesystem
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+    volumeMounts:
+    - mountPath: /cache
+      name: cache-volume
+      readOnly: true
+  volumes:
+  - name: cache-volume
+    hostPath:
+      path: /foo # directory location on host
+EOF
+You should see the following output:
+pod/nginx-host-filesystem created
+Traefik-Forward-Authentication in NKP (TFA)
+Traefik-Forward-Authentication (TFA) is a vital component in NKP. It handles authentication and
+authorization of web (HTTP) requests and how users can access the NKP UI. Regardless of the
+authentication method you choose (user and password, SSO, 2FA, etc.), TFA is a component that
+authorizes HTTP clients to enter your environment.
+TFA is one of the standard applications in the Kommander component of NKP. It is deployed by a
+controller on all attached, managed, and management clusters.
+Nutanix Kubernetes Platform | Cluster Operations Management | 583
+
+--- page 584 ---
+TFA Authentication Workflow
+Figure 15: TFA Authentication Workflow
+Default TFA Configuration in NKP
+In the default configuration in NKP, TFA stores all authentication information about users through the
+browser cookies. When TFA authenticates users, it stores the user’s metadata in encrypted browser
+cookies. Subsequent requests following initial authentication will use these cookies to recognize users
+without the need to re-authenticate them.
+•
+The cookies are securely encrypted, so they cannot be modified by users.
+•
+The cookies contain the RBAC username.
+•
+The cookies contain a list of groups that users are associated with.
+Nutanix Kubernetes Platform | Cluster Operations Management | 584
+
+--- page 585 ---
+Cluster Storage Option
+The browser cookie storage is limited to a maximum of 4Kb per cookie. However, if a user is assigned to a
+large number of groups, this limitation can be exceeded and this will return a response 500-internal server
+error, meaning that the user will be unable to access any web services.
+To work around the cookie storage size limit, TFA can be configured to store the metadata claims in the
+cluster as a Kubernetes secret instead of in the browser. To do so, the clusterStorage option can be
+configured in the Traefik Forward Auth application when installing Kommander.
+In order to enable the clusterStorage option, add the following to the cluster.yaml when installing
+Kommander:
+ traefik-forward-auth-mgmt:
+   values: |
+     clusterStorage:
+       enabled: true
+       namespace: kommander
+If the clusterStorage feature is enabled, automatic garbage collection will delete the secrets after
+12 hours. Keep in mind that enabling this feature will have performance implications for web requests,
+because TFA needs to load the secret to retrieve the user groups for each HTTP API request. Because of
+this, we recommend first trying to reduce the number of groups associated users and only enabling this
+option if that cannot be accomplished.
+For more information on traefik-forward-authentication, see https://github.com/mesosphere/traefik-forward-
+auth.
+Local Users
+Nutanix recommends configuring an external identity provider to manage access to your cluster.
+For an overview of the benefits, supported providers, and instructions on how to configure an external
+identity provider, see Identity Providers.
+However, you can create local users as an alternative, for example, when you want to test RBAC policies
+quickly. NKP automatically creates a unique local user, the admin user, but you can create additional local
+users and assign them other RBAC roles.
+This section shows how to create and manage local users to access your Pro or Management cluster.
+There are two ways in which you can create local users:
+•
+Creating Local Users During the Kommander Installation on page 585
+•
+Creating Local Users After the Kommander Installation on page 586
+Creating Local Users During the Kommander Installation
+Create local users after you install the Kommander component of NKP. If you have not already installed
+Kommander yet and want to create additional users during the installation.
+About this task
+Warning:  Nutanix does not recommend creating local users for production clusters. See for instructions on
+how to configure an external identity provider to manage your users.
+Customize the Dex AppDeployment, and add a configOverrides section.
+Nutanix Kubernetes Platform | Cluster Operations Management | 585
+
+--- page 586 ---
+Procedure
+1. Open the Kommander Installer Configuration File or kommander.yaml file. If you do not have the
+kommander.yaml file, initialize the configuration file so you can edit it in the subsequent steps.
+Note:  Initialize this file only one time, otherwise you will- overwrite previous customizations.
+2. In that file, add the following customization for dex and create local users by establishing their
+credentials.
+•
+Replace <example_email> with the user's email address or username.
+•
+Replace <password_bcrypt_hash> with the bcrypt hash of the password you want to assign.
+You can use the htpasswd CLI to create the hash of a specific password. For example, by running
+htpasswd -bnBC 10 "" password | tr -d ':\n' && echo, you can generate the hash for the
+password “password”.
+app: 
+  dex:
+    enabled: true
+    values: |
+      config:
+        staticPasswords:
+        - email: <example_email>
+          hash: <password_bcrypt_hash>
+        - email: <example_email2>
+          hash: <password_bcrypt_hash2>
+3. Save the kommander.yaml file.
+4. Install Kommander using the customized installation file.
+For more information, see Installing Kommander with a Configuration File  on page 959.
+After Kommander finishes installing, you have created local users, but you cannot use them until you
+have assigned them permissions. To complete the configuration, see Adding RBAC Roles to Local
+Users on page 588.
+Warning:  You have created a user that does not have any permissions to see or manage your NKP
+cluster yet.
+You have created a user that does not have any permissions to see or manage your NKP
+cluster yet.
+Creating Local Users After the Kommander Installation
+Create local users before you install the Kommander component of NKP. If you have already installed
+Kommander.
+About this task
+Warning:  Nutanix does not recommend creating local users for production clusters. See for instructions on
+how to configure an external identity provider to manage your users.
+Customize the Dex AppDeployment, and add a configOverrides section:
+Nutanix Kubernetes Platform | Cluster Operations Management | 586
+
+--- page 587 ---
+Procedure
+1. Fetch the name of the kommandercluster.
+nkp get kommandercluster -n kommander -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].metadata.name}'
+2. Create a configMap resource with the credentials of the new local user
+•
+Replace <example_email> with the user's email address or username.
+•
+Replace <password_bcrypt_hash> with the bcrypt hash of the password you want to assign.
+You can use the htpasswd CLI, which is provided by the httpd-tools package, to create the hash
+of a specific password. Install httpd-tools on the system where you generate the hash, and then
+run a command such as htpasswd -bnBC 10 "" password | tr -d ':\n' && echo to generate
+the hash for the password “password”.
+Note:  Enclose the bcrypt hash in single quotes and use a quoted heredoc delimiter ('EOF'). A bcrypt
+hash contains $ characters (for example, $2y$10$...) that the shell expands in an unquoted heredoc,
+which corrupts the hash and causes the dex pod to fail with a malformed bcrypt hash error.
+cat <<'EOF' | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dex-overrides
+  namespace: kommander
+data:
+  values.yaml: |
+    config:
+      staticPasswords:
+      - email: <example_email>
+        hash: '<password_bcrypt_hash>'
+EOF
+3. Open the Dex AppDeployment to edit it.
+kubectl edit -n kommander appdeployment dex
+The editor displays the AppDeployment.
+4. Copy the following values and paste them in a location in the file where they are nested in the spec
+field.
+  configOverrides:
+    name: dex-overrides
+Example:
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+...
+spec:
+  appRef:
+    kind: ClusterApp
+    name: dex-2.11.1
+  clusterConfigOverrides:
+  - clusterSelector:
+      matchExpressions:
+      - key: kommander.d2iq.io/cluster-name
+        operator: In
+Nutanix Kubernetes Platform | Cluster Operations Management | 587
+
+--- page 588 ---
+        values:
+        - management
+    configMapName: dex-kommander-overrides
+  configOverrides: # Copy and paste this section.
+    name: dex-overrides
+status:
+...
+Editing the AppDeployment restarts the HelmRelease for Dex. The new users will be created after the
+reconciliation. However, the user creation is not completed until you assign it permissions.
+Note:  You have created a user that does not have any permissions to see or manage your NKP cluster
+yet.
+To complete the configuration, see Adding RBAC Roles to Local Users on page 588.
+Adding RBAC Roles to Local Users
+Control what local users can see and do in your cluster by assigning them Kubernetes RBAC roles.
+About this task
+If you have not created local users yet, see Creating Local Users During the Kommander Installation on
+page 585 or Creating Local Users After the Kommander Installation on page 586.
+To assign a role:
+Procedure
+1. Create the following VirtualGroup resource:
+•
+Replace <username> with the local user's username.
+•
+Replace <email> with the user's email address.
+•
+If you have configured an Identity Provider for a specific workspace (see Multi-Tenancy in NKP on
+page 365), configure the spec.subjects.name field to <workspace_ID>:<user_email>. For
+example, tenant-z:jane.doe@example.com.
+cat <<EOF | kubectl apply -f -
+apiVersion: kommander.mesosphere.io/v1beta1
+kind: VirtualGroup
+metadata:
+  name: <username>-local
+spec:
+  subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: User
+    name: <email>
+EOF
+2. In the NKP UI, select Administration > Identity Providers.
+3. Select the Groups tab.
+<username>-local appears in the list, where you can assign it permissions.
+What to do next
+<email> can now log in to the cluster using the credentials you assigned in Creating Local Users During
+the Kommander Installation on page 585 or Creating Local Users After the Kommander Installation on
+page 586.
+Nutanix Kubernetes Platform | Cluster Operations Management | 588

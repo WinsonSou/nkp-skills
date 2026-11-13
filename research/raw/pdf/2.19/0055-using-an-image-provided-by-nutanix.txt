@@ -1,0 +1,114 @@
+
+--- page 55 ---
+5
+NUTANIX IMAGE BUILDER
+Nutanix Image Builder (NIB) enables you to create and manage pre-configured operating systems (OS)
+images specifically for running NKP on all supported infrastructure providers. You can first create an image
+with all the necessary configurations, drivers, and software needed for NKP. After creating an image, you
+can use this image to create NKP clusters. This reduces NKP cluster deployment and upgrade errors
+caused by misconfiguration of OS images and packages. Images help you easily manage large NKP
+deployments on Nutanix systems.
+You can add images in the following ways:
+•
+Use an image provided by Nutanix, for NKP on Nutanix Infrastructure. For more information, see Using
+an Image provided by Nutanix on page 55
+•
+Build your own customized image for NKP on any of the supported Infrastructure Providers.
+Using an Image provided by Nutanix
+Nutanix provides pre-built OS images with the tools and configurations required for NKP Kubernetes
+cluster deployment. These images are supported exclusively on Nutanix Infrastructure and eliminate the
+need to build custom images.
+Before you begin
+Ensure that you meet the following prerequisites:
+•
+AMD64 architecture.
+•
+Subscribe to one of the following NKP licenses:
+•
+NKP Starter
+•
+NKP Pro
+•
+NKP Ultimate
+About this task
+Here are some of the features of Pre-built images:
+•
+Base OS with Kubernetes tools and configurations.
+•
+CIS-Hardened: Center for Internet Security (CIS) Level 1 compliance (available only as pre-built
+images)
+Note:  The operating system layer in the pre-built image is hardened to CIS Level 1, while the NKP and
+Kubernetes components follow CIS Level 2 hardening guidelines.
+The two pre-built image variants available are:
+•
+Rocky Linux 9.8
+Nutanix Kubernetes Platform | Nutanix Image Builder | 55
+
+--- page 56 ---
+•
+Ubuntu 24.04 LTS
+The differences between pre-built and custom images are listed in the following table:
+Table 15: Differences between Pre-built and Custom Images
+Characteristic Feature
+Pre-built Images
+Custom Images
+Availability
+Immediately available for
+deployment
+Requires build time and process
+Configuration Control
+Standard Nutanix-tested
+configurations
+Full control over packages,
+configurations, and
+customizations
+Maintenance
+Regular updates and security
+patches provided by Nutanix
+User-managed updates and
+maintenance
+Customization
+Limited to available variants
+Flexibility for organization-specific
+requirements
+Use Cases
+Standard deployments with
+common requirements
+Specialized workloads,
+custom applications, or unique
+compliance needs
+CIS Hardening
+Supported
+Not supported
+FIPS Compliance
+Not supported
+Supported
+RHEL 8.10 and 9.6
+GPU Support
+The Ubuntu out of the box
+(OOTB) is supported for both
+NVIDIA GPU Passthrough and
+NVIDIA GRID Virtual GPU.
+The Rocky Linux OOTB image is
+not supported.
+Supported
+NVIDIA GPU drivers can be pre-
+installed
+Application Integration
+Standard compatibility
+Custom applications and
+dependencies can be pre-
+installed
+Deployment Speed
+Faster initial deployment
+Slower initial deployment due to
+build process
+Optimization
+Optimized for general-purpose
+usage
+Optimized for specific workload
+requirements
+To use the image provided by Nutanix, follow these steps:
+Procedure
+1. Download the image from the Nutanix Support Portal.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 56

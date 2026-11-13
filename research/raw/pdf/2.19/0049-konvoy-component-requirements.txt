@@ -1,0 +1,81 @@
+
+--- page 49 ---
+•
+Your environment must include a container registry to store and manage container images.
+•
+A Nutanix Prism Central account credentials with the required roles and permissions. For more
+information, see Prism Central Role and Permission Requirements.
+•
+NKP uses the Nutanix Container Storage Interface (CSI) Volume Driver 3.0 as the default storage
+provider. For more information on the default storage providers, see Default Storage Providers on
+page 37.
+For production environments, ensure that you choose the compatible storage from any of the available
+storage options. For more information, see Types of volumes.
+To disable the default StorageClass deployed by Konvoy:
+1. Set the default StorageClass to non-default.
+2. Set your newly created StorageClass as the default.
+For more information on changing the default storage class, see Change the default StorageClass.
+Konvoy Component Requirements
+Note the requirements for Nutanix Kubernetes Platform (NKP) Konvoy component.
+For NKP and the Nutanix Image Builder to run, the operator machine must meet the following
+requirements:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Requirements | 49
+
+--- page 50 ---
+•
+All Non-air-gapped Environments:
+In a non-air-gapped environment, your setup must have two-way access to and from the internet. The
+prerequisites for installing NKP in a non-air-gapped environment are as follows:
+•
+Download the NKP binary on an x86_64-based Linux or macOS machine.
+For more information, see Downloading NKP on page 17.
+Verify the installed version of NKP for compatibility:
+nkp version
+•
+Ensure that you install a container engine or runtime based on your operating system for setting up
+the NKP and bootstrap cluster:
+•
+For Linux or macOS, a Docker container engine version 27.4.0 is required.
+For more information, see Get Docker.
+•
+For Linux, a Podman version 4.0 or later is required.
+For more information, see Podman Installation Instructions.
+For host requirements, see Host Requirements.
+•
+The host running the NKP CLI must have kubectl version 1.36.x installed.
+For more information, see kubectl.
+•
+Ensure that you install a Nutanix Image Builder.
+For more information, see Nutanix Image Builder on page 55.
+•
+Ensure that you have a valid cloud provider account with configured credentials.
+•
+For AWS and Azure, you need the credentials that manage CloudFormation stacks, IAM policies,
+IAM roles, and IAM instance profiles.
+For more information, see Configuration and credential file settings in the AWS CLI.
+•
+For more information on Azure credentials, see Getting started with cluster-api-provider-azure.
+•
+Ensure that you have a CLI tool of your cloud provider:
+•
+For aws-cli, see Installing or updating to the latest version of the AWS CLI.
+•
+For googlecloud-cli, see Install the gcloud CL.
+•
+For azure-cli, see How to install the Azure CLI.
+•
+Elastic Kubernetes Service (EKS) and Azure Kubernetes Service (AKS) only:
+•
+You need a management (self-managed) cluster.
+•
+If you follow the instructions in Custom Installation and Additional Infrastructure Tools, ensure that
+you perform the self-managed process on your new cluster.
+•
+Pre-provisioned Environments Only:
+•
+Use pre-provisioned hosts with SSH access enabled.
+•
+Configure each host with an unencrypted SSH private key with its corresponding public key.
+•
+Use pre-provisioned override files, if necessary.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Requirements | 50

@@ -1,0 +1,532 @@
+
+--- page 1008 ---
+Table 89: Upgrade NKP Roadmap
+Purpose
+Reference Topic
+Plan the upgrade.
+See Plan the Upgrade on page 1008
+Upgrade management and workload clusters by
+using the supported UI or CLI workflow.
+See Upgrade Nutanix Kubernetes Platform on
+page 1016
+Verify that the upgrade is successful.
+See Verifying Nutanix Kubernetes Platform Upgrade
+on page 1044
+Plan the Upgrade
+Before upgrading your Nutanix Kubernetes Platform (NKP) cluster, select the appropriate license for your
+requirements, identify the target version, and verify that your cluster meets all configuration, resource, and
+version compatibility requirements.
+Review all prerequisites for upgrading your NKP environment, because they vary depending on your
+infrastructure and environment configuration. Following the correct checklist reduces the risk of upgrade
+failures.
+The following table lists the required and optional prerequisites that you must perform before upgrading
+your NKP environment. You can use this checklist to prepare NKP in both Nutanix and non-Nutanix
+environments.
+Table 90: Prerequisites
+Prerequisite
+Description
+Reference Topic
+Identify the current and target
+NKP versions.
+Verify that your upgrade path is
+supported by determining both
+the current NKP version and the
+target version that you plan to
+upgrade to.
+See Identify the Upgrade Version
+on page 1011
+Install the target NKP CLI version. Download and install the NKP CLI
+binary for the target version.
+See Downloading NKP on
+page 17
+Identify the NKP license type.
+Identify the NKP license type for
+your NKP cluster.
+See Licenses on page 26
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1008
+
+--- page 1009 ---
+Prerequisite
+Description
+Reference Topic
+Verify compatibility.
+Confirm the supported
+Kubernetes, operating system,
+applications, and component
+versions for your NKP cluster.
+Note:
+•
+Verify that your
+user or custom
+applications are
+compatible with the
+target Kubernetes
+and NKP versions.
+•
+NKP supports only
+operating system
+images that boot
+with control groups
+(cgroups) version 2
+enabled by default.
+NKP does not
+support nodes
+that use cgroups
+version 1 or require
+post#provisioning
+modifications
+to switch from
+cgroups version 1
+to version 2. These
+configurations can
+cause unpredictable
+behavior across
+Kubernetes
+components and
+platform add-ons.
+The operating system
+image provider
+validates cgroups
+mode prior to cluster
+provisioning.
+See Compatibility Requirements
+on page 1012
+Verify the Prism Central roles and
+permissions.
+Before you run the upgrade
+command, update the PC roles
+to ensure that the permissions
+are a combination of the required
+permissions for the current
+version, and the version after the
+upgrade.
+See Prism Central Roles
+and Permissions for Nutanix
+Kubernetes Platform on page 705
+(Only applicable for air-
+gapped environments) Prepare
+air#gapped environment.
+Verify that all required images and
+packages are available offline for
+air#gapped upgrades.
+See Preparing Air-Gapped
+Environments for Upgrade on
+page 1012
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1009
+
+--- page 1010 ---
+Prerequisite
+Description
+Reference Topic
+Back up using Velero.
+Use Velero to take a full backup of
+your existing configuration before
+upgrade.
+See Nutanix Kubernetes®
+Platform Backup and Restore
+Management on page 510
+Prepare the OS images.
+Use the pre-configured operating
+systems (OS) images or build
+the image with Nutanix Image
+Builder. NKP does not support
+other custom images.
+See Nutanix Image Builder
+(Only applicable to Nutanix
+ClusterClass clusters upgrading
+from NKP 2.18) Verify that the
+cluster uses a single Prism
+Central project.
+NKP 2.19 requires the control
+plane and all node pools of a
+cluster to use the same Prism
+Central project. If the cluster node
+pools are split across projects,
+converge the cluster into a single
+project before you upgrade.
+See Converging a Nutanix
+Kubernetes Platform Cluster
+Into a Single Prism Project on
+page 1015
+Set infrastructure-provider-
+specific configuration.
+Configure environment variables
+based on your infrastructure
+provider such as Nutanix,
+Azure and AKS, AWS and EKS,
+vSphere, or GCP.
+•
+For Nutanix, see Nutanix
+Infrastructure Requirements
+on page 692
+•
+For Azure and AKS, see Azure
+Prerequisites on page 871and
+AKS Infrastructure on
+page 901.
+•
+For AWS and EKS, see AWS
+Prerequisites on page 820
+and EKS: Prerequisites and
+Permissions on page 844.
+•
+For vSphere, see vSphere
+Prerequisites on page 834
+(Optional) To resize the
+vSphere disk before
+upgrading, see Base OS
+Image for NKP in vCenter on
+page 840
+•
+For GCP, see Google Cloud
+Platform (GCP) Infrastructure
+(Optional) Configure pod
+disruption budget (PDB).
+NKP upgrade involves draining
+and replacing nodes. Nutanix
+recommends configuring PDB to
+maintain application availability
+and prevent unnecessary
+workload disruptions during the
+upgrade.
+See Pod Disruption Budget
+(Disruptions)
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1010
+
+--- page 1011 ---
+Prerequisite
+Description
+Reference Topic
+For the workload clusters
+provisioned through ClusterClass
+and managed through a FluxCD
+GitOps repository.
+•
+You must have write access
+to the GitOps repository that
+hosts the workload clusters.
+•
+Disable Flux Pruning before
+upgrading to NKP 2.18.
+See Disabling Flux Pruning on
+page 1037.
+For the EKS workload clusters.
+Ensure your EKS cluster uses
+ClusterClass. EKS lifecycle
+operations are supported only for
+clusters that use ClusterClass.
+Note:
+•
+NKP supports
+creating an EKS
+cluster with
+Kubernetes version
+1.34 or later.
+•
+NKP does not
+support upgrading
+non-ClusterClass
+EKS clusters. You
+must manually
+migrate all
+applications that
+are currently
+running on older,
+non-ClusterClass
+EKS clusters to
+newly provisioned
+ClusterClass-based
+EKS clusters.
+See the KB-21858
+Identify the Upgrade Version
+Nutanix Kubernetes Platform (NKP) supports sequential minor version upgrades. You cannot skip a minor
+version, but you can skip the intermediate patch versions.
+For example, to upgrade from NKP v2.14.x to v2.16.x, first upgrade to v2.15.x, then upgrade to v2.16.x.
+You can skip intermediate patch versions. For example, you can upgrade directly from NKP v2.15.0 to
+v2.16.1 without installing v2.15.1, v2.15.2, or v2.16.0.
+Ensure you refer to the following upgrade matrix for specific supported paths:
+Table 91: NKP Upgrade Matrix
+Upgrading from Release
+2.15.0
+2.15.1
+2.15.2
+2.16.0
+2.16.1
+2.17.0
+2.17.1
+2.18.0
+2.19.0
+To
+Release 2.15.0
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1011
+
+--- page 1012 ---
+Upgrading from Release
+2.15.1
+Yes
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+2.15.2
+Yes
+Yes
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+2.16.0
+Yes
+Yes
+Yes
+NA
+NA
+NA
+NA
+NA
+NA
+2.16.1
+Yes
+Yes
+Yes
+Yes
+NA
+NA
+NA
+NA
+NA
+2.17.0
+NA
+NA
+NA
+Yes
+Yes
+NA
+NA
+NA
+NA
+2.17.1
+NA
+NA
+NA
+Yes
+Yes
+Yes
+NA
+NA
+NA
+2.18.0
+NA
+NA
+NA
+NA
+NA
+Yes
+Yes
+NA
+NA
+2.19.0
+NA
+NA
+NA
+NA
+NA
+NA
+NA
+Yes
+NA
+Compatibility Requirements
+Before upgrading your Nutanix Kubernetes Platform (NKP) environment, verify compatibility requirements
+for operating system, Kubernetes, applications, and components with your target NKP version.
+Verify compatibility for these components before upgrading:
+•
+AOS and Prism Central: See Prism Central and AOS Version Compatibility in the NKP Release Notes
+or the Compatibility and Interoperability Matrix.
+•
+Operating system: See Supported Infrastructure Operating Systems on page 13.
+•
+Kubernetes: See Supported Kubernetes Versions section in the NKP Release Notes.
+•
+Components: See Supported Components section in the NKP Release Notes.
+•
+Applications: See Supported Applications section in the NKP Release Notes.
+Preparing Air-Gapped Environments for Upgrade
+An air-gapped environment isolates networks from unsecured external connections. Nutanix Kubernetes
+Platform (NKP) supports secure cluster deployment in these environments. Before upgrading NKP in an
+air-gapped environment, download, extract, and load the required container images and Helm charts into
+your local registry mirror. Alternatively, you can use an internal registry mirror that contains all necessary
+container images to bootstrap your NKP cluster.
+For Nutanix infrastructure, you can either use Nutanix-provided pre-built OS images or build your own
+custom images using Nutanix Image Builder (NIB). For non-Nutanix infrastructure, you can only build
+custom images using Nutanix Image Builder (NIB). For more information, see Nutanix Image Builder on
+page 55. NIB supports building images without internet access by adding the --override flag.
+For AWS infrastructure deployments, specify the bundle image to avoid using upstream cluster API
+provider AWS (CAPA) project images. NKP uses upstream project images by default when you do
+not specify a bundle image. Nutanix does not recommend upstream project images for production
+environments because they can become unavailable and hence, NKP requires you to specify an Amazon
+machine image (AMI) when creating a cluster.
+Downloading and Extracting Air-Gapped Image Bundle
+Download and extract the Nutanix Kubernetes Platform (NKP) air-gapped bundle from the Nutanix Support
+Portal to prepare container images for your local registry mirror.
+About this task
+Air-gapped environments require container image access through a local or internal registry mirror. The
+registry must contain all images necessary for upgrade. For more information, see Air-Gapped or Non-Air-
+Gapped Environment on page 24.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1012
+
+--- page 1013 ---
+The air-gapped bundle contains the following artifacts (distro packages are downloaded separately):
+•
+NKP Kubernetes packages
+•
+Python packages (provided by upstream)
+•
+Containerd tarball
+In earlier NKP versions, the air-gapped image bundle includes the distro package bundles. For example,
+nkp-air-gapped-bundle_v2.8.2_linux_amd64.tar.gz.
+Before you begin
+Verify the following connectivity requirements for clusters attached to the management cluster:
+•
+Both management and attached clusters must connect to the local registry.
+•
+The management cluster must connect to the API servers of all attached clusters.
+Procedure
+1. Download the complete NKP air-gapped bundle.
+The bundle file name follows this format:
+nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+For more information, see Downloading NKP on page 17.
+2. Extract the tarball to a local directory:
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+3. Switch to the extracted directory:
+cd nkp-nkp-version
+This directory contains the files needed to run the bootstrap cluster.
+4. Download and install the NKP CLI binary for the target version.
+For instructions, see Downloading NKP on page 17.
+After installation, open a terminal with access to the NKP CLI and verify the version:
+nkp version
+Sample output:
+./nkp version
+catalog: v0.7.0
+diagnose: v0.12.0
+imagebuilder: vnkp-version
+kommander: vnkp-version
+konvoy: vnkp-version
+konvoybundlepusher: vnkp-version
+mindthegap: v1.22.1
+nkp: vnkp-version
+5. From your download location with internet access, create an operating system package bundle for the
+target operating system used by the nodes in your NKP cluster:
+nkp create package-bundle ${OS_TYPE} --artifacts-directory
+ path_to_artifacts_bundle_DIR 
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1013
+
+--- page 1014 ---
+${FIPS_ENABLED:+--fips}
+You can locate the Kubernetes image bundle in path_to_artifacts_bundle_DIR. Replace
+path_to_artifacts_bundle_DIR with the path to the artifacts bundle directory.
+Ensure that you fetch the distro packages along with other artifacts. Fetching packages directly from
+distro repositories includes the latest security fixes available at machine image build time.
+The system creates an OS bundle using the Kubernetes version defined in ansible/group_vars/all/
+defaults.yaml.
+Load Images For Pre-provisioned Air-Gapped Environments
+Copy and upload required artifacts onto cluster hosts in pre-provisioned air-gapped environments before
+upgrading Cluster API (CAPI) components.
+Configure pre-provisioned hosts by uploading necessary artifacts such as packages, container images,
+and GPU drivers to existing nodes using Nutanix Image Builder. Use this method to configure existing
+machines for Nutanix Kubernetes Platform (NKP) clusters. After uploading artifacts, NKP uses these pre-
+provisioned hosts to form a Kubernetes cluster quickly and consistently, reducing upgrade errors caused
+by OS image and package misconfiguration.
+For detailed instructions on uploading artifacts to pre-provisioned hosts, see Upload artifacts to Pre-
+provisioned Hosts.
+Load Images to Your Private Registry
+Air-gapped environments require loading container images into a local or internal registry mirror before
+creating or upgrading Kubernetes clusters.
+Choose the appropriate registry type based on your environment setup. For more information about air-
+gapped environments and registry types, see Air-Gapped or Non-Air-Gapped Environment on page 24.
+Prerequisites
+Before loading images, verify that the Kubernetes image bundle is present in
+path_to_artifacts_bundle_DIR.
+Load Images to Local Registry
+Use this method when you have a registry server external to your Kubernetes cluster:
+1. Set environment variables with your registry credentials:
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>" 
+export REGISTRY_USERNAME=<username> 
+export REGISTRY_PASSWORD=<password>
+2. Load the image bundles into your external registry:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar,./
+container-images/konvoy-image-bundle-nkp-version.tar,./container-images/nutanix-
+product-catalog-nkp-version-airgapped.tar,./container-images/nkp-release-specs-nkp-
+version.tar 
+--to-registry=$REGISTRY_URL 
+--to-registry-username=$REGISTRY_USERNAME 
+--to-registry-password=$REGISTRY_PASSWORD
+Replace nkp_version with the NKP version at your site. Specify only the required bundle as comma-
+separated values in the --bundle parameter.
+The registry must be accessible from both the bastion virtual machine (VM) and the cluster nodes. For
+more information, see Creating a Bastion Host on page 679.
+Load Images to Internal Registry
+Use this method when you have a registry running within your existing management cluster:
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1014
+
+--- page 1015 ---
+Load the image bundles into your internal registry:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar,./
+container-images/konvoy-image-bundle-nkp-version.tar,./container-images/nutanix-
+product-catalog-nkp-version-airgapped.tar,./container-images/nkp-release-specs-nkp-
+version.tar 
+--to-internal-registry-mirror 
+--kubeconfig=${CLUSTER_NAME}.conf
+Replace nkp_version with the NKP version at your site. Specify only the required bundle as comma-
+separated values in the --bundle parameter.
+Note:
+•
+Pushing images to your registry might take time, depending on network performance between
+the machine running the command and the registry.
+•
+The nutanix-product-catalog-nkp-version-airgapped.tar bundle is only supported on
+Nutanix infrastructure. You must exclude this bundle when deploying on other infrastructure
+providers such as Pre-provisioned, AWS, Azure, vSphere, and GCP.
+•
+The nutanix-product-catalog-nkp-version-airgapped.tar included in the NKP air-
+gapped bundle contains images exclusively for Nutanix Data Services for Kubernetes (NDK).
+You must specify the Nutanix product catalog bundle only if you plan to deploy NDK.
+Converging a Nutanix Kubernetes Platform Cluster Into a Single Prism Project
+Before you upgrade a ClusterClass-based Nutanix cluster from Nutanix Kubernetes Platform (NKP) 2.18 or
+earlier to NKP 2.19, verify that the control plane and all node pools use the same Prism Central project. If
+they do not, converge the cluster into a single project before you upgrade.
+About this task
+NKP 2.19 restores support for running clusters in Prism Central projects. An NKP cluster must use only
+one Prism Central project: either the default project (_internal) or one user-defined project. This project
+applies to the control plane and every worker node pool, including additional node pools that you add later.
+NKP 2.18 or earlier clusters have infrastructure distributed across more than one Prism Central project. For
+example, the control plane might use the default project while one or more worker node pools, including
+GPU node pools, use a user-defined project. This configuration is not supported in NKP 2.19.
+Procedure
+1. Identify whether the control plane and worker node pools of the cluster use the same Prism Central
+project:
+CLUSTER_NAME="my-cluster" \
+CLUSTER_NAMESPACE="kommander" \
+kubectl -n $CLUSTER_NAMESPACE get nkpcluster $CLUSTER_NAME
+ -o json | jq -r '[(.spec.capiCluster.topology.variables[]|
+select(.name=="clusterConfig").value.controlPlane.nutanix.machineDetails.project.name //
+ "Default Project (_internal)"),
+ (.spec.capiCluster.topology.workers.machineDeployments[].variables.overrides[]|
+select(.name=="workerConfig").value.nutanix.machineDetails.project.name // "Default
+ Project (_internal)")] | unique | if length>1 then "Your cluster is deployed on
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1015

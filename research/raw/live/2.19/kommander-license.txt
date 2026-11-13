@@ -1,0 +1,61 @@
+=== license status fields (no JWT) ===
+{
+  "name": "nutanix-license",
+  "spec": {},
+  "status": {
+    "clusterCapacity": 0,
+    "coreCapacity": 0,
+    "customerId": "",
+    "dkpLevel": "Starter",
+    "licenseId": "",
+    "productName": "NKP",
+    "productSKU": "",
+    "valid": true,
+    "version": ""
+  }
+}
+
+=== appManagement / platform version CMs ===
+cert-manager-1.20.3-config-defaults
+cert-manager-gateway-api-crds-kommander-overrides
+cluster-observer-3995310324
+dex-2.14.5-config-defaults
+dex-cluster-overrides
+dex-k8s-authenticator
+dex-k8s-authenticator-1.4.9-config-defaults
+dex-k8s-authenticator-cluster-overrides
+dex-k8s-authenticator-html-templates
+dex-k8s-authenticator-kommander-overrides
+dex-kommander-overrides
+external-secrets-2.7.0-config-defaults
+gatekeeper-3.23.0-config-defaults
+gateway-api-crds-1.11.2-config-defaults
+grafana-dashboards-traefik-459c2f592m
+helm-repository-vars
+kommander-0.19.0-config-defaults
+kommander-appmanagement-0.19.0-config-defaults
+kommander-aws-options
+kommander-azure-options
+kommander-bootstrapper-manifests
+kommander-cluster-options
+kommander-flux-2.8.5-config-defaults
+kommander-kommander-ui-config
+kommander-operator-values
+kommander-overrides
+kommander-ui-17.313.79-config-defaults
+kommander-vars
+kube-oidc-proxy-0.3.8-config-defaults
+kube-oidc-proxy-cluster-overrides
+kube-oidc-proxy-<mgmt-cluster>
+kube-prometheus-stack-mgmt-overrides
+kube-root-ca.crt
+kubefed-0.12.1-config-defaults
+oci-install-config
+reloader-2.2.14-config-defaults
+reloader-meta-info
+runtimeextension-kommander-v1.7.7
+substitution-vars
+traefik-39.0.7-config-defaults
+
+=== kommander-config / platform version ===
+kommander                                kommander-appmanagement-0.19.0-config-defaults              1      3d2h

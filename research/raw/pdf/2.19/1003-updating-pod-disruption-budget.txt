@@ -1,0 +1,42 @@
+
+--- page 1003 ---
+About this task
+Fluent Bit is disabled by default on the management cluster. To view the audit logs, perform the following
+task.
+Procedure
+1. To view the audit logs, run the following command.
+nkp diagnose --kubeconfig={MY_CLUSTER_NAME}.conf
+A file similar to support-bundle-2022-08-15T02_28_48.tar.gz is created.
+2. Untar the file.
+For example:
+tar -xzf support-bundle-2022-08-15T02_28_48.tar.gz
+3. Navigate to the node-diagnostics sub-directory from the extracted file.
+For example:
+cd support-bundle-2022-08-15T02_28_48/node-diagnostics  
+4. To find the audit logs, run the following command.
+$ find . -type f | grep audit.log 
+./ip-10-0-142-117.us-west-2.compute.internal/data/kube_apiserver_audit.log
+./ip-10-0-148-139.us-west-2.compute.internal/data/kube_apiserver_audit.log
+./ip-10-0-128-181.us-west-2.compute.internal/data/kube_apiserver_audit.log
+What to do next
+For information on related topics or procedures, see Fluent bit.
+Updating Pod Disruption Budget
+About this task
+Upgrading a node pool involves draining the existing nodes in the node pool and replacing them with new
+nodes. To ensure minimum downtime and maintain high availability of the critical application workloads
+during the upgrade process, we recommend deploying Pod Disruption Budget (Disruptions) for your critical
+applications. For more information, see https://kubernetes.io/docs/concepts/workloads/pods/disruptions/.
+The Pod Disruption Budget will prevent any impact on critical applications as a result of misconfiguration or
+failures during the upgrade process.
+Before you begin
+•
+Deploy Pod Disruption Budget (PDB). For more information, see https://kubernetes.io/docs/concepts/
+workloads/pods/disruptions/
+•
+Nutanix Image Builder on page 55 (NIB)
+Procedure
+1. Deploy Pod Disruption Budget for your critical applications. If your application can tolerate only one
+replica to be unavailable at a time, then you can set the Pod disruption budget as shown in the following
+example. The example below is for NVIDIA GPU node pools, but the process is the same for all.
+Note:  Repeat this step for each additional node pool
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 1003

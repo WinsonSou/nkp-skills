@@ -1,0 +1,1799 @@
+
+--- page 1101 ---
+catalog:
+  repositories:
+    - name: insights-catalog-applications
+      labels:
+        kommander.nutanix.io/workspace-default-catalog-repository: "true"
+        kommander.nutanix.io/gitapps-gitrepository-type: "nkp"
+      path: ./application-repositories/nkp-insights-v2.5.0.tar.gz
+   
+What to do next
+For more information, see the Install Air-gapped Kommander with NKP Insights in the Nutanix Kubernetes
+Platform Guide.
+Nutanix Kubernetes Platform Insights Alerts
+Nutanix Kubernetes Platform Insights (NKP Insights) alerts help you monitor anomalies across clusters.
+Each alert persists for 72 hours unless they are updated. If the anomaly recurs after expiration, the alert
+reappears automatically.
+Note:  A detected NKP Insights alert persists only for 72 hours. If an existing Insight alert is not updated in
+that period, it expires and is removed from the table. If the anomaly recurs, the Insight alert reappears in the
+table.
+To view and manage the alerts, follow these steps:
+1. Log in to the Nutanix Kubernetes Platform (NKP) user interface.
+By default, the Dashboard displays both management and managed clusters.
+2. In the top-left corner, from the dropdown list, select your target workspace.
+By default, NKP displays Global workspace.
+The Insights tab appears only when you select the workspace as Management Cluster Workspace,
+or Default Workspace or any customised workspace.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1101
+
+--- page 1102 ---
+3. From the left navigation pane, click Insights.
+The Insights page displays the most recent insight alerts and the number of insights for each severity
+level, such as Critical, Warning, and Notices.
+You can filter the NKP Insights alerts as follows:
+•
+In the search box, enter the keywords of the alert description.
+•
+To view the NKP Insights alerts based on their types, from the dropdown list, select the following:
+•
+All types
+•
+Availability
+•
+Best Practices
+•
+Configuration
+•
+Security
+•
+To view the NKP Insights alerts based on their severity, click All, Critical, Warning, or Notices tab.
+•
+To view by status, click the dropdown list next to Muted.
+By default, Open is selected. Muted and Resolved statuses are manually set.
+•
+Select All Clusters or an individual cluster.
+•
+Select All Projects or an individual project.
+To clear filters and reset your view to all NKP Insights items, select Clear All.
+Resolving or Muting Alerts
+About this task
+Warning:  When you resolve an alert, it is impossible to move it back to Open or Muted. Ensure you only
+resolve alerts only when you fix the issue.
+Procedure
+1. Log in to the Nutanix Kubernetes Platform (NKP) user interface.
+By default, the Dashboard displays both management and managed clusters.
+2. In the top-left corner, from the dropdown list, select your target workspace.
+By default, NKP displays Global workspace.
+The Insights tab appears only when you select the workspace as Management Cluster Workspace, or
+Default Workspace or any customised workspace.
+3. From the left navigation pane, click Insights.
+4. From the Insight alert table, filter and check the boxes for the alerts.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1102
+
+--- page 1103 ---
+5. From the top of the Insight Alert table, select:
+•
+Resolved if you have resolved the issues or
+•
+Mute if you want to silence the alert
+Figure 25: Insights Alerts UI
+A confirmation prompt for the status change appears once you resolve or mute an Insight Alert.
+Viewing Resolved or Muted Alerts
+About this task
+Note:  Once you set an alert to Resolved or Muted, it does not appear in the Open Insight alert table.
+To view resolved or muted alerts, perform the following steps:
+Procedure
+1. Log in to the Nutanix Kubernetes Platform (NKP) user interface.
+By default, the Dashboard displays both management and managed clusters.
+2. In the top-left corner, from the dropdown list, select your target workspace.
+By default, NKP displays Global workspace.
+The Insights tab appears only when you select the workspace as Management Cluster Workspace, or
+Default Workspace or any customised workspace.
+3. From the left navigation pane, click Insights.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1103
+
+--- page 1104 ---
+4. From the Insights alert field, select the desired filter from the drop-down list.
+Figure 26: Insights Alerts Filter List
+Insight Alert Usage Tips
+For an Insight Alert you do not want to use, check the box corresponding to that alert and select Mute. This
+only silences the individual Insight Alert. The Insight remains muted if the anomaly recurs, but the Last
+Detected timestamp and description can be updated.
+NKP Insight Alert Details
+From the NKP Insight Alert table, select the Details link to view additional information.
+Apart from the contents of an insight alert summary, the Details page contains two more sections:
+•
+Root Cause Analysis, which contains additional information you may need to understand the cause of
+the anomaly.
+•
+Solutions, which contains recommended steps to resolve the anomaly.
+NKP Insights Alert Notifications With Alertmanager
+NKP Insights supports the configuration of Kube Prometheus Stack’s Alertmanager to send alert
+notifications to environment administrators and users through Slack and Microsoft Teams.
+Note:  You can configure NKP Insights to send notifications to other communication platforms like PagerDuty
+or e-mail. However, we have only included examples for Slack and Microsoft Teams.
+Table 95: Common Questions about Kube Prometheus Stack’s Alertmanager
+Why Should I Send Notifications
+for NKP Insights Alerts?
+Activating this feature eliminates the need to check your cluster’s
+health manually. NKP Insights, combined with Alertmanager, can
+automatically warn users about critical issues. They can then take
+measures to keep your environment healthy and avoid possible
+downtime.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1104
+
+--- page 1105 ---
+How Do NKP Insights and
+Alertmanager Work Together?
+Alertmanager acts as a central component for managing and
+routing alerts. It is available by default in your NKP installation and
+automatically monitors several NKP-defined alerts.
+By enabling NKP Insights to route alerts to Alertmanager, you add
+another source of alerting. In the examples provided in this section,
+you use an AlertmanagerConfig YAML file to enable Alertmanager
+to group and filter NKP Insights alerts according to rules and send
+notifications to a communication platform.
+Note:  You add new configurations by applying the
+#AlertmanagerConfig# example files referenced in this section.
+Existing default or custom Alertmanager configurations remain
+unaffected.
+What Type of Configuration
+Options Are Possible?
+In the AlertmanagerConfig object, you can define the following
+parameters:
+Routes: Routes define which alert types generate notifications and
+which do not. In the provided examples, we configure Alertmanager
+to send notifications for all Critical  and  Warning NKP Insights
+based on Severity.
+Receivers: Receivers define the communication platform where you
+want to receive the notifications. The provided examples show how to
+configure notifications for Slack and Microsoft Teams.
+Message content and format: The receiver configuration also
+defines the display format for the alert message. The examples
+provide message formatting designed for Slack and Microsoft Teams.
+The provided notification examples display all the informational fields
+you can find when looking at an alert in the NKP UI.
+Note:  You can customize the AlertmanagerConfig YAML
+file to include other routes, receivers, or a different message
+formatting. However, this requires advanced knowledge of
+AlertmanagerConfig specifications and Helm and Golang
+templating rules.
+How Do I Enable and Configure
+Alertmanager?
+For more information, see:
+•
+Slack: Send NKP Insights Alert Notifications to a Channel topics
+at Slack: Send Nutanix Kubernetes Platform Insights Alert
+Notification to a Channel.
+•
+For configuration templates, see the Microsoft Teams: Send
+NKP Insights Alert Notifications to a Channel topic at Teams:
+Send Nutanix Kubernetes Platform Insights Alert Notification to a
+Channel
+Slack®: Send Nutanix Kubernetes Platform Insights Alert Notifications to a Channel
+This page contains information on setting up a configuration for Alertmanager to send alert notifications
+through Slack®. See NKP Insights Alert Notifications With Alertmanager on page 1104 for more
+information about this function.
+Important:  Slack® is a trademark and service mark of Slack Technologies, Inc., registered in the U.S. and
+in other countries.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1105
+
+--- page 1106 ---
+Prerequisites
+•
+Kube Prometheus Stack installed on the Management cluster (included in the default configuration)
+•
+A Slack® Incoming Webhook created by a Slack workspace admin. For more information, see https://
+api.slack.com/messaging/webhooks#create_a_webhook.
+•
+Nutanix Kubernetes Platform Insights installed. For more information, see Nutanix Kubernetes Platform
+Insights Setup on page 1087.
+Preparing your Environment
+About this task
+Complete the following steps to prepare your environment:
+Procedure
+1. Set your environment variable to the kommander workspace namespace:
+export WORKSPACE_NAMESPACE=kommander
+2. Set the Slack® Webhook variable to the URL you obtained from Slack® for this purpose: The
+webhook format is similar to https://hooks.slack.com/services/T00000000/B00000000/
+XXXXXXXXXXXXXXXXXXXXXXXX.
+export SLACK_WEBHOOK=<endpoint_URL>
+Enable NKP Insights to Send Notifications with Alertmanager
+About this task
+Create an AlertmanagerConfig object and apply it on the kommander workspace namespace.
+Procedure
+1. Create a secret for the Alertmanager-Slack integration:
+kubectl create secret generic slack-webhook -n ${WORKSPACE_NAMESPACE} \
+  --from-literal=slack-webhook-url=${SLACK_WEBHOOK} \
+  --dry-run=client --save-config -o yaml | kubectl apply -f -
+2. Create the AlertmanagerConfig YAML file and name it alertmanager-slack-config.yaml.
+This example allows Alertmanager to send notifications for all Critical Insights of all alert types that
+occur in any workspace to Slack.
+Warning:  Replace <#target_slack_channel> with the name of the Slack® channel where you want
+to receive the notifications.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: slack-config
+  namespace: kommander
+spec:
+  route:
+    groupBy: ['source', 'insightClass', 'severity', 'cluster']
+    groupWait: 3m
+    groupInterval: 15m
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1106
+
+--- page 1107 ---
+    repeatInterval: 1h
+    receiver: 'slack'
+    routes:
+      - receiver: 'slack'
+        matchers:
+          - name: source
+            value: Insights
+            matchType: =
+          - name: severity
+            value: Critical
+            matchType: =
+        continue: true
+  receivers:
+    - name: 'slack'
+      slackConfigs:
+        - apiURL:
+            name: slack-webhook
+            key: slack-webhook-url
+          channel: '#<target_slack_channel>'
+          username: Insights Slack Notifier
+          iconURL: https://avatars3.githubusercontent.com/u/3380462
+          title: |-
+            {{ .Status | toUpper -}}{{ if eq .Status "firing" }}: {{ .Alerts.Firing
+ | len }} {{- end}} Insights Alert{{ if gt (len .Alerts.Firing) 1 }}s{{ end }}
+ ({{ .CommonLabels.insightClass }})
+          titleLink: 'https://{{ (index .Alerts 0).Annotations.detailsURL }}'
+          text: |-
+            {{- if (index .Alerts 0).Labels.namespace }}
+              {{- "\n" -}}
+              *Namespace:* `{{ (index .Alerts 0).Labels.namespace }}`
+            {{- end }}
+            {{- if (index .Alerts 0).Labels.severity }}
+              {{- "\n" -}}
+              *Severity:* `{{ (index .Alerts 0).Labels.severity }}`
+            {{- end }}
+            {{- if (index .Alerts 0).Labels.cluster }}
+              {{- "\n" -}}
+              *Cluster:* `{{ (index .Alerts 0).Labels.cluster }}`
+            {{- end }}
+            {{- if (index .Alerts 0).Annotations.description }}
+              {{- "\n" -}}
+              *Description:* {{ (index .Alerts 0).Annotations.description }}
+            {{- end }}
+            {{- if (index .Alerts 0).Annotations.categories }}
+              {{- "\n" -}}
+              *Categories:* {{ (index .Alerts 0).Annotations.categories }}
+            {{- end }}
+          actions:
+            - text: 'Go to Insight :mag:'
+              type: button
+              url: 'https://{{ (index .Alerts 0).Annotations.detailsURL }}'
+3. Apply the AlertmanagerConfig file:
+kubectl -n ${WORKSPACE_NAMESPACE} apply -f alertmanager-slack-config.yaml
+Microsoft Teams®: Send NKP Insights Alert Notifications to a Channel
+This page contains information on setting up a configuration for Alertmanager to send alert notifications
+through Microsoft Teams®. See NKP Insights Alert Notifications With Alertmanager on page 1104 for more
+information about this function.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1107
+
+--- page 1108 ---
+Prerequisites
+•
+Kube Prometheus Stack installed on the Management cluster (included in the default configuration)
+•
+A Microsoft Teams® Incoming Webhook. For more information, see https://learn.microsoft.com/en-us/
+microsoftteams/platform/webhooks-and-connectors/how-to/add-incoming-webhook?tabs=newteams
+%2Cdotnet.
+•
+Nutanix Kubernetes Platform Insights installed. For more information, see Nutanix Kubernetes Platform
+Insights Setup on page 1087.
+Preparing your Environment
+About this task
+Complete the following steps to prepare your environment:
+Procedure
+1. Set your environment variable to the kommander workspace namespace.
+export WORKSPACE_NAMESPACE=kommander
+2. Set the Microsoft Teams Webhook variable to the URL you obtained from Microsoft Teams® for this
+purpose: The webhook format is similar to: https://xxxx.webhook.office.com/xxxxxxxxx.
+export TEAMS_WEBHOOK=<endpoint_URL>
+Enabling NKP Insights to Send Notifications with Alertmanager
+About this task
+About this task
+Install an extension for Kube Prometheus Stack that adds compatibility with Microsoft Teams®. Then,
+create an
+AlertmanagerConfig object and apply it to the kommander workspace namespace.
+Procedure
+1. Add the following repository to enable Microsoft Teams® configuration:
+helm repo add prometheus-msteams https://prometheus-msteams.github.io/prometheus-
+msteams/
+2. Create a custom configuration of Kube Prometheus Stack, and name it teams-proxy-config.yaml
+Replace <teams_webhook_URL> with the webhook you obtained from Microsoft Teams®. The format is
+similar to https://xxxxx.webhook.office.com/xxxxxxxxx.
+replicaCount: 1
+image:
+  repository: quay.io/prometheusmsteams/prometheus-msteams
+  tag: v1.5.1
+connectors:
+  - alertmanager: <teams_webhook_URL>
+container:
+  additionalArgs:
+    - -debug
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1108
+
+--- page 1109 ---
+metrics:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: kube-prometheus-stack-prometheus
+    scrapeInterval: 30s
+3. Create a custom display format for your message in Microsoft Teams® message, and name the file
+custom-card.tmpl:
+{{ define "teams.card" }}
+{
+  "@type": "MessageCard",
+  "@context": "http://schema.org/extensions",
+  "themeColor": "{{- if eq .Status "resolved" -}}2DC72D
+                 {{- else if eq .Status "Firing" -}}
+                    {{- if eq .CommonLabels.severity "Critical" -}}8C1A1A
+                    {{- else if eq .CommonLabels.severity "Warning" -}}FFA500
+                    {{- else -}}808080{{- end -}}
+                 {{- else -}}808080{{- end -}}",
+  "summary": "{{- if eq .CommonAnnotations.description "" -}}
+                  {{- if eq .CommonLabels.insightClass "" -}}
+                    {{- if eq .CommonLabels.alertname "" -}}
+                      Prometheus Alert
+                    {{- else -}}
+                      {{- .CommonLabels.alertname -}}
+                    {{- end -}}
+                  {{- else -}}
+                    {{- .CommonLabels.insightClass -}}
+                  {{- end -}}
+              {{- else -}}
+                  {{- .CommonAnnotations.description -}}
+              {{- end -}}",
+  "title": "{{ .Status | toUpper -}}{{ if eq .Status "firing" }}: {{ .Alerts.Firing
+ | len }} {{- end}} Insights Alert{{ if gt (len .Alerts.Firing) 1 }}s{{ end }}
+ ({{ .CommonLabels.insightClass }})",
+  "sections": [ {{$externalUrl := (index .Alerts 0).Annotations.detailsURL }}
+    {
+      "activityTitle": "[{{ (index .Alerts 0).Annotations.description }}]
+({{ $externalUrl }})",
+      "facts": [
+        {{- if (index .Alerts 0).Labels.namespace }}
+        {
+          "name": "Namespace:",
+          "value": "{{ (index .Alerts 0).Labels.namespace }}"
+        },
+        {{- end }}
+        {{- if (index .Alerts 0).Labels.severity }}
+        {
+          "name": "Severity:",
+          "value": "{{ (index .Alerts 0).Labels.severity }}"
+        },
+        {{- end }}
+        {{- if (index .Alerts 0).Labels.cluster }}
+        {
+          "name": "Cluster:",
+          "value": "{{ (index .Alerts 0).Labels.cluster }}"
+        },
+        {{- end }}
+        {{- if (index .Alerts 0).Annotations.categories }}
+        {
+          "name": "Categories:",
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1109
+
+--- page 1110 ---
+          "value": "{{ (index .Alerts 0).Annotations.categories }}"
+        }
+        {{- end }}
+      ],
+      "markdown": true
+    }
+  ]
+}
+{{ end }}
+4. Upgrade the Helm values to apply the configuration in Step 4.
+helm upgrade --install prometheus-msteams \
+  --namespace ${WORKSPACE_NAMESPACE} -f teams-proxy-config.yaml \
+  --set-file customCardTemplate=custom-card.tmpl \
+  prometheus-msteams/prometheus-msteams
+5. Create the AlertmanagerConfig YAML file and name it alertmanager-teams-config.yaml.
+This example allows Alertmanager to send notifications for all Critical alerts of all alert types that occur
+in any workspace to Microsoft Teams®.
+apiVersion: monitoring.coreos.com/v1alpha1
+kind: AlertmanagerConfig
+metadata:
+  name: alertmanager-teams-config.yaml
+  namespace: kommander
+spec:
+  route:
+    groupBy: ['source', 'insightClass', 'severity', 'cluster']
+    groupWait: 3m
+    groupInterval: 15m
+    repeatInterval: 1h
+    receiver: 'default'
+    routes:
+      - receiver: 'teams'
+        matchers:
+          - name: source
+            value: Insights
+            matchType: =
+          - name: severity
+            value: Critical
+            matchType: =
+        continue: true
+  receivers:
+    - name: 'default'
+    - name: 'teams'
+      webhookConfigs:
+        - url: 'http://prometheus-msteams:2000/alertmanager'
+6. Apply the AlertmanagerConfig file:
+kubectl -n ${WORKSPACE_NAMESPACE} apply -f alertmanager-teams-config.yaml
+Verifying that Alertmanager Sends Notifications
+Verify the configuration to ensure that alerts are correctly routed to your communication platform and the
+notifications reach the intended recipients.
+This section consists of the following topics :
+•
+Prerequisites to enable an Alertmanager configuration for Slack® or Microsoft Teams®.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1110
+
+--- page 1111 ---
+•
+Steps for Sending a TestAlert
+•
+Troubleshooting steps for Verifying Alertmanager Notification
+Prerequisite
+As a prerequisite, you enable an Alertmanager configuration for Slack® or Microsoft Teams®.
+This setup supports Alertmanager to forward alerts directly to the selected collaboration platform. Having
+this configuration in place ensures that notifications are delivered correctly, supports faster incident
+response, and provides visibility into cluster health and operational issues.
+You have enabled an Alertmanager configuration for Slack® or Microsoft Teams®:
+•
+Slack®: Send Nutanix Kubernetes Platform Insights Alert Notifications to a Channel on page 1105
+•
+Microsoft Teams®: Send NKP Insights Alert Notifications to a Channel on page 1107
+Sending a Test Alert
+About this task
+Trigger a mock Nutanix Kubernetes Platform Insights alert to confirm the successful configuration.
+Procedure
+1. Open a local port for the Alertmanager mock alert:
+kubectl -n kommander port-forward svc/kube-prometheus-stack-alertmanager 8083:9093
+2. In another terminal session, send a mock alert to the open port:
+curl -L 'http://localhost:8083/api/v2/alerts' \
+-H 'Content-Type: application/json' \
+-H 'Accept: application/json' \
+-d \
+'[{
+    "labels": 
+    {
+        "alertname": "Test Insight Alert",
+        "namespace": "kommander",
+        "status": "Open",
+        "source": "Insights",
+        "severity": "Critical",
+        "cluster": "Kommander Host (Test)"
+    },
+    "annotations":
+    {
+        "description": "This is a mock Insight for testing",
+        "generatorURL": "https://test-endpoint.com",
+        "categories": "Best-Practices, Configuration"
+    }
+}]'
+This sends a Critical mock Insights alert to Alertmanager, which triggers sending a notification to the
+configured communication platform.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1111
+
+--- page 1112 ---
+Troubleshooting
+This chapter provides troubleshooting guidance to verify that Alertmanager sends notifications
+successfully.
+This section describes how to check the Alertmanager dashboard for notification status and how to
+review the Alertmanager log files for detailed error information. Following these steps helps ensure that
+Alertmanager operates properly and delivers alerts without delay or interruption.
+Following are the ways of troubleshooting :
+•
+Verifying the Alertmanager Dashboard
+•
+Verifying the Alertmanager Log Files
+Verifying the Alertmanager Dashboard
+About this task
+Verify if Nutanix Kubernetes Platform Insights (NKP Insights) alerts are displayed in the Alertmanager
+Dashboard.
+If you can see NKP Insights alerts present, the NKP Insights-Alertmanager route is configured successfully.
+Note:  You can recognize NKP Insights alerts from other default NKP alerts because the alert severity tags
+are capitalized. For example, an NKP Insights alert is Critical, whereas other non-Insights alerts are
+critical.
+Procedure
+1. Access the NKP UI.
+2. Select Management Cluster Workspace.
+3. Select Application Dashboards, and look for the Prometheus Alert Manager application card.
+4. Select Dashboard to open the Alertmanager console.
+Verifying the Alertmanager Log Files
+About this task
+If Slack® does not display any Alert messages, but you can see NKP Insights alerts in the Alertmanager
+console, perform the following task:
+Procedure
+Verify the deployment logs using the command.
+kubectl -n kommander logs alertmanager-kube-prometheus-stack-alertmanager-0
+If the output is blank, the configuration has been successful. The output displays errors if the deployment
+has failed.
+Enable NKP-Related Insights Alerts
+By default, NKP Insights analyzes your environment and focuses on troubleshooting issues related to your
+organization’s workloads. This default configuration provides a baseline or reference point that you can use
+to start deploying workloads and observe the alerts they may cause.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1112
+
+--- page 1113 ---
+However, to ensure compliance with CVE databases or monitor NKP resources and your workload
+resources, you can allow NKP Insights to analyze and create alerts for underlying NKP resources and
+Kubernetes components.
+You can do so by enabling customization of NKP Insights per workspace.
+Note:  NKP Insights displays alerts related to DiskFull and PVCFull, regardless of whether they are
+rooted in your environment’s underlying NKP resources, Kubernetes resources, or one of your production
+workloads. Ensure you have allocated sufficient disk capacity and have assigned adequate storage in your
+PVC objects to allow your environment to run uninterruptedly and ensure no data is lost.
+Navigating to your NKP Insights Configuration Service
+About this task
+To customize an Nutanix Kubernetes Platform Insights (NKP Insights) Installation on a per-workspace
+basis:
+Procedure
+1. Log in to your NKP UI.
+2. Select the target workspace from the top navigation bar.
+3. Select Applications from the sidebar and search for NKP Insights.
+4. Select the three-dot menu in the application card, and Edit > Configuration.
+Adding a Custom Configuration to Receive NKP Alerts
+About this task
+To enable NKP-related Insight alerts, complete the following task:
+Procedure
+1. Copy the following customization and paste it into the code editor:
+backend:
+  engineConfig:
+    nkpIdentification:
+       enabled: false
+2. Select Save and exit.
+3. Repeat the configuration steps included in this page for each workspace.
+Making NKP Insights Treat Components of a Non-default Kommander Application as Part of NKP
+Add an identification rule to make NKP Insights treat an AppDeployment as part of NKP.
+About this task
+Properties of a generated Insight Alert, such as the description, severity, and content of the Details page,
+depend on whether NKP Insights treats the affected Kubernetes resource as an NKP component.
+Typically, Insights identifies instances of Platform and Default Ultimate Catalog Applications using default
+AppDeployment names as parts of NKP and treats Kubernetes resources that belong to this application
+as NKP components. (A default AppDeployment name is the one that coincides with an App ID of an App/
+ClusterApp; for example, a default AppDeployment name of a ClusterApp named “kube-prometheus-
+stack-0.46.8” is “kube-prometheus-stack.”). For more information, see Platform Applications on page 294.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1113
+
+--- page 1114 ---
+To make NKP Insights treat as part of NKP an AppDeployment with a name that is not present among the
+default names, Add an identification rule to configuration overrides of the NKP Insights application that runs
+in the workspace of that AppDeployment.
+Procedure
+Replace APPDEPLOYMENT_NAME value in the nameRegexp field with the name of the AppDeployment.
+The following example shows a configuration override that assumes you don’t have other
+configuration overrides set for the NKP Insights app. The rule named Kustomization-custom-
+app-APPDEPLOYMENT_NAME instructs NKP Insights running on clusters in this workspace
+to treat any Kubernetes resources directly or indirectly owned by a Flux Kustomization named
+APPDEPLOYMENT_NAME on an attached cluster as components of an NKP application, and adjust
+properties and content of generated Insight Alerts accordingly.
+backend:
+  engineConfig:
+    nkpIdentification:
+      appRoots:
+        Kustomization-custom-app-APPDEPLOYMENT_NAME:
+          groupKind:
+            group: kustomize.toolkit.fluxcd.io
+            kind: Kustomization
+          nameRegexp: APPDEPLOYMENT_NAME
+Configuration Anomalies
+In Kubernetes, a class of problems arises from incorrect or insufficient configuration in workload and
+Kubernetes cluster deployments. We refer to them as configuration anomalies.
+We integrated third-party open-source components into the Nutanix Kubernetes Platform Insights(NKP
+Insights) Engine that handles specific classes of configuration anomalies:
+Polaris
+Polaris by Fairwinds is an open-source project that identifies Kubernetes deployment configuration errors.
+Polaris runs over a dozen checks to help users discover Kubernetes misconfigurations that frequently
+cause security vulnerabilities, outages, scaling limitations, and more. Using Polaris, you can avoid
+problems and ensure you’re using Kubernetes best practices.
+Polaris checks configurations against a set of best practices for workloads and Kubernetes cluster
+deployments, such as:
+•
+Health Checks
+•
+Images
+•
+Networking
+•
+Resources
+•
+Security
+It informs you about potential problems in configurations through insight alerts.
+To see which Polaris version is included in this release, see Nutanix Kubernetes Platform Insights (NKP
+Insights) Release Notes on the Nutanix Support Portal.
+Enabling or Disabling Polaris Insights
+About this task
+To enable or disable Polaris insights, complete the following task:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1114
+
+--- page 1115 ---
+Procedure
+1. Edit the Service configuration with the following values:
+polaris:
+  enabled: true
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Changing the Frequency of Polaris Audit Scans
+About this task
+To change the default scan frequency, perform the following task:
+Procedure
+1. Polaris Audits run by default every 37 minutes and use Cron syntax. You can change the default by
+editing the Service configuration with the following values:
+polaris:
+  schedule: "@every 37m"
+Note:  For more information on Cron syntax, see https://kubernetes.io/docs/concepts/workloads/
+controllers/cron-jobs/#cron-schedule-syntax.
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Modifying Severities of Polaris Insights
+About this task
+Polaris Audit specifies a default severity for each of these types:
+•
+Security:https://polaris.docs.fairwinds.com/checks/security/
+•
+Efficiency: https://polaris.docs.fairwinds.com/checks/efficiency/
+•
+Reliability: https://polaris.docs.fairwinds.com/checks/reliability/
+Procedure
+1. You can change these defaults by modifying the Service configuration with the following values:
+polaris:
+  config:
+    # See https://github.com/FairwindsOps/polaris/blob/master/examples/config.yaml
+    checks:
+      # reliability
+      deploymentMissingReplicas: warning
+      priorityClassNotSet: ignore
+      tagNotSpecified: danger
+      pullPolicyNotAlways: warning
+      readinessProbeMissing: warning
+      livenessProbeMissing: warning
+      metadataAndNameMismatched: ignore
+      pdbDisruptionsIsZero: warning
+      missingPodDisruptionBudget: ignore
+      # efficiency
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1115
+
+--- page 1116 ---
+      cpuRequestsMissing: warning
+      cpuLimitsMissing: warning
+      memoryRequestsMissing: warning
+      memoryLimitsMissing: warning
+      # security
+      hostIPCSet: danger
+      hostPIDSet: danger
+      notReadOnlyRootFilesystem: warning
+      privilegeEscalationAllowed: danger
+      runAsRootAllowed: danger
+      runAsPrivileged: danger
+      dangerousCapabilities: danger
+      insecureCapabilities: warning
+      hostNetworkSet: danger
+      hostPortSet: warning
+      tlsSettingsMissing: warning
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Note:  When you mark a Polaris Audit Insight alert as Not-Useful, newly generated alerts are set to the
+lowest Notice severity.
+Adding Exemptions to Polaris Insights
+About this task
+You can exclude a particular workload from a Polaris Audit via its Exemptions. This example shows how to
+exempt the workload dummy-deployment, which currently has an issue where CPU Limits are Missing.
+Procedure
+1. Change the exceptions list by modifying the Service configuration with the following values:
+polaris:
+  config:
+    exemptions:
+      - controllerNames:
+          - dummy-deployment
+        rules:
+          - cpuLimitsMissing
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Pluto
+Pluto by Fairwinds is a tool that scans Live Helm releases running in your cluster for deprecated
+Kubernetes API versions. It sends an alert about deprecated apiVersions deployed in your Helm
+releases.
+In Nutanix Kubernetes Platform Insights (NKP Insights), Pluto scans Live Helm releases running in your
+cluster for deprecated API versions and sends an alert about any deprecated apiVersions deployed in
+your Helm releases.
+To know which Pluto version is included in this release, see NKP Insights Release Notes on the Nutanix
+Support Portal.
+For more information on Pluto, see https://pluto.docs.fairwinds.com/.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1116
+
+--- page 1117 ---
+Enabling or Disabling Pluto Insights
+Procedure
+1. Enable or disable Helm release scanning with Pluto Insights by editing the Service configuration with
+the following values:
+pluto:
+  enabled: true
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Changing the Frequency of Pluto Scans
+About this task
+To change the default scan frequency, perform the following task:
+Procedure
+1. Pluto scans run by default every 41 minutes and uses Cron syntax. You can change the default by
+editing the values of the Service configuration:
+pluto:
+  schedule: "@every 41m"
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Severities of Pluto Insights
+Table 96: Pluto Alert Severities
+Pluto Result
+Insights Alert Level
+Meaning
+Deprecated
+Warning
+Kubernetes API is scheduled to be removed in a
+future version of Kubernetes.
+Removed
+Critical
+Kubernetes API has been removed in the current
+running version of Kubernetes.
+For more information, see Pluto’s official documentation at https://pluto.docs.fairwinds.com/ information.
+Nova
+Nova by Fairwinds adds the ability for the Insights engine to check the helm chart version of the
+current workload deployment. It scans the latest helm chart version available from the configured Helm
+repositories and then sends a structural Insight alert if there is an issue. The alert details show an RCA and
+a solution to resolve the problem.
+To know which Nova version is included in this release, see Nutanix Kubernetes Platform Insights (NKP
+Insights) Release Notes on the Nutanix Support Portal.
+For more information on Nova, see https://nova.docs.fairwinds.com/.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1117
+
+--- page 1118 ---
+Enabling or Disabling Nova Insight
+About this task
+Edit the Service configuration:
+Procedure
+1. Set the nova.enabled value to true
+2. Set the helmRepositoryURLs to the URLs for the Helm repositories used by your workloads where you
+want Helm chart versions to be scanned.
+nova:
+  enabled: true
+  helmRepositoryURLs:                                                       
+  - https://charts.bitnami.com/bitnami/
+  - https://charts.jetstack.io
+3. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Changing the Frequency of Nova Scans
+About this task
+To change the default scan frequency, perform the following task:
+Procedure
+1. Nova runs every 37 minutes by default and uses the Cron syntax. You can change the default by editing
+the Service configuration with the following values:
+nova:
+  schedule: "@every 34m"
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Trivy
+Warning:  The Trivy function is disabled in the default configuration of Nutanix Kubernetes Platform Insights
+(NKP Insights). You must enable it in the service configuration to utilise the functionality of Trivy.
+Trivy is an open-source vulnerability and misconfiguration scanner that detects vulnerabilities in:
+•
+Container images
+•
+Rootfs
+•
+Filesystems
+The current and later versions of NKP Insights support the CVE scanning functionality for customer-
+deployed managed clusters and deployments.
+CVE or CIS databases are updated every couple of hours. When enabled, the CVE scanning feature scans
+these databases and runs an analysis against your workloads to flag any potential security issues.
+To know which Trivy version is included in this release, see NKP Insights Release Notes on the Nutanix
+Support Portal.
+For more information on Trivy, see Vulnerability Scanning.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1118
+
+--- page 1119 ---
+Enabling or Disabling Trivy Insights
+About this task
+Enable or disable CVE scanning with Trivy Insights by completing this task.
+Procedure
+1. Edit the Service configuration with the following values:
+trivy:
+  enabled: true
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Changing the Frequency of Trivy CVE Scans
+About this task
+To change the default scan frequency, perform the following task:
+Procedure
+1. Trivy scans run by default every 2 hours and uses Cron syntax. You can change the default by editing
+the values of the Service configuration:
+trivy:
+  schedule: "@every 2h"
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Severities of Trivy Insights
+Table 97: Trivy Alert Severities
+Trivy Severity Leve
+Insights Alert Level
+Example (depends on the categorization of the
+source database)
+CRITICAL
+Critical
+Denial of crucial service
+HIGH
+MEDIUM
+Warning
+Exposure of information to an unauthorized user
+LOW
+UNKNOWN
+Notice
+Insufficient validation
+Trivy Database Update in Air-Gapped and Non-Air-Gapped Environments
+All Trivy versions include databases that are updated regularly.
+In non-air-gapped environments, NKP Insights automatically updates the Trivy database before each
+scheduled run (every two hours, by default) to support the latest security updates.
+In air-gapped environments, NKP Insights uses the Trivy database bundled with the NKP release, but you
+can manually update this database as required.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1119
+
+--- page 1120 ---
+This section shows you how to update the Trivy databases manually in your air-gapped environments.
+Prerequisites for Trivy Database
+This topic mentions the prerequisites for Trivy Database Update in Air-Gapped and Non-Air-Gapped
+Environments.
+Following are the prerequisites for updating the Trivy database in both air-gapped and non-air-gapped
+environments. Reviewing these prerequisites ensures that the update process runs smoothly and
+completes without errors.
+•
+For installing Git, see Getting Started - Installing Git.
+•
+For installing Docker, see Install Docker Engine.
+•
+If you want to enable or disable Trivy, see Enabling or Disabling Trivy Insights on page 1119.
+Verifying the Trivy Version
+About this task
+Procedure
+Obtain the currently used Trivy version:
+kubectl get cronjob -n <workspace_namespace> nkp-insights-trivy -o
+ jsonpath='{.spec.jobTemplate.spec.template.spec.initContainers[?
+(@.name=="trivy")].image}' | cut -d ":" -f 2
+The output displays the Trivy version, followed by the database timestamp.
+In the example output, the Trivy version is 0.42.1 , and the database timestamp is 20230816T060333Z.
+0.42.1-20230816T060333Z
+Creating a Bundle with the New Trivy Database
+About this task
+Create an air-gapped Trivy bundle from the trivy-bundles public repository. For more information about
+trivy-bundles, see https://github.com/mesosphere/trivy-bundles.
+Starting on an internet-connected machine:
+Procedure
+1. Clone the NKP Insights - Trivy Bundles repository to your local machine using the command git clone
+https://github.com/mesosphere/trivy-bundles.git
+2. Specify the Trivy Version included in this version of NKP Insights using the command.
+export TRIVY_VERSION=<trivy-version>
+3. Build the air-gapped bundle using the command.
+make create-airgapped-image-bundle
+In this example output, the bundle is called trivy-bundles-0.42.1-20230908T185308Z.tar.gz.
+Executing target: install-mindthegap
+Executing target: latest_image_tag
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1120
+
+--- page 1121 ---
+[+] Building 7.3s (10/10) FINISHED                                                   
+                                                                                     
+                                                    docker:default
+ => [internal] load build definition from Dockerfile                                 
+                                                                                     
+                                                              0.0s
+ => => transferring dockerfile: 534B                                                 
+                                                                                     
+                                                              0.0s
+ => [internal] load .dockerignore                                                    
+                                                                                     
+                                                              0.0s
+ => => transferring context: 2B                                                      
+                                                                                     
+                                                              0.0s
+ => [internal] load metadata for docker.io/aquasec/trivy:0.42.1                      
+                                                                                     
+                                                              0.3s
+ => [1/7] FROM docker.io/aquasec/
+trivy:0.42.1@sha256:49a0b08589b7577f3e21a7d479284c69dc4d27cbb86bd07ad36773f075581313 
+                                                                                     
+                             0.0s
+ => CACHED [2/7] RUN mkdir /trivy_cache                                              
+                                                                                     
+                                                              0.0s
+ => CACHED [3/7] RUN chown 65532:65532 /trivy_cache                                  
+                                                                                     
+                                                              0.0s
+ => [4/7] RUN echo 20230908T185308Z                                                  
+                                                                                     
+                                                              0.3s
+ => [5/7] RUN trivy image --download-db-only --cache-dir /trivy_cache                
+                                                                                     
+                                                              4.5s
+ => [6/7] RUN ls -Rl /trivy_cache                                                    
+                                                                                     
+                                                              0.3s
+ => exporting to image                                                               
+                                                                                     
+                                                              1.8s 
+ => => exporting layers                                                              
+                                                                                     
+                                                              1.8s 
+ => => writing image
+ sha256:62f71725212e5b680a3cef771bcb312e931e05445c50632fa4495e216793c9cf             
+                                                                                     
+                                          0.0s 
+ => => naming to docker.io/mesosphere/trivy-bundles:0.42.1-20230908T185308Z          
+                                                                                     
+                                                              0.0s 
+Executing target: create-airgapped-image-bundle                                      
+                                                                                     
+                                                                   
+ # Checking if output file already exists
+ # Parsing image bundle config
+ # Creating temporary directory
+ # Starting temporary Docker registry
+ # Pulling requested images [====================================>1/1] (time elapsed
+ 23s) 
+ # Archiving images to trivy-bundles-0.42.1-20230908T185308Z.tar.gz
+4. Transfer the created bundle to the air-gapped bastion host or node you used to install NKP.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1121
+
+--- page 1122 ---
+Uploading the Bundle to your Air-Gapped Environment
+About this task
+The air-gapped bundle can now be uploaded to the private registry.
+Procedure
+1. Go to the air-gapped bastion host or node you used for installing NKP.
+2. Export the environment variables for your registry.
+For more information, see the Local Registry.
+export REGISTRY_ADDRESS=<registry-address>:<registry-port>
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+3. Run the following command to load the air-gapped Trivy bundle into your private registry:
+nkp push bundle --bundle <trivy-bundle-name.tar.gz> --to-registry $REGISTRY_ADDRESS
+ --to-registry-username $REGISTRY_USERNAME --to-registry-password $REGISTRY_PASSWORD
+Replace <trivy-bundle-name.tar.gz> with the name of the bundle you created in the previous
+section.
+4. Update NKP Insights in the air-gapped environment to use the refreshed database. Edit the service
+configuration on each workspace by providing the path to the Docker image.
+To modify an existing installation, select Workspace, Applications, NKP-Insights, and then Edit.
+Replace <docker-image-name> with the path to the Docker image. It looks similar to docker.io/
+mesosphere/trivy-bundles:0.42.1-20230908T185308Z
+trivy:
+  enabled: true
+  image:
+    imageFull: <docker-image-path>
+Verify the Database
+This section explains how to verify the Trivy database after Insights completes deployment.
+You check the Trivy database version in Verifying the Trivy Version on page 1120 to confirm that
+the configuration deploys correctly. Verifying the database ensures that updates apply successfully,
+vulnerability definitions remain current, and the system performs accurate and reliable security scanning.
+Kube-bench
+Kube-bench by Aqua Security is a tool that verifies that Kubernetes clusters run securely. This tool checks
+against the best practices and guidelines specified in the CIS Kubernetes Benchmark developed by
+the Center for Internet Security to ensure that your clusters comply with the latest security configuration
+standards.
+Whenever a standard is not met during a scan, an Insights alert is created with comprehensive information.
+For more information about this application, refer to the official documentation from Kube-bench.
+Kube-bench adds the ability to ensure that Kubernetes clusters run securely. This tool checks against the
+best practices and guidelines specified in the CIS Kubernetes Benchmark.
+Whenever a security standard is not met during a scan, an Insights alert is created with comprehensive
+information.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1122
+
+--- page 1123 ---
+To know which Kube-bench version is included in this release, see Nutanix Kubernetes Platform Insights
+(NKP Insights) Release Notes on the Nutanix Support Portal.
+For more information on Kube-bench, see https://www.aquasec.com/products/kubernetes-security/ and
+https://aquasecurity.github.io/kube-bench/v0.6.12/. For more information on the Center for Internet Security,
+see https://www.cisecurity.org/.
+Enabling or Disabling Kube-bench
+About this task
+Kube-bench is enabled by default, but you can disable it anytime.
+Procedure
+1. Edit the Service configuration with the following values:
+kubeBench:
+  enabled: true
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Changing the frequency of Kube-bench Scans
+About this task
+To change the default scan frequency, perform the following task:
+Procedure
+1. Kube-bench scans run by default every 35 minutes and uses Cron syntax. You can change the default
+by editing the Service configuration with the following values:
+kubeBench:
+  schedule: "@every 35m"
+Note:  For more information on Cron syntax, see https://kubernetes.io/docs/concepts/workloads/
+controllers/cron-jobs/#cron-schedule-syntax.
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Changing CIS Benchmark Version
+About this task
+By default, Kube-bench attempts to auto-detect the running version of Kubernetes and map this to
+the corresponding CIS Benchmark version. For example, Kubernetes version 1.15 is mapped to CIS
+Benchmark version cis-1.15 , the benchmark version valid for Kubernetes 1.15. For an existing or a new
+configuration instance,
+Procedure
+1. You can change this default behavior and define a CIS benchmark version to check against, editing the
+service configuration with the following values:
+The example configuration configures Kube-bench to check against the cis-1.15 regardless of the
+Kubernetes version.
+kubeBench:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1123
+
+--- page 1124 ---
+  config:
+    instances:
+      defaultSetup:
+        additionalArgs: ["--version", "cis-1.15"]
+2. To modify an installation, select Workspace > Applications > NKP-Insights > Edit.
+Severity Levels
+Kube-bench validation runs only have three possible outcomes:
+•
+If the validation runs correctly and does not detect any anomalies, no Insight is created.
+•
+If the validation runs and fails due to a detected anomaly, an Insight is created with the alert level
+Warning.
+•
+If the validation check cannot run or is incomplete, an Insight is created with the alert level Warning.
+Known Issues and Mitigations
+kube-bench analyses security-related aspects of your cluster and creates alerts when your Kubernetes
+cluster is not compliant with the best practices established in the CIS benchmark.
+Some issue alerts relate to cluster elements created with Konvoy, NKP’s provisioning tool.
+For customers who require CIS Benchmark compliance, this page provides an overview of how to mitigate
+these known alerts, or provide an explanation of why it is not feasible to address the issue.
+•
+For issues that can be mitigated, create patch files with the mitigations, then create a cluster
+kustomization that references these patch files, and, lastly, create a new cluster based on the
+kustomization file as shown in Mitigate Issues by Creating Custom Clusters on page 1124.
+•
+For issues that cannot be mitigated, see the List of CIS Benchmark Explanations on page 1133.
+Mitigate Issues by Creating Custom Clusters
+For issues that can be mitigated, create patch files with the mitigations, then create a cluster kustomization
+that references these patch files, and, lastly, create a new cluster based on the kustomization file
+Creating Patch Files with CIS Benchmark Mitigations
+About this task
+Note:  All files you create in this and the following sections must be present in the same directory.
+Warning:  You cannot perform this procedure for Nutanix AHV NKP clusters.
+Procedure
+1. Establish a name for the cluster you will create by setting the CLUSTER_NAME environment variable:
+Replace the placeholder <name_of_the_cluster> with the actual name you want to use.
+export CLUSTER_NAME=<name_of_the_cluster>
+2. Create CIS patch files for the issues you want to mitigate. These are the issues that you can mitigate:
+CIS 1.2.5
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1124
+
+--- page 1125 ---
+ID
+Text
+Remediation
+1.2.5
+Ensure that the --kubelet-
+certificate-authority
+argument is set as appropriate
+(Automated).
+Follow the Kubernetes documentation and setup
+the TLS connection between the apiserver and
+kubelets. Then, edit the API server pod specification
+file $apiserverconf on the control plane node
+and set the --kubelet-certificate-authority
+parameter to the path to the cert file for the
+certificate authority.--kubelet-certificate-
+authority=<ca-string>.
+NKP Explanation
+The --kubelet-certificate-authority flag needs to be set on each API Server after the cluster has
+been fully provisioned, adding it earlier causes issues with the creation and adding of worker nodes via
+CAPI and kubeadm.
+CIS 1.2.12
+ID
+Text
+Remediation
+1.2.12
+Ensure that the admission control
+plugin AlwaysPullImages is set
+(Manual).
+Edit the API server pod specification file
+$apiserverconf on the control plane node and
+set the --enable-admission-plugins parameter to
+include AlwaysPullImages:--enable-admission-
+plugins=...,AlwaysPullImages,...
+NKP Mitigation
+Create a file called cis-1.2.12-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.2.12-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          enable-admission-plugins: "AlwaysPullImages"
+EOF
+CIS 1.2.15
+ID
+Text
+Remediation
+1.2.15
+Ensure that the --profiling
+argument is set to false
+(Automated).
+Edit the API server pod specification file
+$apiserverconf on the control plane node and set
+the parameter:--profiling=false
+NKP Mitigation
+Create a file called cis-1.2.16-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.2.16-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1125
+
+--- page 1126 ---
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          profiling: "false"
+EOF
+CIS 1.2.18
+ID
+Text
+Remediation
+1.2.18
+Ensure that the --profiling
+argument is set to false
+(Automated).
+Edit the API server pod specification file
+$apiserverconf on the control plane node and set
+the below parameter:--profiling=false
+NKP Mitigation
+Create a file called cis-1.2.18-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.2.18-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          profiling: "false"
+EOF
+CIS 1.2.32
+ID
+Text
+Remediation
+1.2.32
+Ensure that the API Server
+only makes use of Strong
+Cryptographic Ciphers (Manual)
+Edit the API server pod specification file /etc/
+kubernetes/manifests/kube-apiserver.yaml
+on the control plane node and set the below
+parameter.
+--tls-cipher-
+suites=TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA
+TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,TLS
+NKP Mitigation
+Create a file called cis-1.2.32-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.2.32-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1126
+
+--- page 1127 ---
+        extraArgs:
+          tls-cipher-suites:
+ "TLS_AES_128_GCM_SHA256,TLS_AES_256_GCM_SHA384,TLS_CHACHA20_POLY1305_SHA256,TLS_ECDHE_ECDSA_WITH_A
+EOF
+CIS 1.3.1
+ID
+Text
+Remediation
+1.3.1
+Ensure that the --terminated-pod-
+gc-threshold argument is set as
+appropriate (Manual).
+Edit the Controller Manager pod specification file
+$controllermanagerconf on the control plane node
+and set the --terminated-pod-gc-threshold to an
+appropriate threshold, for example:--terminated-
+pod-gc-threshold=10
+NKP Mitigation
+Create a file called cis-1.3.1-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.3.1-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      controllerManager:
+        extraArgs:
+          terminated-pod-gc-threshold: "12500"
+EOF
+CIS 1.3.2
+ID
+Text
+Remediation
+1.3.2
+Ensure that the --profiling
+argument is set to false
+(Automated).
+Edit the Controller Manager pod specification file
+$controllermanagerconf on the control plane node
+and set the below parameter:--profiling=false
+NKP Mitigation
+Create a file called cis-1.3.2-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.3.2-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      controllerManager:
+        extraArgs:
+          profiling: "false"
+EOF
+CIS 1.4.1
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1127
+
+--- page 1128 ---
+ID
+Text
+Remediation
+1.4.1
+Ensure that the --profiling
+argument is set to false
+(Automated).
+Edit the Controller Manager pod specification file
+$schedulerconf on the control plane node and set
+the below parameter:--profiling=false
+NKP Mitigation
+Create a file called cis-1.4.1-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-1.4.1-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      scheduler:
+        extraArgs:
+          profiling: "false"
+EOF
+CIS 4.1.1
+ID
+Text
+Remediation
+4.1.1
+Ensure that the kubeletservice
+file permissions are set to 600 or
+more restrictive(Automated). All
+known nodes are affected.
+Run the below command (based on the file
+location on your system) on the each node. For
+example, chmod 600 /lib/systemd/system/
+kubelet.service
+NKP Mitigation
+Create a file called cis-4.1.1-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-4.1.1-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    postKubeadmCommands:
+    - chmod 600 /lib/systemd/system/kubelet.service
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      postKubeadmCommands:
+      - chmod 600 /lib/systemd/system/kubelet.service
+EOF
+CIS 4.1.9
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1128
+
+--- page 1129 ---
+ID
+Text
+Remediation
+4.1.9
+If the kubelet
+config.yamlconfiguration file is
+being used validate permissions
+set to 600 or more restrictive.
+Run the following command (using the config file
+location identified in the Audit step):chmod 600 /
+var/lib/kubelet/config.yaml
+NKP Mitigation
+Create a file called cis-4.1.9-patches.yaml with the following in the same folder as kustomization.yaml:
+cat <<EOF > cis-4.1.9-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    postKubeadmCommands:
+    - chmod 600 /var/lib/kubelet/config.yaml
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      postKubeadmCommands:
+      - chmod 600 /var/lib/kubelet/config.yaml
+EOF
+CIS 4.2.6
+ID
+Text
+Remediation
+4.2.6
+Ensure that the --protect-kernel-
+defaults argument is set to true
+(Automated).
+If using a Kubelet config file, edit the file
+to set protectKernelDefaults to true.
+If using command line arguments, edit the
+kubelet service file $kubeletsvc on each
+worker node and set the below parameter in
+KUBELET_SYSTEM_PODS_ARGS variable:--
+protect-kernel-defaults=trueBased on your system,
+restart the kubelet service. For example systemctl
+daemon-reloadsystemctl restart kubelet.service
+NKP Mitigation
+Create a file called cis-4.2.6-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-4.2.6-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          protect-kernel-defaults: "true"
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1129
+
+--- page 1130 ---
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          protect-kernel-defaults: "true"
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      joinConfiguration:
+        nodeRegistration:
+          kubeletExtraArgs:
+            protect-kernel-defaults: "true"
+EOF
+CIS 4.2.9
+ID
+Text
+Remediation
+4.2.9
+Ensure that the eventRecordQPS
+argument is set to a level that
+ensures appropriate event
+capture (Manual).
+If using a Kubelet config file, edit the file to
+set eventRecordQPS to an appropriate level.
+If using command line arguments, edit the
+kubelet service file$kubeletsvc on each worker
+node and set the parameter below in the
+KUBELET_SYSTEM_PODS_ARGS variable.
+Based on your system, restart the kubelet service.
+For example, systemctl daemon-reloadsystemctl
+restart kubelet.service
+NKP Mitigation
+eventRecordQPS can also be configured with the --event-qps argument on the kubelet’s arguments.
+Create a file called cis-4.2.9-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-4.2.9-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          event-qps: "0"
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          event-qps: "0"
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      joinConfiguration:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1130
+
+--- page 1131 ---
+        nodeRegistration:
+          kubeletExtraArgs:
+            event-qps: "0"
+EOF
+CIS 4.2.13
+ID
+Text
+Remediation
+4.2.13
+Ensure that the Kubelet
+only makes use of Strong
+Cryptographic Ciphers (Manual)
+If using a Kubelet config file, edit the file to set
+TLSCipherSuites to
+TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_EC
+or to a subset of these values.
+If using executable arguments, edit the kubelet
+service file
+$kubeletsvc on each worker node and
+set the --tls-cipher-suites parameter as follows or to
+a subset of these values.
+--tls-cipher-
+suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,T
+Based on your system, restart the kubelet service.
+For example,
+systemctl daemon-reload
+systemctl restart kubelet.service
+NKP Mitigation
+Create a file called cis-4.2.13-patches.yaml with the following in the same folder as
+kustomization.yaml:
+cat <<EOF > cis-4.2.13-patches.yaml
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: ${CLUSTER_NAME}-control-plane
+spec:
+  kubeadmConfigSpec:
+    initConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          tls-cipher-suites:
+ "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WIT
+    joinConfiguration:
+      nodeRegistration:
+        kubeletExtraArgs:
+          tls-cipher-suites:
+ "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WIT
+---
+apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
+kind: KubeadmConfigTemplate
+metadata:
+  name: ${CLUSTER_NAME}-md-0
+spec:
+  template:
+    spec:
+      joinConfiguration:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1131
+
+--- page 1132 ---
+        nodeRegistration:
+          kubeletExtraArgs:
+            tls-cipher-suites:
+ "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WIT
+EOF
+Create a Cluster Kustomization
+Create a cluster kustomization that references the CIS patch files you created in the previous section.
+Note:  The kustomization.yaml file you create in this section must be in the same directory as the CIS
+patch files.
+Prerequisites to Create a Cluster Kustomization
+This topic describes the prerequisite to create a Cluster Kustomization.
+Understanding the Infrastructure Cluster API is an important prerequisite for creating a Cluster
+Kustomization. Familiarity with this API helps you configure clusters correctly, manage resources
+effectively, and avoid errors during setup. Ensuring this knowledge in advance supports a smoother
+configuration process.
+Creating a Kustomization YAML File
+About this task
+Create a cluster YAML using the NKP CLI,
+Procedure
+1. Create a cluster YAML and modify any arguments as necessary:
+nkp create cluster aws 
+  --cluster-name=${CLUSTER_NAME} \
+  --dry-run \
+  --output=yaml \
+  > ${CLUSTER_NAME}.yaml
+2. Create a kustomization.yaml file will include patches for each of the CIS mitigations.
+We use the CIS-1.2.18 patch in this example, but you can include all mitigation files you created in the
+first section.
+cat <<EOF > kustomization.yaml
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+bases:
+  - ${CLUSTER_NAME}.yaml
+patches:
+  - cis-1.2.18-patch.yaml
+ #- Add more CIS patch files here.
+ EOF
+Create a Cluster with the Kustomization
+About this task
+Note:  The CIS patch, kustomization.yaml, and ${CLUSTER_NAME}.yaml files must be in the same
+directory.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1132
+
+--- page 1133 ---
+Procedure
+1. Create a Bootstrap Cluster. Ensure that the bootstrap cluster has been created for the desired provider.
+Note:  Supported providers include AWS, Azure, GCP, Pre-Provisioned, and vSphere.
+2. To apply the customizations and create a new cluster, use the command.
+kubectl create -k .
+3. Monitor and watch the cluster creation.
+List of CIS Benchmark Explanations
+This topic lists the CIS Benchmark Explanations.
+The CIS Kubernetes Benchmark is a set of security best practices and recommendations for hardening
+Kubernetes environments, published by the Center for Internet Security (CIS).
+Following are the CIS Benchmark list Explanations:
+•
+CIS 1.1.10
+•
+CIS 1.1.9
+•
+CIS 1.1.12
+•
+CIS 1.2.1
+•
+CIS 1.2.5
+•
+CIS 1.2.6
+•
+CIS 1.2.10
+•
+CIS 1.2.13
+•
+CIS 4.2.8
+•
+CIS 4.2.10
+CIS 1.1.10
+ID
+Text
+Remediation
+1.1.10
+Ensure that the Container
+Network Interface file ownership
+is set to root:root (Manual)
+Run the below command (based on the file location
+on your system) on the control plane node. For
+example,chown root:root <path/to/cni/files>
+NKP Explanation
+The kubelet config --cni-config-dir has been deprecated and removed since Kubernetes v1.24. Calico,
+used for CNI stores, is configured at /etc/cni/net.d and has ownership set to root:root.
+CIS 1.1.9
+ID
+Text
+Remediation
+1.1.9
+Ensure that the Container
+Network Interface file permissions
+are set to 644 or more restrictive
+(Manual)
+Run the below command (based on the file location
+on your system) on the control plane node. For
+example, chmod 644 <path/to/cni/files>
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1133
+
+--- page 1134 ---
+NKP Explanation
+The kubelet config --cni-config-dir has been deprecated and removed since Kubernetes v1.24. Calico,
+which is used for CNI, stores its configuration at /etc/cni/net.d and has permissions set to 644.
+CIS 1.1.12
+ID
+Text
+Remediation
+1.1.12
+Ensure that the etcd data
+directory ownership is set to
+etcd:etcd (Automated)
+On the etcd server node, get the etcd data
+directory, passed as an argument --data-dir, from
+the command 'ps -ef | grep etcd.'Run the below
+command (based on the etcd data directory found
+above).For example, chown etcd:etcd /var/lib/etcd
+NKP Explanation
+etcd files are owned by root. Creating another user adds additional attack vectors. On previous STIGs, this
+has been acceptable to leave as root:root.
+CIS 1.2.1
+ID
+Text
+Remediation
+1.2.1
+Ensure that the --anonymous-auth
+argument is set to false (Manual)
+Edit the API server pod specification file
+$apiserverconfon the control plane node and set the
+below parameter.--anonymous-auth=false
+NKP Explanation
+Although the --anonymous-auth flag defaults to true, we also set the --authorization-
+mode=Node,RBAC flag. Having anonymous authorization enabled is generally used for discovery and health
+checking. This is also important for kubeadm join to function properly. For more information, see https://
+github.com/aws/eks-anywhere/pull/3122#issuecomment-1226581563.
+CIS 1.2.5
+ID
+Text
+Remediation
+1.2.5
+Ensure that the --kubelet-
+certificate-authority
+argument is set as appropriate
+(Automated).
+Follow the Kubernetes documentation and setup
+the TLS connection between the apiserver and
+kubelets. Then, edit the API server pod specification
+file $apiserverconf on the control plane node
+and set the --kubelet-certificate-authority
+parameter to the path to the cert file for the
+certificate authority.--kubelet-certificate-
+authority=<ca-string>.
+NKP Explanation
+The --kubelet-certificate-authority flag needs to be set on each API Server after the cluster has
+been fully provisioned, adding it earlier causes issues with the creation and adding of worker nodes via
+CAPI and kubeadm.
+CIS 1.2.6
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1134
+
+--- page 1135 ---
+ID
+Text
+Remediation
+1.2.6
+Ensure that the --kubelet-
+certificate-authority argument is
+set as appropriate (Automated)
+Follow the Kubernetes documentation and set up
+the TLS connection between the apiserver and
+kubelets. Then, edit the API server pod specification
+file$apiserverconf on the control plane node and set
+the--kubelet-certificate-authority parameter to the
+certificate authority's path to the cert file.--kubelet-
+certificate-authority=<ca-string>
+NKP Explanation
+The --kubelet-certificate-authority flag needs to be set on each API Server after the cluster has
+been fully provisioned; adding it earlier causes issues with the creation and adding of worker nodes via
+CAPI and kubeadm.
+CIS 1.2.10
+ID
+Text
+Remediation
+4.2.10
+Ensure that the --tls-cert-file and
+--tls-private-key-file arguments
+are set as appropriate (Manual)
+If using a Kubelet config file, edit the file to set
+tlsCertFile to the location of the certificate file
+to identify this Kubelet and tlsPrivateKeyFileto
+the location of the corresponding private key
+file. If using command line arguments, edit
+the kubelet service file$kubeletsvc on each
+worker node and the below parameters in
+KUBELET_CERTIFICATE_ARGS variable.--tls-
+cert-file=<path/to/tls-certificate-file>--tls-private-key-
+file=<path/to/tls-key-file>Based on your system,
+restart the kubelet service. For example,systemctl
+daemon-reloadsystemctl restart kubelet.service
+NKP Explanation
+This remediation refers to a serving certificate on the kubelet, where the HTTPS endpoint on the kubelet
+is used. By default, a self-signed certificate is used here. Connecting to the HTTPS endpoint of a kubelet
+must only be used for diagnostic or debugging purposes where applying a provided key and certificate isn’t
+expected.
+For more information, see Client and serving certificates at https://kubernetes.io/docs/reference/access-
+authn-authz/kubelet-tls-bootstrapping/#client-and-serving-certificates.
+CIS 1.2.13
+ID
+Text
+Remediation
+1.2.13
+Ensure that the admission control
+plugin SecurityContextDeny is set
+if PodSecurityPolicy is not used
+(Manual)
+Edit the API server pod specification file
+$apiserverconfon the control plane node and
+set the --enable-admission-plugins parameter
+to includeSecurityContextDeny, unless
+PodSecurityPolicy is already in place.--enable-
+admission-plugins=...,SecurityContextDeny,...
+NKP Explanation
+The Kubernetes Project recommends not using this admission controller, as it is deprecated and will
+be removed in a future release. For more information, see Admission Controllers Reference https://
+kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#securitycontextdeny.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1135
+
+--- page 1136 ---
+CIS 4.2.8
+ID
+Text
+Remediation
+4.2.8
+Ensure that the --hostname-
+override argument is not set
+(Manual)
+Edit the kubelet service file $kubeletsvcon
+each worker node and remove the --
+hostname-override argument from
+theKUBELET_SYSTEM_PODS_ARGS variable.
+Based on your system, restart the kubelet service.
+For example,systemctl daemon-reloadsystemctl
+restart kubelet.service
+NKP Explanation
+The hostname-override argument is used by various infrastructure providers to provision nodes;
+removing this argument will impact how CAPI works with the infrastructure provider.
+CIS 4.2.10
+ID
+Text
+Remediation
+1.2.10
+Ensure that the admission control
+plugin EventRateLimit is set
+(Manual)
+Follow the Kubernetes documentation and set the
+desired limits in a configuration file. Then, edit the
+API server pod specification file $apiserverconfand
+set the below parameters.--enable-admission-
+plugins=...,EventRateLimit,...--admission-control-
+config-file=<path/to/configuration/file>
+NKP Explanation
+Kubernetes recommends the use of API Priority and Fairness using the --max-requests-inflight
+and --max-mutating-requests-inflight flags to control how the Kubernetes API Server behaves in
+overload situations. The APIPriorityAndFairness Feature Gate has been enabled by default since
+Kubernetes v1.20.
+For more information, see:
+•
+API Priority and Fairness: https://kubernetes.io/docs/concepts/cluster-administration/flow-control/
+•
+Feature Gate: https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/
+#feature-gates-for-alpha-or-beta-features

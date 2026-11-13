@@ -1,0 +1,2818 @@
+
+--- page 690 ---
+Figure 17: Certificate Renewal Alerts
+If you disable automated renewal of the control plane certificate, Nutanix recommends that you either
+enable automated renewal or manually renew the control plane certificate.
+If NKP does not support automated renewal of the control plane certificate, it triggers an alert
+Unknown. Nutanix recommends that you manually renew the control plane certificate.
+If the automated control plane certificate renewal fails or passes its expiry date, Nutanix recommends
+that you manually renew it.
+For more information, see KB 19301.
+3. (Optional) To view the certificate alerts in the Prometheus user interface, follow these steps:
+a. In the Management Cluster widget, click View Details.
+b. In the Enabled Applications tab, go to Prometheus widget and click Dashboard.
+The Prometheus application is launched.
+c. Go to the Alerts tab.
+The Alerts tab displays all the active and inactive AutoRenewalCertificateAlerts.
+4. To view the certificate alerts in NKP Insights, see Nutanix Kubernetes Platform Insights Alerts on
+page 1101.
+Install Nutanix Kubernetes Platform on Nutanix Infrastructure
+Install Nutanix Kubernetes Platform (NKP) on a Nutanix infrastructure.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 690
+
+--- page 691 ---
+This table lists all the steps to configure Nutanix infrastructure and NKP for air-gapped and non-air-gapped
+environments.
+Table 65: Installing NKP on Nutanix
+Section
+Steps
+Pre-requisites and Planning
+•
+Nutanix Kubernetes Platform Requirements on
+page 48
+•
+Nutanix Infrastructure Requirements on
+page 692
+•
+Control Plane Nodes and Worker Nodes
+Resource Requirements for Nutanix Kubernetes
+Platform on page 694
+Access & Identity Management - Prism Central
+•
+Prism Central Requirements for Nutanix
+Kubernetes Platform Installation on page 704
+•
+Prism Central Credential and Role Management
+on page 705
+•
+Preparing Prism Central Resources for the
+Nutanix Kubernetes Platform Cluster on
+page 708
+Infrastructure Preparation
+•
+Managing VMs from VLAN Basic Subnets to
+Network Controller-based VLAN Subnets on
+page 709
+•
+Creating the Operating System Package Bundle
+on page 710
+•
+Creating a Nutanix VM Image on page 711
+•
+Preparing a Local Registry Mirror on page 713
+(Required for air-gapped, and optional for non-
+airgapped environments)
+•
+Pushing Images to the Registry on page 714
+(Required for air-gapped, and optional for non-
+airgapped environments)
+•
+Docker Hub Registry Credentials on page 675
+(Required for non-airgapped environments, if
+registry mirror is not configured)
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 691
+
+--- page 692 ---
+Section
+Steps
+Installation
+•
+Preflight Checks on page 726
+•
+Deploying Nutanix Kubernetes Platform using UI
+from Nutanix Marketplace on page 715
+•
+Creating the Nutanix Kubernetes Platform
+Management Cluster using CLI on page 718
+•
+Creating a Nutanix Cluster With Custom Cilium
+Configuration on page 726 (Advanced Use-
+cases)
+Post-Installation
+•
+Setting up the Nutanix Kubernetes Platform User
+Interface Access on page 729
+•
+Updating Prism Central Credentials on Deployed
+NKP Clusters on page 730
+Nutanix Kubernetes Platform Installation Prerequisites
+Note the prerequisites to install Nutanix Kubernetes Platform (NKP) on a Nutanix infrastructure.
+The following requirements apply to installations of NKP on a Nutanix infrastructure:
+•
+Nutanix Infrastructure Requirements on page 692
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Docker Hub Registry Credentials on page 675
+•
+Prism Central Requirements for Nutanix Kubernetes Platform Installation on page 704
+•
+Managing VMs from VLAN Basic Subnets to Network Controller-based VLAN Subnets on page 709
+•
+Creating the Operating System Package Bundle on page 710
+•
+Maximum Transmission Unit Configuration for AHV Clusters on page 711
+Nutanix Infrastructure Requirements
+Note the requirements for setting up the Nutanix infrastructure.
+Before installing Nutanix Kubernetes Platform (NKP) on a Nutanix infrastructure, verify that your
+environment meets the following basic requirements:
+•
+Ensure the Prism Central and AOS versions are compatible. For more information, see Compatibility
+and Interoperability Matrix.
+•
+The Nutanix environment must be either on-premises or hosted on one of the public clouds, such as
+NC2 Azure, NC2 AWS, or NC2 GCP.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 692
+
+--- page 693 ---
+•
+NKP is supported on Nutanix Cloud Platform with the following external storage integrations:
+•
+Dell PowerFlex:
+•
+For the supported configuration maximums and minimums, see Configuration Maximums and
+Minimums for NCP with Dell PowerFlex.
+•
+For the recommendations and limitations, see Recommendations and Limitations of NCP with
+Dell PowerFlex.
+•
+Pure Storage FlashArray:
+•
+For the supported configuration maximums and minimums, see Configuration Maximums and
+Minimums for NCP with Pure Storage FlashArray.
+•
+For the recommendations and limitations, see Recommendations and Limitations of NCP with
+Pure Storage FlashArray.
+•
+Configure valid values in the Prism Central instance.
+For more information, see Prism Central Settings (Infrastructure).
+•
+Ensure that the DNS servers configured on the Prism Central instance are reachable.
+•
+You must have a pre-designated subnet.
+•
+Ensure that a subnet is available with unused IP addresses.
+Configure either Nutanix IP address management (IPAM) or dynamic host configuration protocol
+(DHCP) on the subnet to automatically assign IP addresses to control plane nodes and worker
+nodes.
+Compute the number of required IP addresses:
+•
+One IP address for each node in the Kubernetes cluster. The default cluster size includes three
+control plane nodes and four worker nodes, requiring a total of seven IP addresses.
+•
+One IP address within the same classless inter-domain routing (CIDR) as the subnet, but outside
+the address pool for the Kubernetes API server.
+•
+One IP address in the same CIDR as the subnet, but outside the address pool for the default
+ingress.
+•
+Additional IP addresses might be required for additional load balancer services, such as Nutanix
+Data Services for Kubernetes (NDK).
+For more information, see Prerequisites and Limitations in the Nutanix Data Services for
+Kubernetes guide.
+Example configuration: If your subnet uses the CIDR 10.0.0.0/24 and the DHCP or Nutanix IPAM
+IP address pool range is 10.0.0.100 to 10.0.0.200, the system randomly selects the individual node
+IP addresses of the cluster from that address pool. Outside the IP address pool, reserve one IP
+address (for example, 10.0.0.90) for the Kubernetes control plane endpoint. Reserve a contiguous
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 693
+
+--- page 694 ---
+IP address range on the same subnet as the worker nodes for MetalLB load balancer services; for
+example, 10.0.0.150 to 10.0.0.160.
+•
+Multi subnet configuration (optional)
+Use different subnets for control plane nodes and worker nodes only under the following conditions:
+•
+Routing: Establish network routing between the control plane and worker node subnets.
+•
+Nodes on multiple subnets: If you distribute worker and control plane nodes across multiple
+subnets, ensure that the IP range provided for the load balancer service (MetalLB) belongs to a
+Layer 2 subnet shared by all those nodes.
+•
+For air-gapped environments, create a bastion VM host template with access to a configured local
+registry.
+Nutanix recommends using a naming pattern such as ../folder-name/NKP-bastion-template.
+Each infrastructure provider has its own instructions for setting up a bastion host.
+For more information, see Creating a Bastion Host on page 679.
+•
+You need access to a bastion VM or other network-connected host running NKP image builder.
+Note:  Nutanix provides a complete image built on its infrastructure, which eliminates the need to
+create your own from a BaseOS image.
+•
+Ensure that you can reach the Nutanix endpoint from where you run NKP CLI.
+Note:
+•
+For an air-gapped environment, ensure that you download the
+[UNKNOWN:product_name_short] bundle and extract the TAR file to a local directory.
+For more information, see Downloading NKP on page 17.
+•
+Some commands, such as nkp push bundle, require temporary disk space. These
+commands write to the temporary directory, which is usually /tmp. To override the directory,
+export the TMPDIR environment variable before running a command.
+For example,
+export TMPDIR=/path/to/your/directory
+For more information on troubleshooting or additional information, see Nutanix Knowledge Base.
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform
+To install Nutanix Kubernetes Platform (NKP) successfully, ensure that the control plane nodes and worker
+nodes meet the resource requirements, which might vary by infrastructure providers and license types. For
+production deployments, you need at least three control plane nodes and a minimum of four worker nodes.
+The exact number of worker nodes required for your environment might vary depending on the workload of
+your cluster and the size of the nodes.
+Note:
+•
+NKP uses the Nutanix Container Storage Interface (CSI) driver as the default storage provider.
+For more information, see Default Storage Providers on page 37.
+•
+The Nutanix CSI driver uses the storage container associated with the Prism Central cluster.
+Every Prism Central cluster maintains its own set of storage containers, and the CSI driver
+searches for a storage container with the same name across all Prism Central clusters.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 694
+
+--- page 695 ---
+Starter Nutanix Kubernetes Platform Cluster Minimum Requirements
+Note the minimum requirements for the Starter Nutanix Kubernetes Platform (NKP) management and
+managed clusters.
+The default configuration is set to three control plane nodes to provide high availability. The exact number
+of worker nodes required for your environment might vary depending on the workload of your cluster and
+the size of the nodes.
+Note:
+•
+The Starter license is supported exclusively with the Nutanix infrastructure.
+•
+If you have two worker nodes in your Starter NKP management and managed clusters and you
+apply for a Pro or Ultimate license, the additional Pro or Ultimate features fail because your
+environment does not have enough cluster resources to deploy them.
+To install the Starter NKP management and managed clusters with the minimum amount of resources,
+review the resource tables before starting the installation.
+Table 66: Resource Requirements for Management Cluster
+Resource
+Control Plane Node
+Worker Node
+Minimum node
+requirements
+3
+2
+vCPU count
+2
+4
+Memory
+8 GiB
+8 GiB
+Disk volume
+Approximately 80 GiB:
+Used for /var/lib/kubelet and /
+var/lib/containerd
+Approximately 80 GiB:
+Used for /var/lib/kubelet and /
+var/lib/containerd
+Root volume
+Disk usage must be below 85%
+Disk usage must be below 85%
+Non-default flags in the
+CLI
+  --control-plane-vcpus 2 \
+  --control-plane-memory 8 \
+  --worker-replicas 2 \
+  --worker-vcpus 4 \
+  --worker-memory 8 
+Table 67: Resource Requirements for Managed Cluster
+Resource
+Control Plane Node
+Worker Node
+Minimum node
+requirements
+3
+2
+vCPU count
+2
+3
+Memory
+6 GiB
+6 GiB
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 695
+
+--- page 696 ---
+Resource
+Control Plane Node
+Worker Node
+Disk volume
+Approximately 80 GiB:
+Used for /var/lib/kubelet and /
+var/lib/containerd
+Approximately 80 GiB:
+Used for /var/lib/kubelet and /
+var/lib/containerd
+Root volume
+Disk usage must be below 85%
+Disk usage must be below 85%
+Non-default flags in the
+CLI
+  --control-plane-vcpus 2 \
+  --control-plane-memory 6 \
+  --worker-replicas 2 \
+  --worker-vcpus 3 \
+  --worker-memory 6 
+Caution:  You can create a working NKP management cluster with a single control plane node. However, if
+the single control plane node faces corruption or failure, it results in the loss of the entire cluster.
+Pro and Ultimate Nutanix Kubernetes Platform Cluster Minimum Requirements
+Note the minimum requirements for Pro and Ultimate Nutanix Kubernetes Platform (NKP) management
+cluster.
+The exact number of worker nodes required for your environment might vary depending on the workload
+of your cluster and the size of the nodes. The default configuration is set to three control plane nodes to
+provide high availability. If you follow the instructions to create a cluster using the default NKP settings
+without modifying the configuration files or additional flags, you can deploy the cluster with three control
+plane nodes and four worker nodes, matching the requirements in the General Resource Requirements for
+Pro and Ultimate Clusters table.
+Caution:  You can create a working NKP management cluster with a single control plane node. However, if
+the single control plane node faces corruption or failure, it results in the loss of the entire cluster.
+To install Pro and Ultimate NKP clusters with minimum resources, review the requirements table before
+starting the installation.
+Table 68: General Resource Requirements for Pro and Ultimate Clusters
+Resource
+Control Plane Node
+Worker Node
+Optimal nodes
+recommended
+3
+4
+vCPU count
+4
+8
+Memory
+16 GiB
+32 GiB
+Disk volume
+Approximately 80 GiB: Used for /
+var/lib/kubelet and /var/lib/
+containerd
+Approximately 80 GiB: Used for /
+var/lib/kubelet and /var/lib/
+containerd
+Root volume
+Disk usage must be below 85%
+Disk usage must be below 85%
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 696
+
+--- page 697 ---
+Table 69: Resource Requirements for Managed Clusters
+Resource
+Control Plane Node
+Worker Node
+Optimal nodes
+recommended
+3
+4
+vCPU count
+4
+8
+Memory
+12 GiB
+12 GiB
+Disk volume
+Approximately 80 GiB: Used for /
+var/lib/kubelet and /var/lib/
+containerd
+Approximately 80 GiB: Used for /
+var/lib/kubelet and /var/lib/
+containerd
+Root volume
+Disk usage must be below 85%
+Disk usage must be below 85%
+Infrastructure Provider-Specific Requirements
+Note the additional requirements that might apply to a certain infrastructure providers.
+For example, the Nutanix Kubernetes Platform (NKP) on Azure by default deploys a Standard_D4s_v3 VM
+with a 128 GiB volume for the operating system and an 80 GiB volume for etcd storage, which meets the
+specified requirements.
+For more information on resource requirements, see the relevant installation options for the respective
+infrastructure provider:
+•
+Nutanix Installation Options on page 76
+•
+Pre-provisioned Installation Options on page 76
+•
+AWS Installation Options on page 173
+•
+Azure Installation Options on page 194
+•
+vSphere Installation Options on page 194
+•
+EKS Installation Options on page 173
+•
+AKS Installation Options on page 204
+Nutanix Kubernetes Platform Configuration Maximums
+Note a list of supported configuration maximum for Nutanix Kubernetes Platform (NKP).
+You can view the latest list of supported configuration maximums from the Nutanix Support Portal. For
+more information, see NKP Configuration Maximums. Ensure that you select the required NKP version
+from the list.
+Note:  A Nutanix account is required to access the Nutanix Support Portal.
+Nutanix Kubernetes Platform Managed Cluster Requirements
+Note the requirements for the Nutanix Kubernetes Platform (NKP) managed clusters.
+Minimum Recommendation for Managed Clusters
+To create additional clusters in your Nutanix environment, ensure that you have at least the following
+minimum recommended resources:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 697
+
+--- page 698 ---
+•
+Worker Nodes: The default installation includes at least four worker nodes with the following
+specifications:
+•
+8 CPU cores each
+•
+12 GiB of memory
+•
+A storage class and disk mounts that accommodate at least four persistent volumes
+Note:  You need four worker nodes to support the upgrades to rook-ceph platform application. rook-
+ceph supports the logging stack, velero backup tool, and NKP Insights. If you disable rook-ceph
+platform application, you need only three worker nodes.
+•
+Control Plane Nodes: The default installation includes at least three control plane nodes with the
+following specifications:
+•
+4 CPU cores each
+•
+12 GiB of memory
+Note:  While one control plane node is acceptable for a non-critical test environment, any production
+workload cluster must have at least three control plane nodes.
+•
+Cluster: Requires a default storage class and three volumes of 10GiB, 100GiB, and 10GiB or the ability
+to create those volumes based on the storage class.
+Create a volume based on the storage class.
+$ kubectl get pv -A
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY 
+  STATUS   CLAIM                                                      STORAGECLASS  
+ VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-01497817-b03a-4572-80e3-37839e29e116   10Gi       RWO            Delete         
+  Bound    york-ws/opencost-pvc                                       ebs-sc        
+ <unset>                          151m
+pvc-82461b4c-51e6-4f5f-b1c9-04cbf5f5eb40   100Gi      RWO            Delete         
+  Bound    york-ws/db-prometheus-kube-prometheus-stack-prometheus-0   ebs-sc        
+ <unset>                          151m
+pvc-8a70db2f-101a-4d09-8fd3-2bc0b649df3d   10Gi       RWO            Delete         
+  Bound    york-ws/kube-prometheus-stack-grafana                      ebs-sc        
+ <unset>                          151m
+Note:  Actual workload clusters might demand more resources based on the usage.
+Nutanix Kubernetes Platform Management Cluster Application Requirements
+Note the requirements for the Nutanix Kubernetes Platform (NKP) management cluster applications.
+The following table lists the workspace platform applications that are specific to a management cluster
+including their minimum resource requirements, minimum persistent storage requirements, and default
+PriorityClass values. For more information on a list of all platform applications, see Platform Application
+Configuration Requirements.
+Common
+Name
+Application ID
+Deployed by
+Default
+Minimum
+Resources
+Minimum
+Persistent
+Storage
+Default
+PriorityClass
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 698
+
+--- page 699 ---
+Centralized
+Grafana*
+centralized-
+grafana
+Yes
+requests:
+cpu: 200m
+memory: 200Mi
+limits:
+memory:
+10922Mi
+Not applicable
+NKP Critical
+(100002000)
+Centralized
+OpenCost*
+centralized-
+openCost
+Yes
+requests:
+cpu: 10m
+memory: 55Mi
+limits:
+memory: 1Gi
+# of PVs: 1
+PV sizes: 10Gi
+NKP High
+(100001000)
+Dex
+dex
+Yes
+cpu: 100m
+Not applicable
+NKP Critical
+(100002000)
+Dex
+Authenticator
+dex-k8s-
+authenticator
+Yes
+requests:
+cpu: 100m
+memory: 128Mi
+Not applicable
+NKP High
+(100001000)
+Karma*
+karma
+Yes
+Not applicable
+Not applicable
+NKP Critical
+(100002000)
+Kommander
+kommander
+Yes
+cpu: 1100m
+memory: 896Mi
+Not applicable
+NKP Critical
+(100002000)
+Kommander
+AppManagement
+kommander-
+appmanagement
+Yes
+cpu: 300m
+memory: 256Mi
+Not applicable
+NKP Critical
+(100002000)
+Kommander
+Flux
+kommander-flux Yes
+requests:
+cpu: 100m
+memory: 128Mi
+limits:
+cpu: 500m
+memory: 512Mi
+Not applicable
+NKP Critical
+(100002000)
+Kommander UI
+kommander-ui
+Yes
+cpu: 100m
+memory: 256Mi
+Not applicable
+NKP Critical
+(100002000)
+Kubefed
+kubefed
+Yes
+limits:
+cpu: 500m
+memory:
+1000Mi
+Not applicable
+NKP Critical
+(100002000)
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 699
+
+--- page 700 ---
+Kubetunnel
+kubetunnel
+Yes
+requests:
+cpu: 100m
+memory: 150Mi
+limits:
+cpu: 300m
+memory: 300Mi
+Not applicable
+NKP Critical
+(100002000)
+Thanos*
+thanos
+Yes
+requests:
+cpu: 500m
+memory:
+1024Mi
+limits:
+cpu: 2m
+memory:
+3072Mi
+Not applicable
+NKP Critical
+(100002000)
+Traefik
+ForwardAuth
+traefik-forward-
+auth-mgmt
+Yes
+requests:
+cpu: 100m
+memory: 128Mi
+ephemeral-
+storage: 200Mi
+Not applicable
+NKP Critical
+(100002000)
+Applications with an asterisk (“*”) are only for NKP Ultimate users. If you have an Ultimate license, NKP
+deploys these applications automatically.
+For more information on application versions, see NKP Release Notes on the Nutanix Support Portal.
+Workspace Platform Application Defaults and Resource Requirements
+Note the resource requirements for the workspace platform applications available within Nutanix
+Kubernetes Platform (NKP).
+This section lists the workspace platform applications that are available within NKP. Some of these
+applications are deployed by default upon attachment. You need to manually install other applications
+through the CLI under cluster operations. For more information, see Platform Applications.
+Workspace platform applications require more resources than solely deploying or attaching clusters
+to a workspace. Therefore, your cluster must have sufficient resources available during deployment or
+attachment to ensure the successful installation of platform services.
+The following table describes all the workspace platform applications available to the clusters within
+a workspace. It includes minimum resource requirements, deployment information, and their default
+PriorityClasses.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 700
+
+--- page 701 ---
+Table 70: Available Workspace Platform Applications
+Common
+Name
+Application
+ID
+Deployed
+by Default
+Minimum
+Resources
+Minimum
+Persistent
+Storage
+Default
+PriorityClass
+Cert Manager
+cert-manager
+Yes
+cpu: 10m
+memory: 32Mi
+Not applicable
+system-
+cluster-critical
+(2000000000)
+External DNS
+external-dns
+No
+Not applicable
+NKP High
+(100001000)
+Fluent Bit
+fluent-bit
+No
+requests:
+cpu: 350m
+memory: 250Mi
+limits:
+memory: 750Mi
+Not applicable
+NKP Critical
+(100002000)
+Gatekeeper
+gatekeeper
+Yes
+cpu: 300m
+memory: 768Mi
+Not applicable
+system-
+cluster-critical
+(2000000000)
+Grafana
+grafana-
+logging
+No
+requests:
+cpu: 200m
+memory: 256Mi
+limits:
+memory: 512Mi
+Not applicable
+NKP Critical
+(100002000)
+Loki
+grafana-loki
+No
+Not applicable
+# of PVs: 8
+PV sizes: 10Gi x 8
+(total: 80Gi)
+NKP Critical
+(100002000)
+Istio-Helm
+istio-helm
+No
+cpu: 1270m
+memory: 4500Mi
+Not applicable
+NKP Critical
+(100002000)
+Jaeger
+jaeger
+No
+Not applicable
+Not applicable
+NKP High
+(100001000)
+Kiali
+kiali
+No
+cpu: 20m
+memory: 128Mi
+Not applicable
+NKP High
+(100001000)
+Knative
+knative
+No
+requests:
+cpu: 100m
+memory: 100Mi
+limits:
+cpu: 500m
+memory: 500Mi
+Not applicable
+NKP High
+(100001000)
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 701
+
+--- page 702 ---
+Common
+Name
+Application
+ID
+Deployed
+by Default
+Minimum
+Resources
+Minimum
+Persistent
+Storage
+Default
+PriorityClass
+Kube OIDC
+Proxy
+kube-oidc-
+proxy
+Yes
+Not applicable
+Not applicable
+NKP Critical
+(100002000)
+Kube
+Prometheus
+Stack
+kube-
+prometheus-
+stack
+Yes
+requests:
+cpu: 1000m
+memory: 4000Mi
+limits:
+cpu: 2000m
+memory: 10922Mi
+# of PVs: 1
+PV sizes: 100Gi
+NKP Critical
+(100002000)
+OpenCost*
+OpenCost
+Yes
+requests:
+cpu: 10m
+memory: 55Mi
+limits:
+memory: 1Gi
+# of PVs: 1
+PV sizes: 10Gi
+NKP High
+(100001000)
+Kubernetes
+Dashboard
+kubernetes-
+dashboard
+Yes
+requests:
+cpu: 100m
+memory: 200Mi
+limits:
+cpu: 500m
+memory: 1000Mi
+Not applicable
+NKP High
+(100001000)
+Logging
+Operator
+logging-
+operator
+No
+cpu: 350m * # of
+nodes + 600m
+memory: 228Mi +
+350Mi * # of nodes
+# of PVs: 1
+PV sizes: 10Gi
+NKP Critical
+(100002000)
+NVIDIA GPU
+Operator
+nvidia-gpu-
+operator
+No
+cpu: 100m
+memory: 128Mi
+Not applicable
+system-
+cluster-critical
+(2000000000)
+Prometheus
+Adapter
+prometheus-
+adapter
+Yes
+requests:
+cpu: 1000m
+memory: 2000Mi
+limits:
+cpu: 2000m
+memory: 4000Mi
+Not applicable
+NKP Critical
+(100002000)
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 702
+
+--- page 703 ---
+Common
+Name
+Application
+ID
+Deployed
+by Default
+Minimum
+Resources
+Minimum
+Persistent
+Storage
+Default
+PriorityClass
+Reloader
+reloader
+Yes
+requests:
+cpu: 100m
+memory: 128Mi
+limits:
+cpu: 100m
+memory: 512Mi
+Not applicable
+NKP High
+(100001000)
+Rook Ceph
+rook-ceph
+Yes
+requests:
+cpu: 100m
+memory: 128Mi
+limits:
+cpu: 750m
+memory: 768Mi
+Not applicable
+system-
+cluster-critical
+(2000000000)
+Rook Ceph
+Cluster
+rook-ceph-
+cluster
+Yes
+cpu 2500m
+mem 8Gi
+# of PVs: 4
+PV sizes: 40Gi
+NKP Critical
+(100002000)
+system-
+cluster-critical
+(2000000000)
+system-node-
+critical
+Traefik
+traefik
+Yes
+requests:
+cpu: 500m
+limits:
+cpu: 1000m
+Not applicable
+NKP Critical
+(100002000)
+Traefik
+ForwardAuth
+traefik-
+forward-auth
+Yes
+requests:
+cpu: 100m
+memory: 128Mi
+ephemeral-
+storage: 200Mi
+Not applicable
+NKP Critical
+(100002000)
+Velero
+velero
+No
+requests:
+cpu: 500m
+memory: 128Mi
+limits:
+cpu: 1000m
+memory: 2Gi
+Not applicable
+NKP Critical
+(100002000)
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 703
+
+--- page 704 ---
+•
+Application with an asterisk (“*”) is only for NKP Ultimate users. If you have an Ultimate license, NKP
+deploys these applications automatically.
+•
+Currently, NKP only supports a single deployment of cert-manager for each cluster. Therefore, you
+cannot install cert-manager on Konvoy managed clusters or clusters with pre-installed cert-manager.
+•
+NKP supports only a single deployment of traefik per cluster.
+•
+NKP automatically manages the deployment of traefik-forward-auth and kube-oidc-proxy when
+you attach clusters to the workspace.
+The NKP user interface does not display these workspace platform applications.
+•
+You need to enable the workspace platform applications in NKP and then deploy them to the attached
+clusters.
+Ensure successful deployment and verification of the applications enabled through the CLI. For more
+information, see Deployment of Catalog Applications in Workspaces on page 348.
+For more information on application versions, see NKP Release Notes on the Nutanix Support Portal.
+Prism Central Requirements for Nutanix Kubernetes Platform Installation
+Note the Prism Central requirements and configurations for Nutanix Kubernetes Platform (NKP)
+installation.
+Prism Central requirements include setting up the Prism Central credentials, user roles, and Prism Central
+resources for the NKP management and workload clusters.
+Prism Central Credential Requirements
+Before updating your Prism Central credentials on a deployed Nutanix Kubernetes Platform (NKP) clusters,
+ensure that you meet the following requirements:
+•
+Ensure that you have a kubeconfig file for the management cluster.
+•
+Ensure that you have a kubeconfig file for each workload clusters that requires a Prism Central
+credential update.
+•
+Update the following secrets with a new password for Prism Central instance:
+Secrets for Prism Central Credentials
+Secret Name
+Namespace
+NKP Cluster
+global-nutanix-credentials
+capx-system
+Management Cluster
+${MANAGEMENT_CLUSTER_NAME}-
+pc-credentials
+${MANAGEMENT_CLUSTER_NAMESPACE}
+Management Cluster
+${MANAGEMENT_CLUSTER_NAME}-
+pc-credentials-for-csi
+${MANAGEMENT_CLUSTER_NAMESPACE}
+Management Cluster
+${MANAGED_CLUSTER_NAME}-
+pc-credentials
+${MANAGED_CLUSTER_NAMESPACE}
+Management Cluster
+${MANAGED_CLUSTER_NAME}-
+pc-credentials-for-csi
+${MANAGED_CLUSTER_NAMESPACE}
+Management Cluster
+nutanix-ccm-credentials
+kube-system
+•
+Management Cluster
+•
+Managed Cluster
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 704
+
+--- page 705 ---
+Secret Name
+Namespace
+NKP Cluster
+nutanix-csi-credentials
+ntnx-system
+•
+Management Cluster
+•
+Managed Cluster
+Prism Central Credential and Role Management
+Define the user roles in Prism Central to manage the Nutanix Kubernetes Platform (NKP) management
+and workload clusters.
+When you provision management and workload clusters with NKP on Nutanix infrastructure, you need an
+admin role that includes the minimum required permissions for NKP to provide proper access to deploy
+clusters.
+NKP management cluster uses Prism Central credentials for the following components:
+•
+Cluster management: For listing subnets and other infrastructure, and creating VMs in Prism Central
+for the CAPX infrastructure provider.
+•
+Persistent storage management: For Nutanix Container Storage Interface (CSI) provider.
+•
+Node metadata discovery: For Nutanix Cloud Controller Manager (CCM) provider.
+NKP requires Prism Central credentials to authenticate the Prism Central APIs. CAPX currently supports
+two mechanisms to assign the required credentials:
+•
+Credentials injected into the CAPX manager deployment.
+•
+Managed cluster-specific credentials.
+For examples, see Credential Management.
+Use the procedure that matches the scope of the user:
+•
+For a non-project-scoped user, configure the role and authorization policy as described in Configuring
+the Role with an Authorization Policy on page 707.
+•
+For a project-scoped user, add the user to the project as described in Adding an Identity to a Project.
+Prism Central Roles and Permissions for Nutanix Kubernetes Platform
+Use a single Prism Central role with the required permissions to create and manage Nutanix Kubernetes
+Platform clusters.
+Create one role that includes the permissions in the following table. Use the same role for project-scoped
+and non-project-scoped users. Prism Central enforces project scoping when you add the user to a project
+and assign the role.
+For a non-project-scoped user, see Configuring the Role with an Authorization Policy on page 707. For a
+project-scoped user, see Adding an Identity to a Project.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 705
+
+--- page 706 ---
+Table 71: Permissions Required for Prism Central
+Prism Central IAM
+Entity
+Prism Central IAM Operations
+Supported Prism
+Central Versions
+Category
+•
+Create Category
+•
+Delete Category
+•
+View Category
+7.5 and later
+AHV VM
+•
+Create New Virtual Machine
+•
+Delete Existing Virtual Machine
+•
+Power On Virtual Machine
+•
+Update Virtual Machine Custom Attributes
+•
+View Virtual Machine
+•
+View Virtual Machine NIC
+•
+Create Virtual Machine NIC
+•
+Update Virtual Machine NIC
+7.5 and later
+Image
+•
+View Image
+•
+Create Image
+•
+Delete Image
+Note:  The Create Image and Delete
+Image permissions are required only when
+you run nkp create image nutanix.
+7.5 and later
+NIC Profile
+View Nic Profile
+7.5 and later
+Domain Manager
+View Domain Manager
+7.5 and later
+Project
+View Project
+7.5 and later
+Subnet
+View Subnet
+7.5 and later
+User
+View User
+Note:  The View User permission is required
+for preflight credential validation.
+7.5 and later
+Host
+View Host
+7.5 and later
+Storage Container
+View Container
+7.5 and later
+Volume Group
+Detach Volume Group From AHV VM
+7.5 and later
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 706
+
+--- page 707 ---
+Prism Central IAM
+Entity
+Prism Central IAM Operations
+Supported Prism
+Central Versions
+Cluster
+•
+View Cluster
+•
+View Cluster Host
+•
+View Cluster Pgpu Profiles
+•
+View Cluster Vgpu Profiles
+•
+Note:  The View Cluster Pgpu
+Profiles and View Cluster Vgpu
+Profiles are applicable only for Prism
+Central version 7.5
+7.5 and later
+VM Profile
+•
+Deploy Virtual Machine From VM Profile
+•
+View Virtual Machine Profile
+7.6 and later
+Physical GPU Profile
+View Physical Gpu Profile
+7.6 and later
+Virtual GPU Profile
+View Virtual Gpu Profile
+7.6 and later
+Resource Group
+View Resource Groups
+7.6 and later
+Konnector
+•
+Create Kubernetes Cluster Registration
+•
+View Kubernetes Cluster Registration
+•
+Update Kubernetes Cluster Registration
+•
+Delete Kubernetes Cluster Registration
+•
+View Kubernetes Cluster Node
+•
+View Kubernetes Cluster Volume Group
+•
+View Kubernetes Cluster Kubeconfig
+•
+Upload Kubernetes Cluster Kubeconfig
+•
+Delete Kubernetes Cluster Kubeconfig
+7.6 and later
+For information about roles, see Displaying Role Permissions in the Security Guide.
+Add the required permissions for the CSI Volume Driver. For the complete list, see Operations Required to
+Perform CSI Actions in the CSI Volume Driver Guide.
+Configuring the Role with an Authorization Policy
+Use Prism Central to create an authorization policy to assign the system-defined roles.
+About this task
+Use this procedure for a non-project-scoped user. For a project-scoped user, see Adding an Identity to a
+Project.
+When you provision Kubernetes clusters with Nutanix Kubernetes Platform (NKP) on a Nutanix
+infrastructure, a pre-defined role that includes the minimum permissions to deploy clusters is also
+provisioned. For more information, see Configuring an Authorization Policy in the Security Guide.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 707
+
+--- page 708 ---
+To configure the role with an authorization policy, follow these steps:
+Procedure
+1. Log in to Prism Central as an administrator.
+2. From the Application Switcher Function, select Admin Center.
+3. Click IAM and go to Authorization Policies.
+4. Click Create New Authorization Policy.
+The Create New Authorization Policy window appears.
+5. In the Choose Role section, enter a role name in the Select the role to add to this policy field and
+click Next.
+You can enter the name of any built-in or custom roles.
+6. In the Define Scope section, select one of the following options:
+»
+Full Access: Grants all added users access to all entity types across the entire environment under
+the associated role.
+»
+Configure Access: Restricts permissions to specific target infrastructure boundaries.
+Note:  If you select this option for either All or Specific instances of objects, you must configure the
+following entity requirements as listed:
+•
+Domain Manager: Set this field to All Domain Manager.
+•
+Cluster: Set this field to All Cluster. This setting is required to ensure the added users
+can view and interact with the Prism Central instance.
+•
+Category: Set this field to All Category.
+7. Click Next.
+8. In the Assign Users section, select one of the following options:
+»
+From the dropdown list, select Local User to add a local user or group to the policy.
+»
+From the dropdown list, select the available directory to add a directory user or group.
+To search for a user or group, type the first few letters of the name in the text field.
+9. Click Save.
+For more information on displaying role permissions for any built-in role, see Viewing Role Permissions.
+in the Security Guide.
+Prism Central saves the authorization policy and lists it in the Authorization Policies page.
+Preparing Prism Central Resources for the Nutanix Kubernetes Platform Cluster
+Prepare Prism Central resources to create Nutanix Kubernetes Platform (NKP) management cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 708
+
+--- page 709 ---
+Before you begin
+•
+Locate the following information in Prism Central instance:
+•
+Prism Central Endpoint with or without the port:
+For more information, see Admin Center Overview in the Prism Central Admin Center Guide.
+•
+Name of the Prism Element cluster:
+For more information, see Modifying Cluster Details in the Prism Element Web Console Guide.
+•
+Name of the subnet:
+•
+An available control plane endpoint IP not assigned to any VM.
+•
+Name of the operating system image:
+For more information, see Creating the Operating System Package Bundle on page 710.
+•
+Docker Hub credentials. If you do not have Docker Hub credentials, you cannot create a NKP
+management cluster when the Docker Hub rate limit is reached.
+About this task
+To prepare Prism Central resources for creating the NKP management cluster, follow these steps:
+Procedure
+1. Log in to Prism Central.
+2. From the Application Switcher Function, select the Infrastructure Application.
+3. Update the subnet.
+Use an IP address in the subnet classless inter-domain routing (CIDR) but outside the IP address pool.
+For more information, see Updating a Subnet in the Flow Virtual Networking Guide.
+4. Create a storage container.
+For more information, see Creating a Storage Container in the Prism Central Infrastructure Guide.
+Prism Central resources are ready to create an NKP management cluster in the air-gapped or non-air-
+gapped Nutanix infrastructure.
+Managing VMs from VLAN Basic Subnets to Network Controller-based VLAN Subnets
+Migrate a subnet from VLAN basic subnets to network controller-based VLAN subnets.
+About this task
+•
+If the node subnet in your Nutanix Kubernetes Platform (NKP) configuration overlaps with Kubernetes-
+reserved subnets, such as the pod or service subnet, the cluster might fail to deploy. You cannot change
+the subnets after creating a cluster. Ensure that the node subnet does not overlap with your host
+subnet.
+•
+The default subnets used in NKP are as follows:
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 709
+
+--- page 710 ---
+      - 10.96.0.0/12
+The current setup uses a basic VLAN configuration, while advanced VLAN uses network-controller as the
+control plane instead of Acropolis.
+To migrate a subnet from VLAN basic subnets to network controller-based VLAN subnets, follow these
+steps:
+Procedure
+1. Log in to Prism Central.
+2. From the Application Switcher Function, select the Infrastructure Application.
+3. Click the Settings icon or from the navigation bar, navigate to Prism Central Setting.
+For information about the navigation bar, see Application-specific Navigation Bar.
+The Settings page appears.
+4. Click Network Controller, and select the Configure Network Controller-Managed VLANs checkbox
+to set it as the default setting.
+5. Migrate VMs from VLAN basic subnets.
+For more information, see Flow Virtual Networking Network Controller 5.0 - Migrating VMs from VLAN
+Basic Subnets.
+6. To use the new subnet, modify the subnet specification in the control plane and worker nodes .
+kubectl edit cluster <clustername>
+The cluster API provider for Nutanix cloud infrastructure (CAPX) rolls out the new control plane and
+worker nodes in the new subnet and destroys the old ones.
+You can choose basic or network controller-based VLAN subnets when you create a subnet during
+cluster creation. If you create the cluster with basic VLAN subnets, you can migrate it to network
+controller-based VLAN subnets.
+For more information on modifying the service subnet, adding or modifying the configmap, see
+Managing Subnets and Pods.
+Creating the Operating System Package Bundle
+Package the operating system dependencies into a package bundle for deploying the Nutanix Kubernetes
+Platform (NKP) management cluster.
+About this task
+You can complete perform this procedure using a machine with access to the internet, or access to the
+operating system package repositories to download the operating system packages.
+To create an operating system package bundle, follow these steps:
+Procedure
+1. Open a terminal with access to the NKP CLI.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 710
+
+--- page 711 ---
+2. Create an operating system package bundle.
+Use a sub-directory of the extracted air-gapped bundle to store the operating system package bundle:
+export OS_BUNDLE_DIR=nkp-nkp_version/nib/artifacts
+For Ubuntu 22.04:
+export OS=ubuntu-22.04
+nkp create package-bundle --artifacts-directory ${OS_BUNDLE_DIR} ${OS}
+For Rocky 9.6:
+export OS=rocky-9.6
+nkp create package-bundle --artifacts-directory ${OS_BUNDLE_DIR} ${OS}
+For RHEL 8.10:
+export OS_BUNDLE_DIR=nib/artifacts
+export OS=rhel-8.10
+export RHSM_ORG_ID=<your-RHSM-id>
+export RHSM_ACTIVATION_KEY=<your-RHSM-Activation-key>
+nkp create package-bundle --artifacts-directory ${OS_BUNDLE_DIR} ${OS}
+Maximum Transmission Unit Configuration for AHV Clusters
+Learn how Nutanix Kubernetes® Platform configures maximum transmission unit values for AHV clusters
+that use Cilium with overlay networking.
+For AHV clusters, the AHV vSwitch default maximum transmission unit (MTU) is 1500. AHV built-in IP
+address management (IPAM) passes this value to cluster virtual machines through DHCP Option 26.
+When you use Cilium with overlay networking such as Geneva, Cilium automatically reduces the outbound
+encapsulated interface MTU by 50 bytes. With the default 1500 value, the effective encapsulated MTU is
+1450.
+This default configuration aligns the underlay and overlay MTU values. This alignment helps prevent
+packet fragmentation caused by encapsulation overhead.
+Configuring Jumbo Frames
+To use jumbo frames, configure MTU at the infrastructure layer first. Ensure the physical network
+infrastructure is configured for the same MTU end to end:
+•
+Set the required MTU on the AHV vSwitch.
+•
+Configure subnet MTU settings as required for your subnet type. Basic subnets do not enforce MTU
+by default and align with the vSwitch MTU. Configure MTU explicitly for advanced subnets or VPC
+subnets.
+After you update these settings, AHV passes the new MTU to the virtual machines through DHCP Option
+26. Cilium applies the same 50-byte reduction for overlay encapsulation. For example, if the infrastructure
+MTU is 9000, the encapsulated MTU is 8950.
+Using External DHCP
+If you use an external DHCP server instead of AHV built-in IPAM, configure DHCP Option 26 with the
+correct MTU value. Incorrect or missing DHCP Option 26 values can result in suboptimal MTU usage. For
+example, the backbone network can use an MTU of 9000 while virtual machines remain at 1500.
+Creating a Nutanix VM Image
+Create a Nutanix VM image to deploy the Nutanix Kubernetes Platform (NKP) management cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 711
+
+--- page 712 ---
+About this task
+To create a Nutanix image, follow these steps:
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. (Only for an air-gapped environment, and optional for non-air-gapped environments) Load the NKP
+image builder container image into the local container runtime store:
+docker load --input "nkp-nkp-version/nkp-image-builder-nkp-version.tar"
+The NKP CLI image builder uses a container image. In an air-gapped environment, you cannot
+automatically download the image from the public registry. The image is included in the air-gapped
+bundle, and you must load the image into the container runtime.
+3. Create a Nutanix VM image:
+nkp create image nutanix
+To create a specialized VM image, the NKP CLI creates a VM from the base VM image.
+export NUTANIX_ENDPOINT=Prism Central Endpoint URL
+export NUTANIX_CLUSTER=Prism Central Cluster Name
+export NUTANIX_USER=Prism Central Username
+export NUTANIX_PASSWORD=Prism Central Password
+export SUBNET=VLAN Subnet
+export BASE_VM_IMAGE=VM image name
+export OS=OS name
+The NKP CLI also makes changes, such as installing dependencies and configuring services, and
+finally creates a new VM image with these changes. The following attributes apply in the previous
+command:
+•
+NUTANIX_ENDPOINT - Prism Central endpoint URL, including the scheme, host, and port.
+•
+NUTANIX_CLUSTER - Prism Central cluster.
+•
+NUTANIX_USER - Prism Central username.
+•
+NUTANIX_PASSWORD - Prism Central password.
+•
+SUBNET - Prism Central subnet to create a temporary VM.
+•
+BASE_VM_IMAGE - Use a VM image uploaded to Prism Central as the base.
+•
+OS - OS name with version. For possible values, run nkp create image nutanix --help.
+4. Create the Nutanix VM image with the environment variables exported in the environment.
+If you have created a package bundle, use it here:
+export ARTIFACTS_DIRECTORY_FLAG="--artifacts-directory=nkp-nkp_version/nib/artifacts"
+If you use internal registry when creating an NKP cluster:
+export BUNDLE_FLAG="--bundle nkp-${nkp-version}/container-images/konvoy-image-bundle-
+${nkp-version}.tar
+This bundle contains all the necessary container images required to bootstrap an NKP cluster.
+Replace nkp_version with the NKP version at your site.
+nkp create image nutanix $OS \
+--endpoint ${NUTANIX_ENDPOINT} \
+--cluster ${NUTANIX_CLUSTER} \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 712
+
+--- page 713 ---
+--subnet ${SUBNET} \
+--source-image ${BASE_IMAGE} \
+"${ARTIFACTS_DIRECTORY_FLAG:-""}" \
+--${BUNDLE_FLAG:-""}
+5. Note the name of the created VM image.
+Use this VM image name when you create the cluster.
+6. Verify the image placement policies of the VM image.
+The VM image is covered by one or more image placement policies. Ensure that these policies allow
+the VM image to be copied to all Prism Central clusters that you plan to use with NKP.
+The image placement policies are listed in the VM image details view in Prism Central. For more
+information, see Image Placement Policies in the Prism Central Infrastructure Guide.
+What to do next
+•
+You can Prepare a Local Registry Mirror and then Push Images to the Registry (Required for an air-
+gapped environment and optional for a non-air-gapped environment).
+•
+You can proceed to Deploy NKP Using UI from Nutanix Marketplace, or Create the NKP Management
+Cluster through CLI.
+Preparing a Local Registry Mirror
+Prepare a local registry mirror and push images to it for deploying the Nutanix Kubernetes Platform (NKP)
+management cluster.
+Before you begin
+If your site does not have a local registry set up, ensure that you configure one before proceeding. For
+more information, see the Local Registry Tools.
+About this task
+Important:  This procedure is required for an air-gapped environment that does not use an internal registry
+mirror. It is optional for a non-air-gapped environment, however it can increase stability and security. You can
+also use a registry mirror with a self-signed registry CA certificate in the non-air-gapped environment.
+In a non-air-gapped environment, Nutanix Kubernetes Platform (NKP) downloads artifacts from sources
+on the internet. For example, NKP downloads container images from container registries. In an air-
+gapped environment, NKP downloads these artifacts from sources within the environment. For example,
+NKP downloads container images from a registry reachable on the local network. The registry must be
+reachable from the bastion, where the NKP CLI runs, and from every machine in the Kubernetes cluster.
+To prepare a local registry, follow these steps:
+Procedure
+1. Open the terminal with access to the NKP CLI.
+2. Provide the registry mirror URL.
+The registry address includes the scheme, the host, port, and optional path:
+export REGISTRY_MIRROR_URL="https://registry-mirror-host:registry-mirror-port"
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 713
+
+--- page 714 ---
+3. (Optional) Provide the registry mirror username and password.
+If the registry mirror requires a username and password, provide the username and password:
+export REGISTRY_MIRROR_USERNAME=<username>
+export REGISTRY_MIRROR_PASSWORD=<password>
+4. Access the registry without a trusted CA certificate:
+a. Export the environment variables:
+export REGISTRY_MIRROR_CA=Path to store the downloaded CA certificate
+export REGISTRY_MIRROR_ADDRESS=Registry address
+export REGISTRY_MIRROR_PORT=Registry port
+Replace:
+•
+Path to store the downloaded CA certificate with the path to store the downloaded CA
+certificate.
+•
+Registry address with the host of the registry URL.
+•
+Registry port with the port of the registry URL.
+b. Download the CA certificate:
+openssl s_client \
+    -showcerts \
+    -connect $REGISTRY_MIRROR_ADDRESS:$REGISTRY_MIRROR_PORT \
+    </dev/null | \
+openssl x509 \
+    -outform PEM \
+    > $REGISTRY_MIRROR_CA
+If your registry CA certificate is self-signed, it might be a untrusted certificate.
+Pushing Images to the Registry
+Push images to the registry to deploy the Nutanix Kubernetes Platform (NKP) management cluster.
+Before you begin
+Important:  This procedure is required for an air-gapped environment that does not use an internal registry
+mirror. It is optional for a non-air-gapped environment, however it can increase stability and security. You can
+also use a registry mirror with a self-signed registry CA certificate in the non-air-gapped environment.
+Ensure that the registry is prepared and the environment variables are exported before you push images to
+the registry. For more information, see Preparing a Local Registry Mirror on page 713.
+If you do not already have a local registry set up and want to use an external solution, see Local Registry
+Tools.
+About this task
+To push images to the registry, follow these steps:
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. Push all bundles to the registry:
+nkp push bundle \ 
+--bundle "nkp-nkp-version/container-images/konvoy-image-bundle-nkp-version.tar" \ 
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 714
+
+--- page 715 ---
+--bundle "nkp-nkp-version/container-images/kubernetes-os-ubuntu-24.04-nkp-nkp-
+version-v1.36.2_linux_amd64.tar" \
+--bundle "nkp-nkp-version/container-images/kommander-image-bundle-nkp-version.tar" \
+--bundle "nkp-nkp-version/container-images/nutanix-product-catalog-nkp-version-
+airgapped.tar" \
+--bundle "nkp-nkp-version/container-images/nkp-release-specs-nkp-version.tar\
+--to-registry=${REGISTRY_MIRROR_URL} \
+--to-registry-username=${REGISTRY_MIRROR_USERNAME} \
+--to-registry-password=${REGISTRY_MIRROR_PASSWORD} \
+--to-registry-ca-cert-file=${REGISTRY_MIRROR_CA:-""}
+Replace nkp_version with the NKP version at your site. Specify only the required bundle as comma-
+separated values in the --bundle parameter.
+Note:  The nutanix-product-catalog-nkp-version-airgapped.tar included in the NKP air-
+gapped bundle contains images exclusively for Nutanix Data Services for Kubernetes (NDK). You must
+specify the Nutanix product catalog bundle only if you plan to deploy NDK.
+What to do next
+You can Deploy NKP using UI from Nutanix Marketplace, or Create the NKP Management Cluster using
+CLI.
+Deploying Nutanix Kubernetes Platform using UI from Nutanix Marketplace
+Deploy a management cluster for Nutanix Kubernetes Platform (NKP) as an application from Nutanix
+Marketplace using the Prism Central UI.
+Before you begin
+•
+Ensure that you enabled Nutanix Marketplace.
+•
+Verify the NKP image, and Kubernetes version in the overview section. For more information, see
+Nutanix Image Builder on page 55 and Supported Infrastructure Operating Systems on page 13.
+•
+You must have the required Prism Central Roles and Permissions for Nutanix Kubernetes Platform on
+page 705 to create a cluster.
+•
+Ensure that valid node OS images conforming to the Kubernetes version are available. For details on
+how to make these images available, see Using an Image provided by Nutanix and Importing Images to
+Prism Central. Do not rename the image downloaded from the Nutanix Portal.
+•
+In connected environments, ensure the cluster can reach the nutanix-portal (download.nutanix.com) to
+ensure the bastion VM image can be downloaded during deployment.
+•
+Ensure that one IP address is available for the Kubernetes API VIP.
+•
+Ensure that IP addresses are available for the Kubernetes service load balancer.
+•
+Ensure that selected VLAN has a pool of free IP addresses (required for DHCP allocation).
+•
+IPAM or DHCP must be enabled on the selected subnet.
+•
+NKP starter licenses support deployment of Rocky Linux images only. For any other image, including
+Ubuntu, you must have a NKP Pro or NKP Ultimate License.
+Note:
+•
+NKP deployment on Nutanix marketplace is not supported on X-Small Prism Central instances.
+•
+NKP cluster deployment is not supported on a dual stack enabled Prism Central instance.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 715
+
+--- page 716 ---
+Procedure
+1.
+Log in to Prism Central as an administrator.
+2.
+Select Admin Center in the Application Switcher.
+3.
+Click Marketplace in the navigation bar.
+4.
+In the Nutanix Apps section, click Get for the Nutanix Kubernetes Platform app.
+The app details page opens.
+5.
+Click Deploy.
+The deployment page is displayed.
+6.
+In the Name & Access tab, follow these steps:
+a. Enter the cluster name.
+The name entered in this tab is the name assigned to the NKP cluster during deployment.
+b. Enter the SSH username and SSH public key.
+The SSH username and public key is applied to the bastion VM, as well as the control-plane and
+worker nodes. If the deployment fails, you can use these credentials to SSH into the bastion VM and
+extract the support bundle.
+7.
+In the Provider tab, follow these steps:
+a. Enter the Prism Central username and password of the user creating and managing the NKP
+cluster.
+b. Select the Prism Element name from the dropdown list. This list is based on the Prism Central
+credentials entered.
+8.
+In the Resources tab, follow these steps:
+a. Select the OS image.
+b. Enter the values for the control plane nodes and worker nodes.
+The recommended values are pre-filled.
+9.
+In the Storage tab, follow these steps:
+a. Select the Nutanix storage container.
+b. Select the Reclaim policy.
+c. Select the Hypervisor-attached volume.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 716
+
+--- page 717 ---
+10. In the Network & Proxy tab, follow these steps:
+a. Select the subnets that are configured with either Nutanix IPAM or DHCP.
+The selected subnets should also be connected to the control plane and worker node pools.
+b. Enter details of the Control Plane Endpoint IP and Port.
+The IP details entered here must be unused, and must be outside the scope of Nutanix IPAM and
+DHCP.
+c. Enter details of the Kubernetes load balancer Service IP Range.
+d. Enter details of the Kubernetes pod network and service CIDR.
+Ensure the subnets do not overlap with your host subnet as it cannot be changed after creation of
+the cluster. If you select a non-default CIDR, you must update the new CIDR value in the no-proxy
+list.
+e. Enter details of the Internet proxy for HTTP, HTTPS, or if there is no proxy.
+See Configuring an HTTP or HTTPS Proxy on page 665 for more details on the flags and format
+to be used.
+11. (Optional) In the Registry tab, enter the details:
+•
+Image Registry Mirror:
+•
+If provided, the cluster uses this external registry mirror to pull and cache required container
+images.
+•
+If you do not provide a mirror, the system automatically deploys an in#cluster private registry
+that acts as a pull#through cache for the required images.
+•
+Private Registry:
+•
+If you provide a private registry, the system configures it to the cluster to pull specific application
+images.
+•
+If you do not provide a private registry, the system skips this configuration.
+Note:  Both the Image Registry Mirror and Private Registry fields are optional. If you do not provide
+details for either field, the system deploys an internal registry mirror to complete the cluster deployment.
+12. Click Next.
+After deployment, the NKP App appears on the My Apps page. You can select the NKP Cluster in
+the application switcher to open and manage the app.
+During deployment of the NKP instance, a bastion host VM tile is temporarily visible. This is cleared
+on successful deployment. In case of a failure, you can delete the failed NKP application instance
+which also cleans the bastion VM for this instance.
+What to do next
+•
+The dashboard can be launched from the NKP application page after deployment.
+•
+You can download the kubeconfig to connect with or manage the cluster, or to create worker clusters.
+See Cluster Operations Management on page 227 for more details.
+•
+For license update or activation, you must use the Cluster UUID, and not the Application UUID details.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 717
+
+--- page 718 ---
+•
+Upgrade: To upgrade NKP, see Upgrade NKP.
+Note:  NKP upgrade through Nutanix marketplace is not supported.
+•
+Refresh: When you upgrade the cluster manually, you can select the Refresh option to view the latest
+cluster and Kubernetes details as well as the upgraded version details in the widget.
+•
+Delete a cluster: If you must delete a cluster, to avoid a failure you must ensure that this cluster is not
+managing another cluster or workload. In the App widget, select the delete option to delete the selected
+cluster.
+If an error occurs during the delete operation, you can initiate the soft-delete option that ignores the
+failures and clears the application tiles from Nutanix Marketplace.
+Creating the Nutanix Kubernetes Platform Management Cluster using CLI
+Create a Nutanix Kubernetes Platform (NKP) management cluster in a non-air-gapped, or air-gapped
+environment using the NKP default settings.
+About this task
+To create the NKP management cluster, follow these steps:
+Note:  To create a NKP management cluster when the bootstrap cluster is running on the host, you need a
+minimum of 4 CPUs and 4GB memory available for successful creation of the management cluster.
+Procedure
+1.
+Open the terminal with access to the NKP CLI.
+2.
+(Required for air-gapped environment and optional for non-air-gapped environment) Load the NKP
+bootstrap cluster container image into the local container runtime store:
+docker load --input "nkp-nkp-version/konvoy-bootstrap-image-nkp-version.tar"
+The NKP CLI uses a container image to create the bootstrap cluster. In an air-gapped environment,
+you cannot automatically download the image from the public registry. The image is included in the air-
+gapped bundle, and you must load the image into the container runtime.
+3.
+Assign a name to your cluster and store it in an environment variable:
+export CLUSTER_NAME= Name of the NKP Cluster
+Replace Name of the NKP Cluster with the name of the NKP management cluster.
+Note:  NKP also uses the cluster name for some Kubernetes resources. Ensure that you only use
+lowercase alphabets a-z, numbers 0-9, ., and - in the cluster name. For more information, see
+Kubernetes.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 718
+
+--- page 719 ---
+4.
+Provide the Prism Central endpoint.
+The NKP CLI uses the Prism Central API to create the NKP cluster, and this API is hosted at the
+Prism Central endpoint.
+The endpoint must be in one of three formats:
+•
+host
+•
+host:port
+•
+A valid URL. For example, https:// host:port
+For example:
+export NUTANIX_ENDPOINT=URL of Prism Central Endpoint
+Replace URL of Prism Central Endpoint with the URL of Prism Central endpoint.
+5.
+Provide the Prism Central credentials:
+export NUTANIX_USER=Prism Central Username
+export NUTANIX_PASSWORD=Prism Central Password
+Replace:
+•
+Prism Central Username with the Prism Central username.
+•
+Prism Central Password with the Prism Central password.
+The NKP CLI needs a username and password to access Prism Central.
+6.
+(Optional) Access an HTTPS Prism Central endpoint hosted on a self-signed certificate:
+»
+If the Prism Central endpoint uses a self-signed CA certificate, the CA certificate is untrusted.
+When creating an NKP cluster, use --additional-trust-bundle to pass only the Prism Central
+self#signed certificate file. The input must be a Base64-encoded.
+Run the following command to encode the plain text SSL certificate file into a Base64-encoded file:
+cat <plain text SSL cert file name> | base64
+Note:  Do not include the full CA bundle, as large files can exceed the 16 KB cloud#init user
+data limit and cause node VM creation errors.
+For more information, see SSL Certificate Management in Prism Central.
+»
+If you cannot provide a trusted CA certificate that can be verified, allow insecure HTTPS access to
+the Prism Central endpoint:
+export INSECURE=true
+This method is not recommended for a production environment, as it skips certificate validation and
+runs in an insecure mode.
+7.
+Choose the name of a Prism Element cluster:
+export NUTANIX_CLUSTER=Name of Prism Central Cluster
+Replace Name of the Prism Central Cluster with the name of the Prism Element cluster.
+The system creates the NKP control plane and worker nodes virtual machines in the Prism Element
+cluster.
+In this step, a single Prism Element cluster is used for both the control plane and worker nodes.
+However, you can modify the NKP CLI command to use separate Prism Element clusters for the
+control plane and worker nodes.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 719
+
+--- page 720 ---
+8.
+Choose the name of a Nutanix storage container to use for Kubernetes persistent volumes:
+export STORAGE_CONTAINER_NAME=Name of Storage Container
+Replace Name of Storage Container with the name of the Nutanix storage container.
+By default, Kubernetes persistent volumes are provisioned using Nutanix volumes in a Nutanix
+storage container. The storage container configuration controls features such as replication,
+compression, and deduplication. You can dedicate a storage container to your cluster, or share the
+storage container.
+Important:  The storage container must be in the Prism Element cluster that you selected in step 4 on
+page 719.
+9.
+Choose an IP address for the control plane endpoint:
+export CONTROLPLANE_IP=Dedicated static IP
+Replace Dedicated static IP with a static IP address for the control plane endpoint.
+The NKP cluster control plane consists of multiple nodes, each capable of responding to Kubernetes
+API requests. However, only one node serves the requests at a time. The control plane endpoint uses
+a virtual IP (VIP) address, which is assigned to an active node. This VIP ensures that API requests are
+always directed to the current active control plane node.
+Important:  Ensure that the IP address for the control plane endpoint adheres to the following
+guidelines:
+•
+Routable from the control plane and worker subnets
+•
+A static IP that is not part of a dynamic host configuration protocol (DHCP) or IP address
+management (IPAM) pool
+•
+Not used for any other purpose
+10. (Optional) Configure an external endpoint to access the control plane:
+export CONTROLPLANE_EXTERNAL_ENDPOINT_FLAG="
+--control-plane-external-endpoint=<IP or DNS name>"
+The external endpoint can be used to access the cluster from outside the control plane and worker
+subnets. The endpoint can be an IP or a fully-qualified domain name.
+Note:
+•
+Inside the VPC: To access a cluster in a Virtual Private Cloud (VPC), you can use a
+floating IP as the external endpoint. Use Prism Central to request a new floating IP, or
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 720
+
+--- page 721 ---
+choose a floating IP that is not associated. Finally, associate the floating IP with the static
+IP you chose in the previous step.
+•
+To access the cluster in the VPC, use the Bastion VM or any other VM in the same VPC.
+•
+Outside the VPC: To access a cluster from outside the VPC, link the floating IP to an
+internal IP used as CONTROL_PLANE_ENDPOINT_IP while deploying the cluster. For
+information on Floating IP, see the topic Request Floating IPs in Flow Virtual Networking.
+•
+Access the cluster in the VPC from outside using updated kubeconfig after creating the
+cluster.
+•
+To access the UI outside the VPC, you need to request three floating IPs.
+•
+One IP for the bastion
+•
+One IP for passing the --extra-sans flag during cluster creation
+•
+One IP for the UI
+11. Choose an IP address range for Kubernetes load balancer services:
+export SERVICE_LB_IP_RANGE="IP range in  first IP-last IP format"
+Replace IP range in first IP-last IP format with the IP range in first IP-last IP format. For
+example, 100.0.0.30-100.0.0.56.
+The NKP cluster assigns an external IP address from a predefined range to expose a Kubernetes
+service. The NKP UI uses the first IP address in this range.
+Important:  Ensure that the IP addresses for the Kubernetes load balancer services adhere to the
+following guidelines:
+•
+Routable from the control plane and worker subnets
+•
+A static IP that is not part of a dynamic host configuration protocol (DHCP) or IP address
+management (IPAM) pool
+•
+Not used for any other purpose
+12. Choose a subnet for control plane and worker nodes:
+export SUBNET=Subnet name
+Replace Subnet name with the name of the subnet for control plane and worker nodes.
+Every control plane and worker node is assigned an IP address from this subnet.
+Important:  Ensure that the subnet is in the Prism Element cluster that you selected in Step 4 on
+page 719.
+In this step, one subnet is used for both the control plane and the worker nodes. However, you can
+modify the NKP CLI command to use separate subnets for the control plane and the worker nodes.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 721
+
+--- page 722 ---
+13. Choose a Nutanix VM image:
+export VM_IMAGE=VM Image name
+Replace VM Image name with the name of the Nutanix VM image.
+If you did not create a Nutanix VM image, you can use a prebuilt VM image. For more information, see
+Creating a Nutanix VM Image on page 711.
+In this step, one Nutanix VM image is used for both the control plane and the worker nodes. However,
+you can modify the NKP CLI command to use separate Nutanix VM images for the control plane and
+the worker nodes.
+Note:  If the VM image was built with FIPS enabled, you also need to enable FIPS in the cluster, as
+described in the next step.
+14. (Optional) Choose a VM profile:
+--worker-vm-profile vm-profile-name
+Replace vm-profile-name with the name of the VM profile.
+Specify a VM profile to provision GPU-capable worker node pools on special-purpose hardware, such
+as NVIDIA-HGX hosts. The VM profiles specify compute, memory and device topologies, and must be
+created and configured by the Prism Central administrator prior to creating a cluster.
+Note:  The --vm-profile flag must not be used if you are configuring any of these parameters on the
+worker nodes:
+•
+--cores-per-cpu
+•
+--memory
+•
+--vcpus
+•
+--gpu-count
+•
+--gpu-name
+15. (Optional) Enable FIPS in the cluster:
+export FIPS_FLAG="--fips"
+This flag enables FIPS in the cluster.
+Note:  To enable FIPS in the cluster, the VM image used in the previous step must be built with FIPS
+enabled.
+16. (Required for air-gapped environment and optional for non-air-gapped environment) Use one of the
+following registry methods to manage the container images:
+a. Internal Registry Mirror: If you want NKP to manage the required container images using its
+internal registry with a bundled image set.
+export BUNDLE_FLAGS=" --bundle ./nkp-${nkp-version}/container-images/kommander-
+image-bundle-${nkp-version}.tar,./nkp-${nkp-version}/container-images/konvoy-
+image-bundle-${nkp-version}.tar,./nkp-${nkp-version}/container-images/nutanix-
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 722
+
+--- page 723 ---
+product-catalog-${nkp-version}-airgapped.tar,./nkp-${nkp-version}/container-
+images/nkp-release-specs-${nkp-version}.tar"
+Replace nkp-version with the NKP version at your site.
+NKP provides a bundle that contains all the necessary container images required to bootstrap
+an NKP cluster. Specify only the required bundle as comma-separated values in the --bundle
+parameter.
+Note:  The nutanix-product-catalog-nkp-version-airgapped.tar included in the NKP
+air-gapped bundle contains images exclusively for Nutanix Data Services for Kubernetes (NDK).
+You must specify the Nutanix product catalog bundle only if you plan to deploy NDK.
+b. Local Registry Mirror: If you want to configure a local or user-provided registry mirror manually.
+export REGISTRY_MIRROR_FLAGS="
+--registry-mirror-url=$REGISTRY_MIRROR_URL \
+--registry-mirror-username=$REGISTRY_MIRROR_USERNAME \
+--registry-mirror-password=$REGISTRY_MIRROR_PASSWORD \
+--registry-mirror-cacert=$REGISTRY_MIRROR_CA \
+"
+By default, an NKP cluster pulls container images from public registries. If these registries are not
+available, or you do not use them, NKP can pull the images from a registry mirror. To use a registry
+mirror, follow the steps in Preparing a Local Registry Mirror on page 713, and export the following
+environment variables.
+For more information about the registry types, see Air-Gapped or Non-Air-Gapped Environment on
+page 24.
+17. (Required for air-gapped environment and optional for non-air-gapped environment) Enable the air-
+gapped mode:
+export AIRGAPPED=true
+The air-gapped mode runs the NKP UI, and other NKP applications in an air-gapped environment.
+18. (Optional) Use registry credentials:
+export REGISTRY_FLAGS="
+--registry-url=<Registry URL> \
+--registry-username=<Registry username> \
+--registry-password=<Registry password> \
+--registry-cacert=<Path to registry CA certificate file> \
+"
+By default, an NKP cluster pulls container images from public registries. However, some registries,
+such as Docker Hub, limit the number of image pulls unless you provide the credentials.
+Tip:  If you do not use a local registry mirror or an internal registry, Nutanix recommends that you
+provide credentials for Docker Hub.
+19. (Optional) Choose networks for the Kubernetes pods and services:
+export KUBERNETES_PODS_NETWORK=IP range in CIDR format
+export KUBERNETES_SERVICES_NETWORK=IP range in CIDR format
+Replace IP range in CIDR format with the IP range in CIDR format. For example, 192.168.0.0/16.
+Every NKP cluster has two networks; one for Kubernetes pods, and another for Kubernetes services.
+These networks are internal to the cluster. Every Kubernetes pod is assigned an IP address from
+the Kubernetes pods network, and every Kubernetes service is assigned an IP address from the
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 723
+
+--- page 724 ---
+Kubernetes services network. The network size is based on the number of pods and services in a
+cluster.
+Important:
+•
+The Kubernetes pods network and Kubernetes services network must not overlap with
+each other, or with your control plane and worker nodes subnets.
+•
+After cluster creation, you cannot change the pods and services subnets.
+By default, the pods network is 192.168.0.0/16, and the services network is 10.96.0.0/12.
+These network sizes allow up to approximately 65 thousand pods, and one million
+services.
+20. (Optional) Enable SSH access to nodes:
+export SSH_USERNAME=username
+export SSH_PUBLIC_KEY=path to SSH public key file
+Replace:
+•
+username with the SSH user name
+•
+path to SSH public key file with the location of SSH public key file
+Provide a username and public SSH key to enable SSH access with these credentials to all NKP
+cluster nodes. NKP creates the user on every cluster node, and adds the public SSH key to the
+authorized SSH keys of the user. By default, NKP cluster nodes allow SSH public key authentication.
+Provide the public SSH key as a path to a file.
+21. (Optional) To disable the automatic onboarding of clusters:
+export PC_ONBOARDING_FLAGS="
+--onboard-to-prism-central=false \
+"
+This is an optional step to disable the automatic onboarding of clusters, which is enabled by default.
+Note:  If the konnector agent pod is stuck in Init state, you must enable karbon-core service in PC in
+version 7.3 and upgrade the karbon-core version to 2.10.2.
+22. Configure Network Time Protocol (NTP) servers on Nutanix Kubernetes Platform (NKP) clusters.
+Configure Network Time Protocol (NTP) on Nutanix Kubernetes Platform (NKP) clusters to
+synchronize system time is mandatory across all the nodes in an air-gapped environment.
+Configure NTP servers on Nutanix Kubernetes Platform (NKP) clusters if you cannot use the default
+public NTP servers that are set in the operating system or prefer to use your own custom NTP server
+in non-air-gapped environments.
+Use --ntp-servers flag to configure a comma separated list of NTP servers across all the nodes.
+Each entry must be a Fully Qualified Domain Name (FQDN) or an IP address (IPv4 or IPv6). This
+list overrides any default NTP settings preconfigured in the machine image. For example, export
+NTP_FLAGS="--ntp-servers=pool.ntp.org,time.google.com \ ".
+23. Create a management cluster:
+nkp create cluster nutanix \
+--self-managed \
+--airgapped=${AIRGAPPED:-false} \
+\
+--cluster-name=${CLUSTER_NAME} \
+--endpoint=${NUTANIX_ENDPOINT} \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 724
+
+--- page 725 ---
+--insecure=${INSECURE:=false} \
+--control-plane-endpoint-ip=${CONTROLPLANE_IP} \
+--control-plane-external-endpoint=${CONTROLPLANE_EXTERNAL_ENDPOINT_FLAG} \
+--csi-storage-container=${STORAGE_CONTAINER_NAME} \
+--kubernetes-pod-network-cidr=${KUBERNETES_PODS_NETWORK:-"192.168.0.0/16"} \
+--kubernetes-service-cidr=${KUBERNETES_SERVICES_NETWORK:-"10.96.0.0/12"} \
+--kubernetes-service-load-balancer-ip-range=${SERVICE_LB_IP_RANGE} \
+\
+--control-plane-prism-element-cluster=${NUTANIX_CLUSTER} \
+--control-plane-subnets=${SUBNET} \
+--control-plane-vm-image=${VM_IMAGE} \
+\
+--worker-prism-element-cluster=${NUTANIX_CLUSTER} \
+--worker-subnets=${SUBNET} \
+--worker-vm-image=${VM_IMAGE} \
+--ssh-username=${SSH_USERNAME} \
+--ssh-public-key-file=${SSH_PUBLIC_KEY} \
+\
+${NTP_FLAGS} \
+${BUNDLE_FLAGS} \
+${REGISTRY_MIRROR_FLAGS} \
+\
+${REGISTRY_FLAGS}
+\
+${FIPS_FLAG}
+Important:  Do not use both BUNDLE_FLAG and REGISTRY_MIRROR_FLAG simultaneously. Use these
+flags based on how you manage the container images.
+To assign values to flags, the NKP CLI command creates a management cluster with the configuration
+and environment variables that you exported.
+If you require the use of an HTTP/S proxy in your environment, add the flags --http-proxy, --
+https-proxy, and --no-proxy. For more information, see Cluster Creation with HTTP or HTTPS
+Proxy on page 668.
+When you run the command nkp create cluster, NKP performs a series of preflight checks
+to prevent common issues with cluster creation. For more information, see Preflight Checks on
+page 726.
+For example, if the VM image name is missing from the worker and control plane nodes, the following
+error is displayed in the output while creating cluster resources:
+> nkp create cluster nutanix ...
+Generating cluster resources
+Preflight checks failed:
+---
+Check:   NutanixVMImage
+Message: For the workers, expected to find 1 VM Image, found 0
+Flag:   --worker-vm-image
+---
+Check:   NutanixVMImage
+Message: For the control plane, expected to find 1 VM Image, found 0
+Flag:   --control-plane-vm-image
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 725
+
+--- page 726 ---
+24. (Optional) Skip the preflight checks.
+Important:  Skip the preflight checks only when you encounter an error or a bug in the check.
+You can skip a specific preflight check using a flag with the name of that check. For example,
+--skip-preflight-checks=NutanixVMImage
+If you want to skip more than one preflight check, specify the flag for each check individually. For
+example,
+--skip-preflight-checks=NutanixVMImage --skip-preflight-
+checks=NutanixStorageContainer
+If you want to skip all the preflight checks, use --skip-preflight-checks=all.
+Preflight Checks
+Before creating a cluster, Nutanix Kubernetes Platform (NKP) performs a series of preflight checks to
+prevent common issues with cluster creation.
+Preflight checks on the Nutanix infrastructure:
+Note:  When NKP creates a cluster, it generates multiple Kubernetes resources, including secrets that store
+credentials. The preflight checks use these secrets, and so you must create the secrets before creating
+a cluster. The NKP CLI automates creating the secrets and ensures that the resources are created in the
+correct order. If you use a different client such as kubectl, ensure that you create the secrets first.
+•
+Verifies that Prism Central is reachable and the credentials provided are valid.
+The credentials are stored in their secret.
+•
+Verifies that the VM image is present in Prism Central.
+•
+Verifies that the Kubernetes cluster version is part of the VM image name. For example, Kubernetes
+version 1.36.x.
+•
+If you configure Container Storage Interface (CSI), NKP verifies that the storage containers specified in
+the configuration exist in Prism Central.
+The Nutanix CSI driver uses storage containers to provision persistent volumes (PV).
+•
+Validates your Pod and Service CIDR configurations. This check ensures that the Pod and Service
+CIDRs are large enough to prevent IP exhaustion and that they do not overlap each other, the Node
+subnets, or the control plane endpoint to prevent conflicts.
+Preflight checks on the local registry:
+•
+Verifies that the local registry is reachable and the credentials provided are valid.
+The credentials are stored in their secret.
+Creating a Nutanix Cluster With Custom Cilium Configuration
+Create a cluster on Nutanix infrastructure with a custom Cilium configuration.
+About this task
+Warning:  For this procedure, you must modify .yaml files directly. Therefore, this task is recommended
+only for advanced users.
+By default, Nutanix Kubernetes Platform (NKP) installs the Cilium add-on with the default configuration
+while creating a cluster. However, you can override the default configuration with a custom configuration
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 726
+
+--- page 727 ---
+for advanced use-cases. For example, you can create a Nutanix cluster using NKP with transparent
+encryption (Wireguard).
+You can create a NKP cluster with a custom Cilium configuration in both air-gapped and non-air-gapped
+environments.
+For more information on maximum transmission unit behavior for AHV clusters that use Cilium with overlay
+networking, see Maximum Transmission Unit Configuration for AHV Clusters on page 711.
+Before you begin
+•
+You must customize the configuration before you create a cluster. Only the custom configuration that
+you provide while creating the cluster is applied. If you update the cluster specification or the Cilium CNI
+configmap after you create a cluster, the updates are not applied to an installed Cilium add-on.
+•
+This task must be performed only by advanced users as you are required to modify YAML files directly.
+Procedure
+1. Generate Cluster Objects.
+You must set the target namespace with the name of the workspace you are creating the cluster
+in, using the nkp create cluster nutanix ... --dry-run --output=yaml > cluster.yaml
+command.
+Depending upon your infrastructure, this command generates a set of cluster objects that can be
+customized for advanced use-cases.
+2. Create a file named values.yaml with the following helm values. You must edit the values as required:
+cni:
+  exclusive: false
+hubble:
+  enabled: true
+  tls:
+    auto:
+      enabled: true               # enable automatic TLS certificate generation
+      method: cronJob             # auto generate certificates using cronJob method
+      certValidityDuration: 60    # certificates validity duration in days (default 2
+ months)
+      schedule: "0 0 1 * *"       # schedule on the 1st day regeneration of each
+ month
+  relay:
+    enabled: true
+    tls:
+      server:
+        enabled: true
+        mtls: true
+    image:
+      useDigest: false
+    priorityClassName: system-cluster-critical
+ipam:
+  mode: kubernetes
+image:
+  useDigest: false
+operator:
+  image:
+    useDigest: false
+certgen:
+  image:
+    useDigest: false
+socketLB:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 727
+
+--- page 728 ---
+  hostNamespaceOnly: true
+envoy:
+  image:
+    useDigest: false
+k8sServiceHost: "{{ trimPrefix .ControlPlaneEndpoint.Host "https://" }}"
+k8sServicePort: "{{ .ControlPlaneEndpoint.Port }}"
+kubeProxyReplacement: true
+tunnelProtocol: geneve
+loadBalancer:
+  mode: dsr
+  dsrDispatch: geneve
+For example, add the following values to the values.yaml file to enable Cilium with transparent
+encryption (Wireguard). As a result, Cilium encrypts network traffic and sets the encryption method as
+WireGuard:
+encryption:
+  enabled: true
+  type: wireguard
+Note:  The values.yaml file includes all the required Helm values needed to configure the Cilium add-
+on. NKP uses these values from the file during cluster creation to install and configure Cilium.
+Warning:  You cannot modify the Cilium IPAM configuration, mode, Pod CIDR, or Service CIDR of a
+running cluster. For more information, see IPAM Configuration Change Limitation on page 497.
+3. Create an additional file named preflight-values.yaml with these values to ensure completion of the
+preflight checks during an upgrade of this cluster:
+agent: false
+operator:
+  enabled: false
+preflight:
+  enabled: true
+  envoy:
+    image:
+      useDigest: false
+  image:
+    useDigest: false
+k8sServiceHost: "{{ trimPrefix .ControlPlaneEndpoint.Host "https://" }}"
+k8sServicePort: "{{ .ControlPlaneEndpoint.Port }}"
+4. Create a ConfigMap with the required Helm values, if you do not have a ConfigMap YAML file already:
+kubectl create configmap <CLUSTER_NAME>-cilium-cni-helm-values-template
+ --from-file=values.yaml=values.yaml
+ --from-file=preflight-values.yaml=preflight-values.yaml -n <CLUSTER_NAMESPACE>
+You can skip the previous step if you already have a ConfigMap YAML file prepared. To apply it, edit it
+as required to add helm values. Ensure the namespace in the ConfigMap YAML file is set to target the
+cluster’s namespace and apply it using this command:
+kubectl apply <ConfigMap YAML Filepath>
+5. Edit your cluster YAML file as follows:
+You must first specify Cilium as the CNI provider.
+Reference a ConfigMap that contains your custom Helm values. Ensure the ConfigMap name is same
+as the one created in the previous step:
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 728
+
+--- page 729 ---
+metadata:
+  name: <NAME>
+  namespace: <CLUSTER_NAMESPACE>
+spec:
+  topology:
+    variables:
+      - name: clusterConfig
+        value:
+          addons:
+            cni:
+              provider: Cilium
+              strategy: HelmAddon
+              values:
+                sourceRef:
+                  name: <CLUSTER_NAME>-cilium-cni-helm-values-template
+                  kind: ConfigMap
+6. Apply the edited cluster YAML files:
+kubectl apply -f cluster.yaml
+The cluster is created with the custom Cilium configuration.
+Note:  If the self-managed flag was added in the dry-run, follow the steps to make the cluster a Self-
+Managed Cluster on page 22
+Setting up the Nutanix Kubernetes Platform User Interface Access
+Retrieve the dashboard URL and rotate credentials for the NKP user interface after cluster creation.
+About this task
+To set up the NKP UI access, follow these steps:
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. Access the NKP UI in Kommander and retrieve your credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+Use these static credentials only to configure an external identity provider. For more information, see
+Identity Providers. Treat them as backup credentials, not for regular UI access.
+3. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Are you sure you want to continue? [y/N]: y
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 729
+
+--- page 730 ---
+4. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+For more information, see Rotating the NKP Dashboard Password on page 252.
+Updating Prism Central Credentials on Deployed NKP Clusters
+Update your Prism Central credentials when you need to change your password or when the password
+expires.
+Before you begin
+Before you update your Prism Central credentials on deployed Nutanix Kubernetes Platform (NKP)
+clusters, ensure all requirements of Prism Central Credentials are met . For more information, see Prism
+Central Credential Requirements.
+About this task
+To update the Prism Central credentials using CLI, follow these steps:
+Note:  For an automated script to update Prism Central credentials on NKP clusters, see KB-18296.
+Procedure
+1.
+Open the terminal with access to the NKP CLI.
+2.
+Scale down the following associated pods:
+a. Scale down the following deployments or controllers of the pods:
+kubectl scale deployment capx-controller-manager -n capx-system --replicas=0
+kubectl scale deployment cluster-api-runtime-extensions-nutanix -n caren-system
+ --replicas=0
+kubectl scale deployment nutanix-cloud-controller-manager -n kube-system --
+replicas=0
+kubectl scale deployment nutanix-csi-controller -n ntnx-system --replicas=0
+kubectl scale deployment nutanix-csi-controller -n ntnx-system --replicas=0 --
+kubeconfig=$KUBECONFIG_WORKLOAD
+kubectl scale deployment nutanix-cloud-controller-manager -n kube-system --
+replicas=0 --kubeconfig=$KUBECONFIG_WORKLOAD
+b. Scale down the Container Storage Interface (CSI) pods on the management cluster:
+kubectl -n ntnx-system patch daemonset nutanix-csi-node  -p '{"spec":
+ {"template": {"spec": {"nodeSelector": {"non-existing": "true"}}}}}'
+c. Scale down the CSI pods on each managed cluster:
+kubectl -n ntnx-system patch daemonset nutanix-csi-node  -p '{"spec":
+ {"template": {"spec": {"nodeSelector": {"non-existing": "true"}}}}}' --
+kubeconfig=$KUBECONFIG_WORKLOAD
+3.
+Update the global-nutanix-credentials:
+a. Update the secret for the following global-nutanix-credentials:
+kubectl get secrets global-nutanix-credentials -n capx-system -o yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 730
+
+--- page 731 ---
+    clusterctl.cluster.x-k8s.io/move: ""
+    dkp-infrastructure-provider-type: nutanix-secret
+  name: global-nutanix-credentials
+  namespace: capx-system
+type: Opaque
+data:
+  additionalTrustBundle: ""
+  insecure: base 64 encoded Insecure Mode
+  password: base 64 encoded PC Password
+  prismURL: base 64 encoded PC Endpoint
+  username: base 64 encoded PC Username
+b. Store the password in base64 format and encode the new pass:
+echo -n 'NEW_PASSWORD' | base64
+TkVXX1BBU1NXT1JE
+c. Update the global-nutanix-credentials with a new password:
+kubectl edit secrets global-nutanix-credentials -n capx-system -o yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    clusterctl.cluster.x-k8s.io/move: ""
+    dkp-infrastructure-provider-type: nutanix-secret
+  name: global-nutanix-credentials
+  namespace: capx-system
+type: Opaque
+data:
+  additionalTrustBundle: ""
+  insecure: base 64 encoded Insecure Mode
+  password: base 64 encoded PC Password
+  prismURL: base 64 encoded PC Endpoint
+  username: base 64 encoded PC Username
+4.
+Update the individual cluster credentials (secrets).
+Ensure that the secrets are in the formats cluster-name-pc-credentials and cluster-name-pc-
+credentials-for-csi.
+5.
+Update the Prism Central credentials for the management cluster:
+a. Get the secret:
+kubectl get secrets ${MANAGEMENT_CLUSTER_NAME}-pc-credentials -o yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  finalizers:
+    - nutanixcluster/infrastructure.cluster.x-k8s.io
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: ${MANAGEMENT_CLUSTER_NAME}
+    konvoy.d2iq.io/provider: nutanix
+  name: ${MANAGEMENT_CLUSTER_NAME}-pc-credentials
+  namespace: default
+  ownerReferences:
+    - apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: NutanixCluster
+      name: ${MANAGEMENT_CLUSTER_NAME}-2smbz
+      uid: 8a9d1bba-02d5-4287-b3d8-284199d28a18
+    - apiVersion: cluster.x-k8s.io/v1beta1
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 731
+
+--- page 732 ---
+      kind: Cluster
+      name: ${MANAGEMENT_CLUSTER_NAME}
+      uid: a74225d9-4367-4fc2-b424-53a0bd981020
+type: Opaque
+data:
+  credentials: base64 encoded PC credentials
+Use the value of the credentials attribute in the secret:
+echo base 64 String | base64 -d
+[
+  {
+    "type": "basic_auth",
+    "data": {
+    "prismCentral": {
+      "username": "PC Username",
+      "password": "PC Password"
+      }
+    }
+  }
+]
+b. Decode the secret value and save it in a file:
+echo base 64 String | base64 -d > update_new_password.txt
+c. Open the file using a text editor and modify the password:
+cat update_new_password.txt
+[
+  {
+    "type": "basic_auth",
+    "data": {
+    "prismCentral": {
+      "username": "PC Username",
+      "password": "PC Password"
+      }
+    }
+  }
+]
+d. Encode the updated secret value:
+cat update_new_password.txt | base64 base 64 String
+e. Edit the secret and update the secret with the new value:
+kubectl edit secrets ${MANAGEMENT_CLUSTER_NAME}-pc-credentials -o yaml
+f.
+Validate the changes:
+apiVersion: v1
+data:
+  credentials: base64 encoded PC Credentials
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:16:07Z"
+  finalizers:
+    - nutanixcluster/infrastructure.cluster.x-k8s.io
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: ${MANAGEMENT_CLUSTER_NAME}
+    konvoy.d2iq.io/provider: nutanix
+  name: ${MANAGEMENT_CLUSTER_NAME}-pc-credentials
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 732
+
+--- page 733 ---
+  namespace: default
+  ownerReferences:
+    - apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: NutanixCluster
+      name: ${MANAGEMENT_CLUSTER_NAME}-2smbz
+      uid: 8a9d1bba-02d5-4287-b3d8-284199d28a18
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${MANAGEMENT_CLUSTER_NAME}
+      uid: a74225d9-4367-4fc2-b424-53a0bd981020
+  resourceVersion: "4982392"
+  uid: d382fa23-5e0e-46d7-a1c0-b5b3ee0bddd3
+type: Opaque
+6.
+Update the Prism Central credentials for the workload clusters:
+a. Get the secret:
+kubectl get secrets ${WORKLOAD_CLUSTER_NAME}-pc-credentials -n kommander-default-
+workspace -o yaml
+apiVersion: v1
+data:
+  credentials: base64 encoded PC credentials
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T21:46:05Z"
+  finalizers:
+    - nutanixcluster/infrastructure.cluster.x-k8s.io
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+  name: ${MANAGED_CLUSTER_NAME}-pc-credentials
+  namespace: kommander-default-workspace
+  ownerReferences:
+    - apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: NutanixCluster
+      name: ${MANAGED_CLUSTER_NAME}-7bqc2
+      uid: b4832f32-970b-4990-8d26-e5b134bca625
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${MANAGED_CLUSTER_NAME}
+      uid: 435ab407-b366-4bd7-b5e3-4b7c125244e8
+  resourceVersion: "5006043"
+  uid: d132a4aa-7906-4584-b178-effdfcf3c5ce
+type: Opaque
+ 
+ 
+echo base 64 String | base64 -d
+[{"type":"basic_auth","data":{"prismCentral":{"username":"PC
+ Username","password":"PC Password"}}}]
+ 
+Ensure that the secrets are in the format cluster-name-pc-credentials.
+b. Decode the secret and save it in a file:
+echo -n '[{"type":"basic_auth","data":{"prismCentral":{"username":"PC
+ Username","password":"PC Password"}}}]' | base64
+base 64 String
+c. Edit the secret and update the secret with the new value:
+kubectl edit secrets ${WORKLOAD_CLUSTER_NAME}-pc-credentials -o yaml
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 733
+
+--- page 734 ---
+d. Validate the changes:
+kubectl edit  secrets ${WORKLOAD_CLUSTER_NAME}-pc-credentials -n 
+apiVersion: v1
+data:
+  credentials: base 64 encoded PC Password
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T21:46:05Z"
+  finalizers:
+    - nutanixcluster/infrastructure.cluster.x-k8s.io
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+  name: ${WORKLOAD_CLUSTER_NAME}-pc-credentials
+  namespace: kommander-default-workspace
+  ownerReferences:
+    - apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: NutanixCluster
+      name: ${WORKLOAD_CLUSTER_NAME}-7bqc2
+      uid: b4832f32-970b-4990-8d26-e5b134bca625
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${WORKLOAD_CLUSTER_NAME}
+      uid: 435ab407-b366-4bd7-b5e3-4b7c125244e8
+  resourceVersion: "5006043"
+  uid: d132a4aa-7906-4584-b178-effdfcf3c5ce
+type: Opaque
+7.
+Update the CSI credentials for the management cluster:
+a. Update the CSI credentials:
+kubectl get secrets ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-csi -o yaml
+apiVersion: v1
+data:
+  key: Key ID
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:16:06Z"
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: ${MANAGEMENT_CLUSTER_NAME}
+    konvoy.d2iq.io/provider: nutanix
+  name: ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-csi
+  namespace: default
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${MANAGEMENT_CLUSTER_NAME}
+      uid: a74225d9-4367-4fc2-b424-53a0bd981020
+  resourceVersion: "5000354"
+  uid: e76fe412-d904-4b5f-b029-4800571898b4
+type: Opaque
+Ensure that you use the cluster-name-for-csi format for the management cluster name.
+b. Validate the base64 value:
+echo base 64 String | base64 -d
+PC IP:9440:PC Username:PC Password
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 734
+
+--- page 735 ---
+c. Update the password and encode in base64:
+echo -n 'PC IP:9440:admin:NEW_PASSWORD' | base64base 64 String
+d. Edit the secret and update the base64 value:
+kubectl edit secrets ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-csi -o yaml
+e. Validate the updated secret:
+kubectl get secrets ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-csi -o yaml
+apiVersion: v1
+data:
+  key: NEW_BASE64ENCODED_PASSWORD
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:16:06Z"
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: ${MANAGEMENT_CLUSTER_NAME}
+    konvoy.d2iq.io/provider: nutanix
+  name: ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-csi
+  namespace: default
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${MANAGEMENT_CLUSTER_NAME}
+      uid: a74225d9-4367-4fc2-b424-53a0bd981020
+  resourceVersion: "5000354"
+  uid: e76fe412-d904-4b5f-b029-4800571898b4
+type: Opaque
+8.
+Update the konnector-agent credentials for the management cluster:
+a. Update the konnector-agent credentials:
+kubectl get secret ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-konnector-agent
+ -o yaml
+apiVersion: v1
+data:
+  password: base64encoded-password
+  username: base64encoded-username
+kind: Secret
+metadata:
+  creationTimestamp: "2025-12-18T04:46:58Z"
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: ${MANAGEMENT_CLUSTER_NAME}
+    konvoy.d2iq.io/provider: nutanix
+  name: ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-konnector-agent
+  namespace: default
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${MANAGEMENT_CLUSTER_NAME}
+      uid: 3075d1d4-2357-4ffc-a88a-3563c87513d8
+  resourceVersion: "10962"
+  uid: 6bd05762-3007-4c39-a56a-707564f52b8d
+type: Opaque
+Ensure your management cluster uses this format for the cluster name:
+${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-konnector-agent
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 735
+
+--- page 736 ---
+b. Edit the secret with an updated base64 password:
+kubectl edit secrets ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-konnector-
+agent -o yaml
+c. Validate the updated secret:
+kubectl get secret ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-konnector-agent
+ -o yaml
+apiVersion: v1
+data:
+  password: UPDATED-BASE64-ENCODED-PASSWORD
+  username: base64encoded-username
+kind: Secret
+metadata:
+  creationTimestamp: "2025-12-18T04:46:58Z"
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+    konvoy.d2iq.io/cluster-name: ${MANAGEMENT_CLUSTER_NAME}
+    konvoy.d2iq.io/provider: nutanix
+  name: ${MANAGEMENT_CLUSTER_NAME}-pc-credentials-for-konnector-agent
+  namespace: default
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${MANAGEMENT_CLUSTER_NAME}
+      uid: 3075d1d4-2357-4ffc-a88a-3563c87513d8
+  resourceVersion: "10962"
+  uid: 6bd05762-3007-4c39-a56a-707564f52b8d
+type: Opaque
+9.
+Update the Konnector-agent credentials for each workload cluster:
+a. Get the workload cluster konnector-agent credentials:
+kubectl get secret konnector-agent -n ntnx-system --kubeconfig <WORKLOAD-CLUSTER-
+KUBECONFIG> -o yaml
+apiVersion: v1
+data:
+  password: base64encoded-password
+  username: base64encoded-username
+kind: Secret
+metadata:
+  creationTimestamp: "2025-12-18T04:33:19Z"
+  name: konnector-agent
+  namespace: ntnx-system
+  resourceVersion: "433"
+  uid: ff0d18db-7ff8-4df3-a641-1d5fc474d1aa
+type: Opaque
+b. Edit the secret and update the base64 value:
+kubectl edit secret konnector-agent -n ntnx-system --kubeconfig <WORKLOAD-
+CLUSTER-KUBECONFIG>
+Though the –kubeconfig changes for each cluster, the steps remain the same.
+10. Update the CSI credentials for each workload cluster in the management cluster:
+a. Update the CSI credentials:
+kubectl get secret ${WORKLOAD_CLUSTER_NAME}-pc-credentials-for-csi  -n kommander-
+default-workspace -o yaml
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 736
+
+--- page 737 ---
+apiVersion: v1
+data:
+  key: Key ID
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T21:46:05Z"
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+  name: ${WORKLOAD_CLUSTER_NAME}-pc-credentials-for-csi
+  namespace: kommander-default-workspace
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${WORKLOAD_CLUSTER_NAME}
+      uid: 435ab407-b366-4bd7-b5e3-4b7c125244e8
+  resourceVersion: "5008388"
+  uid: bdf259ec-fa26-48a7-9be9-7712d3614802
+type: Opaque
+Ensure that you use the cluster-name-for-csi format for workload cluster name.
+b. Validate the base64 value:
+echo base 64 String | base64 -dPC IP:9440:PC Username:PC Password
+c. Update the password and encode in base64:
+echo -n 'PC IP:9440:admin:NEW_PASSWORD' | base64 base 64 String
+d. Edit the secret and update the base64 value:
+kubectl edit secret ${WORKLOAD_CLUSTER_NAME}-pc-credentials-for-csi  -n
+ kommander-default-workspace -o yaml
+kubectl get secret ${WORKLOAD_CLUSTER_NAME}-pc-credentials-for-csi -n kommander-
+default-workspace -o yaml
+apiVersion: v1
+data:
+  key: base64 encoded New Password
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T21:46:05Z"
+  labels:
+    cluster.x-k8s.io/provider: nutanix
+  name: ${WORKLOAD_CLUSTER_NAME}-pc-credentials-for-csi
+  namespace: kommander-default-workspace
+  ownerReferences:
+    - apiVersion: cluster.x-k8s.io/v1beta1
+      kind: Cluster
+      name: ${WORKLOAD_CLUSTER_NAME}
+      uid: 435ab407-b366-4bd7-b5e3-4b7c125244e8
+  resourceVersion: "5008388"
+  uid: bdf259ec-fa26-48a7-9be9-7712d3614802
+type: Opaque
+11. Update the cloud controller manager (CCM) and CSI credentials at the individual cluster level:
+a. Update the CCM and CSI credentials:
+kubectl get secrets nutanix-ccm-credentials -n kube-system --kubeconfig=
+$KUBECONFIG_MANAGEMENT -o yaml
+apiVersion: v1
+data:
+  credentials: base64 encoded PC Credentials
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 737
+
+--- page 738 ---
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:12:20Z"
+  name: nutanix-ccm-credentials
+  namespace: kube-system
+  resourceVersion: "5017728"
+  uid: 3290249e-facb-45e3-a785-62ac620d5861
+type: Opaque
+For each cluster, --kubeconfig changes. However, the steps remain the same.
+b. Validate the base64 value:
+echo base 64 String | base64 -d
+[
+    {
+        "type": "basic_auth",
+        "data": {
+            "prismCentral": {
+                "username": "PC Username",
+                "password": "PC Password"
+            }
+        }
+    }
+]
+echo base 64 String | base64 -d > update_ccm_password.txt
+  cat update_ccm_password.txt
+[
+    {
+        "type": "basic_auth",
+        "data": {
+            "prismCentral": {
+                "username": "PC Username",
+                "password": "PC Password"
+            }
+        }
+    }
+]
+cat update_ccm_password.txt | base64 base 64 String
+ 
+ 
+kubectl edit secrets nutanix-ccm-credentials -n kube-system --kubeconfig=
+$KUBECONFIG_MANAGEMENT -o yaml
+ 
+ 
+kubectl get secrets nutanix-ccm-credentials -n kube-system --kubeconfig=
+$KUBECONFIG_MANAGEMENT -o yaml
+apiVersion: v1
+data:
+  credentials: base64 encoded New Password
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:12:20Z"
+  name: nutanix-ccm-credentials
+  namespace: kube-system
+  resourceVersion: "5017728"
+  uid: 3290249e-facb-45e3-a785-62ac620d5861
+type: Opaque
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 738
+
+--- page 739 ---
+c. Update the CSI password:
+kubectl get secrets nutanix-csi-credentials -n ntnx-system -o yaml
+apiVersion: v1
+data:
+  key: Key ID
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:12:20Z"
+  name: nutanix-csi-credentials
+  namespace: ntnx-system
+  resourceVersion: "5023111"
+  uid: e78d3eef-3d86-4c26-966f-4672531b30aa
+type: Opaque
+ 
+echo base 64 String | base64 -d
+PC IP:9440:PC Username:PC Password
+echo -n 'PC IP:9440:admin:NEW_PASSWORD' | base64 base 64 String
+ 
+ 
+kubectl edit secrets nutanix-csi-credentials -n ntnx-system -o yaml
+apiVersion: v1
+data:
+  key: base64 encoded New Password
+kind: Secret
+metadata:
+  creationTimestamp: "2024-09-30T16:12:20Z"
+  name: nutanix-csi-credentials
+  namespace: ntnx-system
+  resourceVersion: "5023111"
+  uid: e78d3eef-3d86-4c26-966f-4672531b30aa
+type: Opaque
+12. Scale up the pods on the management cluster:
+kubectl -n ntnx-system patch daemonset nutanix-csi-node --type json -p='[{"op":
+ "remove", "path": "/spec/template/spec/nodeSelector/non-existing"}]'
+kubectl scale deployment cluster-api-runtime-extensions-nutanix -n caren-system --
+replicas=1
+kubectl scale deployment capx-controller-manager -n capx-system --replicas=1
+kubectl scale deployment nutanix-csi-controller  -n ntnx-system --replicas=1
+kubectl scale deployment nutanix-cloud-controller-manager -n kube-system --
+replicas=1
+13. Scale up the pods on the workload cluster:
+kubectl -n ntnx-system patch daemonset nutanix-csi-node --type json -p='[{"op":
+ "remove", "path": "/spec/template/spec/nodeSelector/non-existing"}]' --kubeconfig=
+$KUBECONFIG_WORKLOAD
+kubectl scale deployment nutanix-cloud-controller-manager -n kube-system --
+replicas=1 --kubeconfig=$KUBECONFIG_WORKLOAD
+kubectl scale deployment nutanix-csi-controller -n ntnx-system --replicas=1 --
+kubeconfig=$KUBECONFIG_WORKLOAD
+Updating Prism Central Trust Bundle
+Update your Prism Central trust bundle when the SSL certificate expires, or is rotated.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 739
+
+--- page 740 ---
+Before you begin
+Before you update your Prism Central trust bundle on deployed Nutanix Kubernetes Platform (NKP)
+clusters, ensure all requirements of Prism Central Credentials are met. For more information, see Prism
+Central Credential Requirements.
+About this task
+To update the Prism Central trust bundle, follow these steps:
+Procedure
+1. Update the CAPX information:
+a. Base64 encode the new PC SSL certificate.
+b. Update the additionalTrustBundle field in the impacted cluster's specification with the new
+base64 encoded certificate:
+kubectl edit cluster -n <namespace> <cluster-name>
+The additionalTrustBundle information is located in the cluster's YAML/JSON as
+spec.topology.variables[].name.clusterConfig.value.nutanix.prismCentralEndpoint.additionalTru
+To verify the NutanixCluster object is updated with the new SSL certificate, run the kubectl get
+cluster -n <namespace> <cluster-name> command:
+kubectl get cluster -n <namespace> <cluster-name> 
+  apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+  kind: NutanixCluster
+  metadata:
+    name: <cluster-name>
+    namespace: <namespace>
+  spec:
+    prismCentral:
+      additionalTrustBundle:
+        data: |-
+          -----BEGIN CERTIFICATE-----
+  <CERTIFICATE CONTENT>
+          -----END CERTIFICATE-----
+        kind: String
+        name: ""
+        namespace: ""
+2. Update the information in Nutanix CCM:
+a. Fetch the HelmChartProxy object belonging to the Nutanix CCM:
+kubectl get hcp -n <cluster namespace> | grep nutanix-ccm
+b. Update the prismCentralAdditionalTrustBundle field, located in the spec.valuesTemplate by
+using the namespace and HCP name from the previous step:
+kubectl edit hcp -n <cluster namespace> <HCP Name>
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 740

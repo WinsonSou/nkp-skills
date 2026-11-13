@@ -1,0 +1,557 @@
+
+--- page 204 ---
+10. You can now view this cluster in your Workspace in the UI and you can confirm its status by running
+the below command. It may take a few minutes to reach "Joined" status.
+kubectl get nkpclusters -A
+If you have several Pro Clusters and want to turn one of them to a Managed Cluster to be centrally
+administrated by a Management Cluster, see Platform Expansion: Conversion of an NKP Pro Cluster
+to an NKP Ultimate Managed Cluster on page 472.
+AKS Installation Options
+For an environment that is on the Azure Kubernetes Service (AKS) Infrastructure, installation options
+based on those environment variables are provided for you in this location.
+Remember, there are always more options for custom YAML in the Custom Installation and Additional
+Infrastructure Tools section, but this will get you operative in the most common scenarios.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+For a list of all the NKP supported environment combinations, see Supported Infrastructure Operating
+Systems on page 13.
+Note:  An AKS cluster cannot be a Management or Pro cluster. Before installing NKP on your AKS cluster,
+first ensure you have a Management cluster with NKP and the Kommander component installed that handles
+the life cycle of your AKS cluster.
+In order to install Kommander, you need to have CAPI components, cert-manager, etc on a self-managed
+cluster. The CAPI components mean you can control the lifecycle of the cluster, and other clusters.
+However, because AKS is semi-managed by Azure, the AKS clusters are under Azure control and don’t
+have those components. Therefore, Kommander will not be able to be installed and these clusters will be
+attached to the management cluster.
+Note:  Kommander installation requires you to have Cluster API (CAPI) components, cert-manager, etc on
+a self-managed cluster. The CAPI components mean you can control the life cycle of the cluster, and other
+clusters. However, because AKS is semi-managed by Azure, the AKS clusters are under Azure control and
+don’t have those components. Therefore, Kommander will not be installed and these clusters will be attached
+to the management cluster.
+To deploy a cluster with a custom image in a region where CAPI images https://cluster-api-aws.sigs.k8s.io/
+topics/images/built-amis.html are not provided, you need to use Nutanix Image Builder on page 55 to
+create your own image for the region.
+AKS best practices discourage building custom images. If the image is customized, it breaks some of the
+autoscaling and security capabilities of AKS. Since custom virtual machine images are discouraged in
+AKS, Nutanix Image Builder (NIB) does not include any support for building custom machine images for
+AKS.
+AKS Installation
+Nutanix Kubernetes Platform (NKP) installation on Azure Kubernetes Service (AKS).
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 204
+
+--- page 205 ---
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+For additional custom YAML Ain't Markup Language (YAML) options, see Custom Installation and
+Additional Infrastructure Tools.
+NKP Prerequisites
+Before starting the NKP installation, verify that you have:
+•
+A Management cluster with NKP and the Kommander component installed.
+Note:  An AKS cluster cannot be a Management or Pro cluster. Before installing NKP on your AKS
+cluster, ensure you have a Management cluster with NKP and the Kommander component installed, that
+handles the life cycle of your AKS cluster.
+•
+An x86_64-based Linux or macOS machine with a supported version of the operating system.
+•
+Download the NKPbinary for Linux, or macOS. To check which version of NKP you installed for
+compatibility reasons, run the NKP version -h command.
+•
+Docker https://docs.docker.com/get-docker/ version 27.4.0.
+•
+kubectl https://kubernetes.io/docs/tasks/tools/#kubectl for interacting with the running cluster.
+•
+The Azure CLI https://docs.microsoft.com/en-us/cli/azure/install-azure-cli.
+•
+A valid Azure account used to sign in to the Azure CLI https://docs.microsoft.com/en-us/cli/azure/
+authenticate-azure-cli?view=azure-cli-latest.
+•
+All Resource requirements.
+AKS Prerequisites
+Before you begin using NKP with AKS, you must:
+1. Sign in to Azure using the command az login. For example:
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "id": "b1234567-abcd-11a1-a0a0-1234a5678b90",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "Nutanix Developer Subscription",
+    "state": "Enabled",
+    "tenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "user": {
+      "name": "user@azuremesosphere.onmicrosoft.com",
+      "type": "user"
+    }
+  }
+]
+2. Create an Azure Service Principal (SP) by using the command.
+Note:  If an SP with the name exists, this command will rotate the password.
+az ad sp create-for-rbac --role contributor --name "$(whoami)-konvoy" --scopes=/
+subscriptions/$(az account show --query id -o tsv)
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 205
+
+--- page 206 ---
+3. Set the Azure client secret environment variable using the command AZURE_CLIENT_SECRET. Example
+output:
+export AZURE_CLIENT_SECRET="<azure_client_secret>" #
+ Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C
+export AZURE_CLIENT_ID="<client_id>"               # 7654321a-1a23-567b-
+b789-0987b6543a21
+export AZURE_TENANT_ID="<tenant_id>"               # a1234567-
+b132-1234-1a11-1234a5678b90
+export AZURE_SUBSCRIPTION_ID="<subscription_id>"   # b1234567-abcd-11a1-
+a0a0-1234a5678b90
+4. Base64 encodes the same environment variables:
+export AZURE_SUBSCRIPTION_ID_B64="$(echo -n "${AZURE_SUBSCRIPTION_ID}" | base64 | tr
+ -d '\n')"
+export AZURE_TENANT_ID_B64="$(echo -n "${AZURE_TENANT_ID}" | base64 | tr -d '\n')"
+export AZURE_CLIENT_ID_B64="$(echo -n "${AZURE_CLIENT_ID}" | base64 | tr -d '\n')"
+export AZURE_CLIENT_SECRET_B64="$(echo -n "${AZURE_CLIENT_SECRET}" | base64 | tr -d
+ '\n')"
+5. Check to see what version of Kubernetes is available in your region. When deploying with AKS, you
+must pick a version of Kubernetes that is available in AKS and use that version for subsequent steps.
+To find out the list of available Kubernetes versions in the Azure Region you are using, run the following
+command, substituting <your-location> for the Azure region you're deploying to:
+1. az aks get-versions -o table --location <your-location>
+2. The output resembles the following:
+az aks get-versions -o table --location westus
+KubernetesVersion    Upgrades
+-------------------  ----------------------------------------
+1.27.6(preview)      None available 
+1.27.3(preview)      1.27.6(preview)
+1.27.1(preview)      1.27.3(preview)
+1.26.6               1.27.1(preview), 1.27.3(preview)
+1.26.3               1.26.6, 1.27.1(preview), 1.27.3(preview)
+1.25.11              1.26.3, 1.26.6
+1.25.6               1.25.11, 1.26.3, 1.26.6
+1.24.15              1.25.6, 1.25.11
+1.24.10              1.24.15, 1.25.6, 1.25.11
+Note:  For more information about the supported Kubernetes version, see Supported Kubernetes
+Versions section in the NKP Release Notes.
+6. Choose a version of Kubernetes for installation from the list using the command KubernetesVersion
+The example shows the selected version is 1.36.2.
+export KUBERNETES_VERSION=1.36.2
+For the list of compatible supported Kubernetes versions, see Supported Kubernetes Versions section
+in the NKP Release Notes.
+AKS: Creating an Image
+AKS best practices discourage building custom images. If the image is customized, it breaks some of the
+autoscaling and security capabilities of AKS. Since custom virtual machine images are discouraged in
+AKS, Nutanix Image Builder (NIB) does not include any support for building custom machine images for
+AKS.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 206
+
+--- page 207 ---
+AKS: Creating an AKS Cluster
+About this task
+When creating a Managed cluster on your AKS infrastructure, you can choose from multiple configuration
+types.
+Procedure
+Use NKP to create a new AKS cluster
+Note:  Ensure that the KUBECONFIG environment variable is set to the Management cluster by running .
+export KUBECONFIG=<Management_cluster_kubeconfig>.conf
+Name Your Cluster
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+2. Set the environment variable.
+export CLUSTER_NAME=<aks-example>
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+Create a New AKS Kubernetes Cluster from the CLI
+Procedure
+1. Set the environment variable to the name you assigned this cluster.
+export CLUSTER_NAME=<aks-example>
+2. Check to see what version of Kubernetes is available in your region. When deploying with AKS,
+you need to declare the version of Kubernetes you want to use by running the following command,
+substituting <your-location> for the Azure region you're deploying to.
+az aks get-versions -o table --location <your-location>
+3. Set the Kubernetes version you have chosen.
+Note:  Refer to the current release Kubernetes for the correct version to use and choose an available
+Kubernetes version. For more information, see Supported Kubernetes Versions section in the NKP
+Release Notes.
+export KUBERNETES_VERSION=kubernetes-version
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 207
+
+--- page 208 ---
+4. Create the cluster.
+nkp create cluster aks --cluster-name=${CLUSTER_NAME} --additional-tags=owner=
+$(whoami) --kubernetes-version=${KUBERNETES_VERSION}
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+Generating cluster resources
+cluster.cluster.x-k8s.io/aks-example created
+azuremanagedcontrolplane.infrastructure.cluster.x-k8s.io/aks-example created
+azuremanagedcluster.infrastructure.cluster.x-k8s.io/aks-example created
+machinepool.cluster.x-k8s.io/aks-example created
+azuremanagedmachinepool.infrastructure.cluster.x-k8s.io/cp6dsz8 created
+machinepool.cluster.x-k8s.io/aks-example-md-0 created
+azuremanagedmachinepool.infrastructure.cluster.x-k8s.io/mp6gglj created
+clusterresourceset.addons.cluster.x-k8s.io/cluster-autoscaler-aks-example created
+configmap/cluster-autoscaler-aks-example created
+clusterresourceset.addons.cluster.x-k8s.io/node-feature-discovery-aks-example created
+configmap/node-feature-discovery-aks-example created
+clusterresourceset.addons.cluster.x-k8s.io/nvidia-feature-discovery-aks-example
+ created
+configmap/nvidia-feature-discovery-aks-example created
+Inspecting or Editing the Cluster Objects
+About this task
+Use your favorite editor.
+Note:  Editing the cluster objects requires some understanding of Cluster API. Edits can prevent the cluster
+from deploying successfully. For more information about the objects, see Concepts in the Cluster API Book.
+For more information on custom resources, see Custom Resources .
+The objects are custom resources defined by Cluster API components, and they belong in three different
+categories:
+•
+Cluster: A Cluster object references the infrastructure-specific and control plane objects.
+•
+Control Plane: A KubeadmControlPlane object describes the control plane, the group of machines
+that run the Kubernetes control plane components. Those include the etcd distributed database, the
+API server, the core controllers, and the scheduler. The object describes the configuration for these
+components and refers to an infrastructure-specific object that represents the properties of all control
+plane machines.
+•
+Node Pool: A node pool is a collection of machines with identical properties. For example, a cluster
+might have one node pool with large memory capacity, another node pool with GPU support. Each
+node pool is described by three objects: The MachinePool references an object that describes the
+configuration of Kubernetes components (for example, kubelet) deployed on each node pool machine,
+and an infrastructure-specific object that describes the properties of all node pool machines. Here, it
+references a KubeadmConfigTemplate.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 208
+
+--- page 209 ---
+Procedure
+1. Wait for the cluster control-plane to be ready.
+kubectl wait --for=condition=Available=True "clusters/${CLUSTER_NAME}" --timeout=20m
+cluster.cluster.x-k8s.io/aks-example condition met
+The READY status will become True after the cluster control-plane becomes ready in one of the following
+steps.
+2. After the objects are created on the API server, the Cluster API controllers reconcile them. They create
+infrastructure and machines. As they progress, they update the Status of each object. NKP provides a
+command to describe the current status of the cluster.
+nkp describe cluster -c ${CLUSTER_NAME}
+NAME                                                       READY  SEVERITY  REASON 
+ SINCE  MESSAGE
+Cluster/aks-example                                        True                    
+ 48m
+##ClusterInfrastructure - AzureManagedCluster/aks-example
+##ControlPlane - AzureManagedControlPlane/aks-example
+3. As they progress, the controllers also create Events. List the Events using this command.
+kubectl get events | grep ${CLUSTER_NAME}
+For brevity, the example uses grep. It is also possible to use separate commands to get
+Events for specific objects. For example, kubectl get events --field-selector
+involvedObject.kind="AKSCluster" and kubectl get events --field-selector
+involvedObject.kind="AKSMachine".
+48m         Normal    SuccessfulSetNodeRefs                machinepool/aks-
+example-md-0                  [{Kind: Namespace: Name:aks-mp6gglj-41174201-
+vmss000000 UID:e3c30389-660d-46f5-b9d7-219f80b5674d APIVersion: ResourceVersion:
+ FieldPath:} {Kind: Namespace: Name:aks-mp6gglj-41174201-vmss000001 UID:300d71a0-
+f3a7-4c29-9ff1-1995ffb9cfd3 APIVersion: ResourceVersion: FieldPath:} {Kind:
+ Namespace: Name:aks-mp6gglj-41174201-vmss000002 UID:8eae2b39-a415-425d-8417-
+d915a0b2fa52 APIVersion: ResourceVersion: FieldPath:} {Kind: Namespace: Name:aks-
+mp6gglj-41174201-vmss000003 UID:3e860b88-f1a4-44d1-b674-a54fad599a9d APIVersion:
+ ResourceVersion: FieldPath:}]
+6m4s        Normal    AzureManagedControlPlane available   azuremanagedcontrolplane/
+aks-example          successfully reconciled
+48m         Normal    SuccessfulSetNodeRefs                machinepool/aks-
+example                       [{Kind: Namespace: Name:aks-mp6gglj-41174201-
+vmss000000 UID:e3c30389-660d-46f5-b9d7-219f80b5674d APIVersion: ResourceVersion:
+ FieldPath:} {Kind: Namespace: Name:aks-mp6gglj-41174201-vmss000001 UID:300d71a0-
+f3a7-4c29-9ff1-1995ffb9cfd3 APIVersion: ResourceVersion: FieldPath:} {Kind:
+ Namespace: Name:aks-mp6gglj-41174201-vmss000002 UID:8eae2b39-a415-425d-8417-
+d915a0b2fa52 APIVersion: ResourceVersion: FieldPath:}]
+Cluster Verification
+If you want to monitor or verify the installation of your clusters, refer to: Verify your Cluster and NKP
+Installation.
+More information about AKS can be found in the AKS Infrastructure under Custom Installation and
+Additional Infrastructure Tools.
+AKS: Retrieving kubeconfig for AKS Cluster
+Learn to interact with your AKS Kubernetes cluster.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 209
+
+--- page 210 ---
+About this task
+This guide explains how to use the command line to interact with your newly deployed Kubernetes cluster.
+Before you start, make sure you have created a managed cluster, as described in AKS: Create an AKS
+Cluster.
+Explore the new AKS cluster with the steps below.
+Procedure
+1. Get a kubeconfig file for the managed cluster.
+When the managed cluster is created, the cluster life cycle services generate a kubeconfig file for the
+managed cluster and write it to a Secret. The kubeconfig file is scoped to the cluster administrator.
+Get the kubeconfig from the Secret, and write it to a file using this command.
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+2. List the Nodes using this command.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get nodes
+NAME                              STATUS   ROLES   AGE   VERSION
+aks-cp6dsz8-41174201-vmss000000   Ready    agent   56m   v<kubernetes-version>
+aks-cp6dsz8-41174201-vmss000001   Ready    agent   55m   v<kubernetes-version>
+aks-cp6dsz8-41174201-vmss000002   Ready    agent   56m   v<kubernetes-version>
+aks-mp6gglj-41174201-vmss000000   Ready    agent   55m   v<kubernetes-version>
+aks-mp6gglj-41174201-vmss000001   Ready    agent   55m   v<kubernetes-version>
+aks-mp6gglj-41174201-vmss000002   Ready    agent   55m   v<kubernetes-version>
+aks-mp6gglj-41174201-vmss000003   Ready    agent   56m   v<kubernetes-version>
+Note:  It might take a few minutes for the Status to move to Ready while the Pod network is deployed.
+The Node Status will change to Ready soon after the calico-node DaemonSet Pods are Ready.
+3. List the Pods using the command.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get --all-namespaces pods
+Example output:
+NAMESPACE                NAME                                            READY  
+ STATUS     RESTARTS   AGE
+calico-system            calico-kube-controllers-5dcd4b47b5-tgslm        1/1    
+ Running    0          3m58s
+calico-system            calico-node-46dj9                               1/1    
+ Running    0          3m58s
+calico-system            calico-node-crdgc                               1/1    
+ Running    0          3m58s
+calico-system            calico-node-m7s7x                               1/1    
+ Running    0          3m58s
+calico-system            calico-node-qfkqc                               1/1    
+ Running    0          3m57s
+calico-system            calico-node-sfqfm                               1/1    
+ Running    0          3m57s
+calico-system            calico-node-sn67x                               1/1    
+ Running    0          3m53s
+calico-system            calico-node-w2pvt                               1/1    
+ Running    0          3m58s
+calico-system            calico-typha-6f7f59969c-5z4t5                   1/1    
+ Running    0          3m51s
+calico-system            calico-typha-6f7f59969c-ddzqb                   1/1    
+ Running    0          3m58s
+calico-system            calico-typha-6f7f59969c-rr4lj                   1/1    
+ Running    0          3m51s
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 210
+
+--- page 211 ---
+kube-system              azure-ip-masq-agent-4f4v6                       1/1    
+ Running    0          4m11s
+kube-system              azure-ip-masq-agent-5xfh2                       1/1    
+ Running    0          4m11s
+kube-system              azure-ip-masq-agent-9hlk8                       1/1    
+ Running    0          4m8s
+kube-system              azure-ip-masq-agent-9vsgg                       1/1    
+ Running    0          4m16s
+kube-system              azure-ip-masq-agent-b9wjj                       1/1    
+ Running    0          3m57s
+kube-system              azure-ip-masq-agent-kpjtl                       1/1    
+ Running    0          3m53s
+kube-system              azure-ip-masq-agent-vr7hd                       1/1    
+ Running    0          3m57s
+kube-system              cluster-autoscaler-b4789f4bf-qkfk2              0/1    
+ Init:0/1   0          3m28s
+kube-system              coredns-845757d86-9jf8b                         1/1    
+ Running    0          5m29s
+kube-system              coredns-845757d86-h4xfs                         1/1    
+ Running    0          4m
+kube-system              coredns-autoscaler-5f85dc856b-xjb5z             1/1    
+ Running    0          5m23s
+kube-system              csi-azuredisk-node-4n4fx                        3/3    
+ Running    0          3m53s
+kube-system              csi-azuredisk-node-8pnjj                        3/3    
+ Running    0          3m57s
+kube-system              csi-azuredisk-node-sbt6r                        3/3    
+ Running    0          3m57s
+kube-system              csi-azuredisk-node-v25wc                        3/3    
+ Running    0          4m16s
+kube-system              csi-azuredisk-node-vfbxg                        3/3    
+ Running    0          4m11s
+kube-system              csi-azuredisk-node-w5ff5                        3/3    
+ Running    0          4m11s
+kube-system              csi-azuredisk-node-zzgqx                        3/3    
+ Running    0          4m8s
+kube-system              csi-azurefile-node-2rpcc                        3/3    
+ Running    0          3m57s
+kube-system              csi-azurefile-node-4gqkf                        3/3    
+ Running    0          4m11s
+kube-system              csi-azurefile-node-f6k8m                        3/3    
+ Running    0          4m16s
+kube-system              csi-azurefile-node-k72xq                        3/3    
+ Running    0          4m8s
+kube-system              csi-azurefile-node-vx7r4                        3/3    
+ Running    0          3m53s
+kube-system              csi-azurefile-node-zc8kr                        3/3    
+ Running    0          4m11s
+kube-system              csi-azurefile-node-zkl6b                        3/3    
+ Running    0          3m57s
+kube-system              kube-proxy-4fpb6                                1/1    
+ Running    0          3m53s
+kube-system              kube-proxy-6qfbf                                1/1    
+ Running    0          4m16s
+kube-system              kube-proxy-6wnt2                                1/1    
+ Running    0          4m8s
+kube-system              kube-proxy-cspd5                                1/1    
+ Running    0          3m57s
+kube-system              kube-proxy-nsgq6                                1/1    
+ Running    0          4m11s
+kube-system              kube-proxy-qz2st                                1/1    
+ Running    0          4m11s
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 211
+
+--- page 212 ---
+kube-system              kube-proxy-zvh9k                                1/1    
+ Running    0          3m57s
+kube-system              metrics-server-6bc97b47f7-ltkkj                 1/1    
+ Running    0          5m28s
+kube-system              tunnelfront-77d68f78bf-t78ck                    1/1    
+ Running    0          5m23s
+node-feature-discovery   node-feature-discovery-master-65dc499cd-fxwb5   1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-277xc             1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-4dq5k             1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-57nb8             1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-b4lkl             1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-kslst             1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-ppjtm             1/1    
+ Running    0          3m28s
+node-feature-discovery   node-feature-discovery-worker-x5bgf             1/1    
+ Running    0          3m28s
+tigera-operator          tigera-operator-74c4d9cf84-k7css                1/1    
+ Running    0          5m25s
+AKS: Attach a Cluster
+You can attach existing Kubernetes clusters to the Management Cluster using the instructions below.
+About this task
+After attaching the cluster, you can use the UI to examine and manage this cluster. The following
+procedure shows how to attach an existing Azure Kubernetes Service (AKS) cluster.
+Access Your AKS Clusters
+Before you begin
+This procedure requires the following items and configurations:
+•
+A fully configured and running Azure AKS cluster with administrative privileges.
+•
+The current version NKP Ultimate is installed (Basic Installations by Infrastructure on page 76) on
+your cluster.
+•
+Ensure you have installed kubectl in your Management cluster.
+Note:  This procedure assumes you have an existing and spun up Azure AKS cluster(s) with administrative
+privileges. Refer to the Azure site regarding AKS for setup and configuration information.
+Attach AKS Clusters
+Procedure
+1. Ensure that the KUBECONFIG environment variable is set to the Management cluster before attaching by
+running:
+export KUBECONFIG=<Management_cluster_kubeconfig>.conf
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 212
+
+--- page 213 ---
+2. Ensure you are connected to your AKS clusters.
+Enter the following commands for each of your clusters.
+kubectl config get-contexts
+kubectl config use-context <context for first aks cluster>
+3. Confirm kubectl can access the AKS cluster.
+kubectl get nodes
+Create a kubeconfig File for your AKS Cluster
+About this task
+To get started, ensure you have kubectl set up and configured with ClusterAdmin for the cluster you want
+to connect to Kommander.
+Procedure
+1. Create the necessary service account.
+kubectl -n kube-system create serviceaccount kommander-cluster-admin
+2. Create a token secret for the serviceaccount.
+kubectl -n kube-system create  -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kommander-cluster-admin-sa-token
+  annotations:
+    kubernetes.io/service-account.name: kommander-cluster-admin
+type: kubernetes.io/service-account-token
+EOF
+3. Verify that the serviceaccount token is ready by running this command.
+kubectl -n kube-system get secret kommander-cluster-admin-sa-token -oyaml
+Verify that the data.token field is populated, as seen in the example output.
+apiVersion: v1
+data:
+  ca.crt: LS0tLS1CRUdJTiBDR...
+  namespace: ZGVmYXVsdA==
+  token: ZXlKaGJHY2lPaUpTVX...
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: kommander-cluster-admin
+    kubernetes.io/service-account.uid: b62bc32e-b502-4654-921d-94a742e273a8
+  creationTimestamp: "2022-08-19T13:36:42Z"
+  name: kommander-cluster-admin-sa-token
+  namespace: default
+  resourceVersion: "8554"
+  uid: 72c2a4f0-636d-4a70-9f1c-55a75f15e520
+type: kubernetes.io/service-account-token
+4. Configure the new service account for cluster-admin permissions.
+cat << EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 213
+
+--- page 214 ---
+kind: ClusterRoleBinding
+metadata:
+  name: kommander-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: kommander-cluster-admin
+  namespace: kube-system
+EOF
+5. Set up the following environment variables with the access data that is needed for producing a new
+kubeconfig file.
+export USER_TOKEN_VALUE=$(kubectl -n kube-system get secret/kommander-cluster-admin-
+sa-token -o=go-template='{{.data.token}}' | base64 --decode)
+export CURRENT_CONTEXT=$(kubectl config current-context)
+export CURRENT_CLUSTER=$(kubectl config view --raw -o=go-
+template='{{range .contexts}}{{if eq .name "'''${CURRENT_CONTEXT}'''"}}
+{{ index .context "cluster" }}{{end}}{{end}}')
+export CLUSTER_CA=$(kubectl config view --raw -o=go-template='{{range .clusters}}{{if
+ eq .name "'''${CURRENT_CLUSTER}'''"}}"{{with index .cluster "certificate-authority-
+data" }}{{.}}{{end}}"{{ end }}{{ end }}')
+export CLUSTER_SERVER=$(kubectl config view --raw -o=go-template='{{range .clusters}}
+{{if eq .name "'''${CURRENT_CLUSTER}'''"}}{{ .cluster.server }}{{end}}{{ end }}')
+6. Confirm these variables have been set correctly.
+export -p | grep -E 'USER_TOKEN_VALUE|CURRENT_CONTEXT|CURRENT_CLUSTER|CLUSTER_CA|
+CLUSTER_SERVER'
+7. Generate a kubeconfig file that uses the environment variable values from the previous step.
+Caution:  Nutanix support is unable to recover forgotten credentials. Prevent Kommander UI lockouts
+with the following best practices.
+•
+Backup the kubeconfig file.
+•
+Save your credentials.
+•
+Configure an IDP (identity provider) instead of using a username and password credentials.
+cat << EOF > kommander-cluster-admin-config
+apiVersion: v1
+kind: Config
+current-context: ${CURRENT_CONTEXT}
+contexts:
+- name: ${CURRENT_CONTEXT}
+  context:
+    cluster: ${CURRENT_CONTEXT}
+    user: kommander-cluster-admin
+    namespace: kube-system
+clusters:
+- name: ${CURRENT_CONTEXT}
+  cluster:
+    certificate-authority-data: ${CLUSTER_CA}
+    server: ${CLUSTER_SERVER}
+users:
+- name: kommander-cluster-admin
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 214

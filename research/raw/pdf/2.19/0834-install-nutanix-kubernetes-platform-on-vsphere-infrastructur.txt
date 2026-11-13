@@ -1,0 +1,424 @@
+
+--- page 834 ---
+Delete the Bootstrap Cluster
+Remove the temporary bootstrap cluster after you delete the managed workload cluster.
+About this task
+After you move workload resources to a bootstrap cluster and successfully delete the managed cluster, you
+no longer need the bootstrap cluster and can delete it.
+To delete the bootstrap cluster, follow this step:
+Procedure
+•
+Delete the bootstrap cluster using the following command:
+nkp delete bootstrap --kubeconfig $HOME/.kube/config
+Sample output:
+# Deleting bootstrap cluster
+Install Nutanix Kubernetes Platform on vSphere Infrastructure
+Install Nutanix Kubernetes Platform (NKP) on vSphere infrastructure.
+This table lists all the steps to configure vSphere infrastructure and NKP for air-gapped and non-air-gapped
+environments.
+Table 74: Install NKP on vSphere Infrastructure
+Section
+Steps
+Pre-requisites and Planning
+•
+Nutanix Kubernetes Platform Requirements on
+page 48
+•
+vSphere Prerequisites on page 834
+Infrastructure Preparation
+•
+Configuring Minimum Permissions for vSphere
+Roles on page 835
+•
+Base OS Image for NKP in vCenter on
+page 840
+•
+Loading the Registry on page 841 (Required
+for air-gapped, and optional for non-airgapped
+environments)
+•
+Docker Hub Registry Credentials on page 675
+(Required for non-airgapped environments, if
+registry mirror is not configured)
+Installation
+Creating the NKP Management Cluster on
+page 841
+Post-Installation
+Setting up the Nutanix Kubernetes Platform User
+Interface Access on page 729
+vSphere Prerequisites
+Verify that your VMware vSphere environment is ready before installing NKP on vSphere infrastructure.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 834
+
+--- page 835 ---
+vSphere Environment Requirements
+Before installing, verify that your VMware vSphere Client environment meets the basic requirements in the
+VMware documentation vSphere Virtual Machine Administration Guide:
+•
+Access to a bastion VM or other network-connected host running vSphere Client version 7.0.3 or later.
+•
+Connectivity to the vSphere API endpoint from the host where the NKP CLI runs.
+•
+vSphere account credentials with Administrator privileges.
+•
+A Red Hat subscription username and password for downloading DVD ISOs.
+Bastion Host Requirements
+For air-gapped environments, a bastion VM host template with access to a configured local registry is
+required. For more information on creating a bastion host, see Creating a Bastion Host.
+Provider-specific bastion host references:
+•
+AWS: Linux Bastion on AWS
+•
+Azure: Quickstart: Deploy Azure Bastion
+•
+GCP: Google Cloud VMware Engine bastion access
+•
+vSphere: vSphere security guide
+Infrastructure Inputs
+Collect valid values for the following inputs:
+•
+vCenter server URL
+•
+Datacenter name
+•
+Zone name containing ESXi hosts for cluster nodes. See ESXi install documentation
+•
+Datastore name for shared storage used by cluster VMs
+•
+Datastore URL for the shared datastore
+•
+Folder name
+•
+Base template names, such as base-rhel-8
+•
+Virtual network name with DHCP enabled
+•
+At least one resource pool with host access to shared storage, such as VSAN or NFS
+Persistent Storage Requirements
+Persistent volumes depend on Cloud Native Storage (CNS), available in vSphere 7.0.3 and later, and on
+shared datastore configuration.
+Configuring Minimum Permissions for vSphere Roles
+When you provision Kubernetes clusters with the Nutanix Kubernetes Platform (NKP) vSphere provider,
+specific roles and permissions are required for NKP to provide appropriate access to resources.
+About this task
+Roles in vSphere act as policy statements for objects in the vSphere inventory. You can assign roles to
+users and propagate object assignments to child resources. In small vSphere environments, assigning a
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 835
+
+--- page 836 ---
+role at the top level and propagating it to child resources might be appropriate. However, in most enterprise
+environments, security teams enforce strict access restrictions, requiring more specific role assignments.
+Based on the security requirements of your environment, you can configure a single role with minimum
+user permissions. You can also configure four separate, specific roles such as nkp-vcenter, nkp-
+datacenter, nkp-k8srole, and nkp-readonly. These roles work together to provide NKP with the
+minimum required permissions at each vCenter level, without requiring full admin access. You can set
+permissions to create, modify, or delete resources; clone templates, virtual machines, and disks; and attach
+networks.
+Procedure
+The following table describes the level at which you assign the required permissions and whether they
+propagate to child objects:
+Table 75: Required vSphere Permissions Propagation
+Level
+Propagate to Child
+vCenter Server (Top Level)
+No
+Data Center
+No
+Resource Pool
+No
+Folder
+Yes
+Template
+No
+To configure the four specific vSphere roles with the minimum permissions required for provisioning and
+installing nodes, follow these steps:
+1. Open the vSphere client and connect to your vCenter server.
+2. Go to Home > Administration > Roles.
+3. Click New Role.
+4. Assign a name to the new role, such as nkp-vcenter, nkp-datacenter, nkp-k8srole, or nkp-
+readonly.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 836
+
+--- page 837 ---
+5. Select the privileges from the permissions directory tree for each of the following roles:
+nkp-vcenter Roles and Permissions: The nkp-vcenter role is the root-level role that provides basic
+vCenter access and search capabilities. Assign this role at the vCenter root level with the following
+permissions:
+•
+Cns
+•
+Searchable
+•
+Sessions
+•
+Validate session
+•
+VM storage policies
+•
+View VM storage policies
+nkp-datacenter Roles and Permissions: The nkp-datacenter role provides View only access to
+datacenter, cluster, and ESX host resources.
+You must assign this role to the user or group that NKP uses on the following parts of the inventory:
+•
+Datacenter
+•
+Cluster
+•
+All ESX Hosts within the cluster
+Note:  Do not propagate this role to child objects, because propagation grants view privileges on all
+folders and resource pools.
+nkp-k8srole Roles and Permissions: The nkp-k8srole role allows the Cluster API Provider vSphere
+to create resources and assign networks. This role provides comprehensive permissions for creating,
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 837
+
+--- page 838 ---
+managing, and operating your Kubernetes clusters, including folders, datastore management, network
+assignment, virtual machine operations, and resource pool management capabilities.
+You can assign this role to the following resources:
+•
+resource pool
+•
+nkp folder
+•
+nkp data store
+•
+network
+You can assign this role with the following permissions:
+•
+Datastore
+•
+Allocate space
+•
+Browse datastore
+•
+Low level file operations
+•
+Remove file
+•
+Update virtual machine files
+•
+Update virtual machine metadata
+•
+Global
+•
+Set custom attribute
+•
+Network
+•
+Assign network
+•
+Resource
+•
+Assign vApp to resource pool
+•
+Assign virtual machine to resource pool
+•
+Scheduled Task
+•
+Create tasks
+•
+Modify task
+•
+Remove task
+•
+Run task
+•
+Virtual machine
+•
+Change Configuration
+•
+Add existing disk
+•
+Add new disk
+•
+Add or remove device
+•
+Remove disk
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 838
+
+--- page 839 ---
+•
+Edit inventory
+•
+Create from existing
+•
+Create new
+•
+Register
+•
+Remove
+•
+Interaction
+•
+Configure CD media
+•
+Connect devices
+•
+Power off
+•
+Power on
+•
+Reset
+•
+Provisioning
+•
+Clone virtual machine
+•
+Deploy template
+•
+Read customization specification
+•
+Session
+•
+Validate session
+•
+VM storage policies
+•
+View VM storage policies
+•
+Storage Views
+•
+View
+nkp-readonly Roles and Permissions: The nkp-readonly role is optional. This role provides read-
+only access to templates and allows cloning operations from shared template repositories. Choose the
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 839
+
+--- page 840 ---
+nkp-readonly role when templates are stored in separate folders or datastores that require restricted
+access.
+You can assign this role to templates folder and templates data store with the following
+permissions:
+•
+Datastore
+•
+Allocate space
+•
+vApp
+•
+Clone
+•
+Export
+•
+Virtual machine
+•
+Provisioning
+•
+Clone template
+•
+Clone virtual machine
+•
+Deploy template
+Base OS Image for NKP in vCenter
+Create a base OS image in vCenter for use when building vSphere VM templates for NKP clusters.
+Creating a base OS image from DVD ISOs is a one-time process in vCenter. Nutanix Image Builder (NIB)
+uses this base image to create VM templates for Kubernetes nodes. For more information, see VMware
+image documentation.
+Base OS Image Configuration
+For vSphere, SSH_USERNAME defines the username, and authentication uses SSH_PASSWORD or
+SSH_PRIVATE_KEY_FILE. This user requires administrator privileges unless you provide an overridden NIB
+configuration for a custom user.
+Consider the following when creating the base OS image:
+•
+Storage configuration: Customize disk partitions and avoid configuring a swap partition.
+•
+Network configuration: Enable network access so NIB can download and install packages.
+•
+Red Hat registration: Required for RHEL to configure repositories and install packages.
+•
+Software selection: Use Minimal Install.
+•
+Install packages from operating system package managers using versions aligned to the OS major
+version.
+Disk Size
+For each cluster that you create from this image, define root file system disk size based on NKP minimum
+resource requirements and your organization's minimum storage requirements.
+NKP creates clusters with a default disk size of 80 GB.
+For clusters that use the default disk size, keep the base OS image root file system at exactly 80 GB
+because the system does not reduce the root file system automatically at first boot.
+For detailed image build steps, see Building a Custom Image with vSphere.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 840
+
+--- page 841 ---
+For Flatcar-specific behavior, see:
+•
+Running Flatcar Container Linux on VMware
+•
+Kernel modules and other settings
+Loading the Registry
+Load NKP air-gapped image bundles into your private registry and local runtime.
+Procedure
+1. Download the complete NKP air-gapped bundle for your release and extract the tar file:
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+2. Change to the extracted directory:
+cd nkp-nkp-version
+3. Set registry environment variables:
+export REGISTRY_URL="https/http://registry-address:registry-port"
+export REGISTRY_USERNAME=username
+export REGISTRY_PASSWORD=password
+4. If the registry uses a self-signed certificate, set the certificate authority file path:
+export REGISTRY_CA=path-to-cacert-on-bastion
+5. Load the NKP image bundle into your private registry:
+nkp push bundle --bundle ./container-images/nkp-image-bundle-nkp-version.tar \
+--to-registry=${REGISTRY_URL} \
+--to-registry-username=${REGISTRY_USERNAME} \
+--to-registry-password=${REGISTRY_PASSWORD}
+6. Load the Kommander image bundle into your private registry:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar \
+--to-registry=${REGISTRY_URL} \
+--to-registry-username=${REGISTRY_USERNAME} \
+--to-registry-password=${REGISTRY_PASSWORD}
+7. On the bastion host, load the Konvoy bootstrap image into your local container runtime:
+For Docker:
+docker load -i konvoy-bootstrap-image-nkp-version.tar
+For Podman:
+podman load -i konvoy-bootstrap-image-nkp-version.tar
+podman image tag konvoy-bootstrap:vnkp-version docker.io/mesosphere/konvoy-
+bootstrap:vnkp-version
+Creating the NKP Management Cluster
+Create a self-managed NKP management cluster on vSphere.
+Before you begin
+Complete all vSphere prerequisites before following this procedure.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 841
+
+--- page 842 ---
+About this task
+A self-managed cluster runs Cluster API resources and controllers on the same cluster they manage. The
+process initializes a temporary bootstrap cluster locally, provisions cluster nodes in vSphere, and pivots
+management components to the new cluster.
+To create an NKP management cluster, follow these steps:
+Procedure
+1. Set a unique cluster name:
+export CLUSTER_NAME=your-cluster-name
+2. Export vCenter server credentials and connection details:
+export VSPHERE_SERVER=vCenter-API-server-URL
+export VSPHERE_USERNAME=vCenter-username
+export VSPHERE_PASSWORD=vCenter-password
+3. Create the vSphere cluster with the self-managed workflow:
+nkp create cluster vsphere \
+  --cluster-name ${CLUSTER_NAME} \
+  --server ${VSPHERE_SERVER} \
+  --data-center DATACENTER_NAME \
+  --resource-pool RESOURCE_POOL_NAME \
+  --data-store DATASTORE_NAME \
+  --folder FOLDER_NAME \
+  --network NETWORK_NAME \
+  --control-plane-endpoint-host CONTROL_PLANE_VIP \
+  --vm-template TEMPLATE_NAME \
+  --ssh-public-key-file SSH_PUBLIC_KEY_FILE \
+  --self-managed
+(Optional) For air-gapped environments, append registry mirror parameters:
+--registry-mirror-url=${REGISTRY_URL} \
+--registry-mirror-username=${REGISTRY_USERNAME} \
+--registry-mirror-password=${REGISTRY_PASSWORD}
+4. Monitor and wait for control plane readiness:
+kubectl wait --for=condition=ControlPlaneReady "clusters/${CLUSTER_NAME}" --
+timeout=20m
+5. Retrieve kubeconfig for the new management cluster:
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+What to do next
+To verify that control plane and worker nodes are ready, use the command kubectl get nodes.
+Setting up the Nutanix Kubernetes Platform User Interface Access
+Retrieve the dashboard URL and rotate credentials for the NKP user interface after cluster creation.
+About this task
+To set up the NKP UI access, follow these steps:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 842

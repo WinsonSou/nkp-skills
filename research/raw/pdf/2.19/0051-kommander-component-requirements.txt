@@ -1,0 +1,88 @@
+
+--- page 51 ---
+•
+vSphere Environments Only: Ensure that you have a valid VMware vSphere account with
+configured credentials.
+Note:  NKP requires permissions for the cloud providers it uses. For more information, see Supported
+Infrastructure Operating Systems on page 13.
+•
+Additional Prerequisites for Air-gapped Environments Only: In an air-gapped environment, your
+setup is isolated from unsecured networks, such as the internet, and therefore requires additional
+considerations for installation.
+If you are installing NKP in an air-gapped environment, configure the following additional prerequisites:
+•
+For AWS, configure a Linux-based NKP virtual machine (VM) with access to an existing virtual
+private cloud (VPC) instead of an x86_64-based Linux or macOS machine.
+•
+Ensure the ability to download artifacts from the internet and then copy those artifacts to the NKP
+deployed VM.
+•
+Ensure that you have an existing local container registry to seed the air-gapped environment.
+•
+Ensure to download the complete NKP air-gapped bundle:
+nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+For more information, see Downloading NKP on page 17.
+•
+To use a local registry in either an air-gapped or non-air-gapped environment, download and extract
+the complete NKP air-gapped bundle to load your registry:
+nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+Kommander Component Requirements
+Note the requirements for Nutanix Kubernetes Platform (NKP) Kommander component.
+To install the Kommander component of NKP, ensure that your environment meet the following
+prerequisites:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Requirements | 51
+
+--- page 52 ---
+•
+All Non-air-gapped Environments:
+In a non-air-gapped environment, your environment has two-way access to and from the internet. The
+following are the prerequisites for installing NKP in a non-air-gapped environment:
+•
+The CLI version must match the NKP version that you plan to install.
+•
+Ensure that your cluster meets the resource requirements. For more information, see Management
+Cluster Application Requirements and Workspace Platform Application Defaults and Resource
+Requirements.
+•
+Ensure that a default StorageClass is configured in your cluster. The Konvoy component is
+responsible for configuring one. For more information, see Default Storage Providers on page 37.
+•
+Ensure that you have a load balancer to route the external traffic.
+In the cloud environments, the cloud provider provides information about the external traffic. For on-
+premises and vSphere deployments, you can configure MetalLB or use virtual IP address. For more
+information, see Load Balancing on page 593.
+Note:  For more information on customizing your cluster domain or certificate, see Configuring the
+Kommander Installation with a Custom Domain and Certificate on page 963.
+•
+Ensure that your site firewall allows connection to GitHub.
+•
+For pre-provisioned on-premises environments:
+•
+Ensure that your environment meet the storage requirements.
+For more information, see Storage on page 36, Default Storage Class, and Workspace Platform
+Application Defaults and Resource Requirements on page 700.
+•
+Ensure that you add at least 40 GB of raw storage to the worker nodes of your cluster.
+•
+Additional Prerequisites for Air-gapped Environments Only:
+In an air-gapped environment, your environment is isolated from unsecured networks, such as the
+internet, and therefore requires additional considerations for installation. If you are installing in an air-
+gapped environment, configure the following additional prerequisites:
+•
+To use a local registry containing all the required installation images, including the Kommander
+images in an air-gapped environment, download and extract the complete NKP air-gapped bundle to
+load your registry:
+NKP-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+For more information, see Registry Mirror Tools on page 990.
+•
+Connectivity with the clusters attached to the management cluster:
+•
+Both management and attached clusters must connect to the registry.
+•
+The management cluster must connect to the API servers of all the attached clusters.
+•
+The management cluster must connect to any load balancers created for platform services on the
+management cluster.
+For more information on customizing your cluster domain or certificate, see Configuring the Kommander
+Installation with a Custom Domain and Certificate on page 963.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Requirements | 52

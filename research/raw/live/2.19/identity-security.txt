@@ -1,0 +1,164 @@
+# Identity and security facts for skill nkp-identity-security (read-only lab checks, 2026-11-03)
+# Lab: NKP 2.19.0 management cluster <mgmt-cluster> (AHV, Starter, k8s v1.36.2). Scrubbed: IPs -> <ip>, names -> <mgmt-cluster>.
+# Commands: kubectl get / get -o json|jsonpath (no Secret data), explain, api-resources, --help, nkp ... --dry-run,
+# server dry runs (see "Dry runs"). No Secret value was read. Secret names only.
+
+=== Webhook check before the dry runs ===
+Validating and mutating webhooks that match the dry-run objects:
+- kommander-licensing-validating / webhook.licensing.kommander.mesosphere.io: sideEffects None (licenses, CREATE UPDATE)
+- dex-dex-controller-validating-webhook-configuration / vconnector.kb.io: NoneOnDryRun (connectors)
+- dex-dex-controller-mutating-webhook-configuration / mconnector.kb.io: NoneOnDryRun (connectors)
+- kommander-validating / webhook.federation.kommander.mesosphere.io: NoneOnDryRun (kommanderclusters, virtualgroups, ...)
+- kommander-validating / secrets.webhook.federation.kommander.mesosphere.io: NoneOnDryRun (secrets)
+- kommander-defaulting / webhook.federation.kommander.mesosphere.io: NoneOnDryRun (virtualgroups, workspaces, projects, ...)
+- kommander-appmanagement-defaulting and -validating: NoneOnDryRun (appdeployments)
+- gatekeeper validation.gatekeeper.sh, check-ignore-label.gatekeeper.sh, mutation.gatekeeper.sh: None (all resources, namespaces)
+- nkp-cluster-validating, nkp-cluster-defaulting, CAREN, CAPI webhooks (nkpclusters): None
+NoneOnDryRun = no side effect on a dry-run request. So every dry run below is allowed (AGENTS.md).
+
+=== Dry runs ===
+1. kubectl -n kommander patch licenses.kommander.mesosphere.io nutanix-license --type merge
+   -p '{"spec":{"nutanixLicenseRef":{"name":"skilltest-no-such-secret"}}}' --dry-run=server
+   -> Error from server (NotAcceptable): admission webhook "webhook.licensing.kommander.mesosphere.io" denied the request:
+      spec.nutanixLicenseRef: Required value: referenced secret 'kommander/skilltest-no-such-secret' could not be retrieved
+   => The license webhook checks that the Secret exists before it accepts the License.
+2. kubectl apply --dry-run=server: Connector dex.mesosphere.io/v1alpha1 type ldap (host ldap.invalid:636, rootCASecretRef and
+   bindSecretRef to missing Secrets) -> created (server dry run). The webhook does not check the referenced Secrets.
+3. VirtualGroup kommander.mesosphere.io/v1beta1 (Group oidc:skilltest) -> created (server dry run).
+4. Connector type oidc (issuer, clientSecretRef, redirectURI) -> created (server dry run).
+5. kubectl -n kommander patch appdeployment dex --type merge -p '{"spec":{"configOverrides":{"name":"dex-overrides"}}}'
+   --dry-run=server -> accepted; the ConfigMap dex-overrides does not exist, and the webhook does not check it.
+6. kubectl -n kommander create secret generic skilltest-ldap-bind --from-literal=password=x --dry-run=server -> accepted.
+7. NKPCluster JSON patch (test op on variables/0/name = clusterConfig, add .../podSecurityAdmission
+   {"enforce":"baseline","warn":"restricted","audit":"restricted"}) --dry-run=server -> accepted; result
+   {"audit":"restricted","enforce":"baseline","exemptions":{"namespaces":["kube-system"]},"warn":"restricted"} (default exemption added).
+8. Same with {"enforce":"strict"} -> accepted. The schema has no enum for the levels: a wrong level passes the API.
+9. NKPCluster add .../encryptionAtRest {"providers":[{"aescbc":{}}]} --dry-run=server -> accepted.
+10. kubectl label --dry-run=server --overwrite ns ntnx-system pod-security.kubernetes.io/enforce=baseline
+   -> Warning: existing pods in namespace "ntnx-system" violate the new PodSecurity enforce level "baseline:latest"
+      Warning: nutanix-csi-controller-... (and 6 other pods): host namespaces, hostPath volumes, hostPort, privileged
+      namespace/ntnx-system labeled (server dry run)
+11. kubectl apply --dry-run=server -f gatekeeper-privileged-containers-template.yaml and gatekeeper-host-filesystem-template.yaml
+   (nkp-airgap assets) -> constrainttemplate ... created (server dry run).
+   gatekeeper-privileged-containers-constraint.yaml -> error: no matches for kind "K8sPSPPrivilegedContainer" in version
+   "constraints.gatekeeper.sh/v1beta1"; ensure CRDs are installed first. => apply the template, wait, then the constraint.
+12. nkp create workspace skilltest-ws --dry-run -> Workspace workspaces.kommander.mesosphere.io/v1alpha1, annotation
+   kommander.mesosphere.io/display-name, spec {}.
+   nkp create project skilltest-pj --workspace default-workspace --dry-run -> Project in namespace kommander-default-workspace,
+   spec.placement {}, spec.workspaceRef.name default-workspace.
+
+13. Connector type saml in namespace kommander-default-workspace (ssoURL, redirectURI, usernameAttr, emailAttr, groupsAttr,
+   caSecretRef to a missing Secret) -> created (server dry run).
+14. VirtualGroupClusterRoleBinding (clusterRoleRef view, virtualGroupRef skilltest-vg) -> accepted (no webhook matches this kind).
+15. nkp create workspace skilltest-ws --dry-run | kubectl apply --dry-run=server -f - -> created (server dry run);
+   same for nkp create project skilltest-pj --workspace default-workspace. Webhooks: kommander-validating and
+   kommander-defaulting (NoneOnDryRun), Azure ASO webhooks (None, other API groups).
+16. Label loop: kubectl label --dry-run=server --overwrite ns <ns> pod-security.kubernetes.io/enforce=<level> for every namespace
+   without an enforce label, except kube-system:
+   baseline -> no warning in any namespace.
+   restricted -> "existing pods ... violate" in capg-system, capi-operator-system, capi-stack-operator, cappp-system, capz-system,
+   caren-system, container-object-storage-system, git-operator-system, kommander-default-workspace, kommander-flux, kube-federation-system.
+17. kubectl auth can-i list pods --as nobody@example.com --as-group oidc:skilltest -n default -> no (works as a read-only RBAC check).
+
+=== Dex ===
+Deployments in kommander: dex (mesosphere/dex:v2.42.0-d2iq.0), dex-dex-controller (mesosphere/dex-controller:v0.16.1 + kube-rbac-proxy v0.21.1),
+dex-k8s-authenticator (mesosphere/dex-k8s-authenticator:v1.4.7-d2iq).
+AppDeployment kommander/dex: appRef ClusterApp dex-2.14.5; clusterConfigOverrides -> ConfigMap dex-kommander-overrides
+(keys: config.issuer only). No spec.configOverrides on a fresh install.
+Ingresses in kommander: dex, dex-k8s-authenticator, kommander-kommander-ui, traefik-forward-auth-mgmt.
+Connectors (dex.mesosphere.io): none on a fresh install. Clients (dex.mesosphere.io): dex-dka-client-kube-apiserver
+("DKP CLI authenticator"), dextfa-client-<mgmt-cluster>-<id> ("kommander/<mgmt-cluster>").
+Dex log on an idle cluster: only "keys rotated" and "garbage collection" lines (6 h key rotation).
+kubectl explain connectors.dex.mesosphere.io.spec: displayName (required), enabled (required), type (required), github, ldap, oidc, saml.
+  ldap: host (required), bindDN, bindPW, bindSecretRef.name (Secret key `password`), rootCASecretRef.name (Secret type Opaque,
+        key `tls.crt`; without it the host root CAs), insecureNoSSL, insecureSkipVerify, startTLS, usernamePrompt,
+        userSearch{baseDN (req), username (req), filter, idAttr, emailAttr, emailSuffix, nameAttr, preferredUsernameAttr, scope},
+        groupSearch{baseDN (req), filter, userMatchers[{userAttr, groupAttr}], nameAttr, scope, groupAttr, userAttr}.
+        Field description: derived from dex v2.31.0 connector/ldap.
+  oidc: issuer (req), redirectURI (req), clientSecretRef.name (req; Secret keys `client-id` and `client-secret`), scopes,
+        insecureSkipEmailVerified, insecureEnableGroups, getUserInfo, hostedDomains, userIDKey, userNameKey, promptType,
+        basicAuthUnsupported, claimMapping{email, groups, preferred_username}, overrideClaimMapping.
+  saml: ssoURL (req), redirectURI (req), usernameAttr (req), emailAttr (req), caSecretRef.name (Secret type Opaque, key `tls.crt`;
+        required unless insecureSkipSignatureValidation), entityIssuer, ssoIssuer, groupsAttr, groupsDelim, nameIDPolicyFormat.
+
+=== Traefik Forward Auth, kube-oidc-proxy ===
+kommander/traefik-forward-auth-mgmt image mesosphere/traefik-forward-auth:v3.3.1, args --enable-impersonation --enable-rbac.
+AppDeployment traefik-forward-auth-mgmt -> ClusterApp traefik-forward-auth-mgmt-0.3.18, clusterConfigOverrides ConfigMap
+traefik-forward-auth-mgmt-<mgmt-cluster> (keys traefikForwardAuth.{authHost, caCertificate, clientId, clientSecret.value, enabled, oidcUri}).
+No whitelist key in the default override.
+kommander/kube-oidc-proxy image ghcr.io/mesosphere/dkp-container-images/kube-oidc-proxy:1.0.9 (ClusterApp kube-oidc-proxy-0.3.8).
+
+=== RBAC objects ===
+api-resources workspaces.kommander.mesosphere.io/v1alpha1: Workspace (cluster-scoped, short ws), Project, ProjectRole,
+  KommanderProjectRole, KommanderWorkspaceRole, WorkspaceRole, VirtualGroupProjectRoleBinding, VirtualGroupWorkspaceRoleBinding,
+  VirtualGroupKommanderProjectRoleBinding, VirtualGroupKommanderWorkspaceRoleBinding, VirtualGroupKommanderClusterRoleBinding (cluster-scoped).
+api-resources kommander.mesosphere.io/v1beta1: VirtualGroup (cluster-scoped), VirtualGroupClusterRoleBinding (cluster-scoped),
+  License (namespaced), KommanderCluster.
+explain VirtualGroup.spec.subjects[]: kind (req), name (req), apiGroup, namespace.
+explain VirtualGroupClusterRoleBinding.spec: clusterRoleRef.name (req), virtualGroupRef.name (req), placement{clusterSelector, clusters[].name}.
+explain VirtualGroupWorkspaceRoleBinding.spec: workspaceRoleRef.name (req), virtualGroupRef.name (req), placement.
+Workspaces: default-workspace -> namespace kommander-default-workspace; kommander-workspace ("Management Cluster Workspace") -> kommander.
+Workspace spec fields: clusterLabels, namespaceName, version. Project spec: namespaceName, placement{clusterSelector, clusters}, workspaceRef.name.
+Projects, VirtualGroups, VirtualGroup*Bindings, WorkspaceRoles, KommanderWorkspaceRoles: none on a fresh Starter install.
+ClusterRoles (dkp-/kommander-): dkp-admin, dkp-edit, dkp-view, dkp-kommander-admin, -edit, -view, dkp-traefik-admin, -edit, -view,
+  kommander-admin, -edit, -view, kommander-federated-admin, -edit, -view, kommander-cluster-federated-admin, ... (Starter: no
+  dkp-*-grafana, -prometheus, -karma roles, because these apps are not installed).
+ClusterRoleBindings to cluster-admin: the static dashboard user (a generated User name), system:masters, kubeadm:cluster-admins,
+  Flux controllers, kommander jobs.
+nkp CLI: `nkp create workspace NAME [--display-name] [--namespace] [--dry-run]`, `nkp create project NAME --workspace W
+  [--namespace (immutable)] [--display-name] [--workspace-namespace] [--dry-run]`, `nkp get workspaces`, `nkp get projects [-w W | -A]`.
+`nkp rotate` has only `dashboard-credentials`. There is no `nkp` license command.
+
+=== Gatekeeper ===
+Pods in kommander: gatekeeper-audit (1), gatekeeper-controller-manager (2). AppDeployment gatekeeper -> ClusterApp gatekeeper-3.23.0.
+ConstraintTemplate requiredserviceaccountname (Flux Kustomization kommander/gatekeeper-constraint-templates).
+  Rego: violation when input.review.object.spec.serviceAccountName is empty; message "must have a serviceAccountName set".
+Constraints (kind RequiredServiceAccountName):
+  helmrelease-must-have-sa: enforcementAction deny, kinds helm.toolkit.fluxcd.io/HelmRelease,
+     namespaceSelector matchLabels kommander.d2iq.io/managed-by-kind=Project
+  kustomization-must-have-sa: enforcementAction deny, kinds kustomize.toolkit.fluxcd.io/Kustomization, same namespaceSelector.
+  => Only Project namespaces. No namespace has this label on the lab (no Projects).
+Gatekeeper Config kommander/config: match excludedNamespaces [kommander] for webhook, audit, sync.
+Library templates from nkp-airgap assets are not installed (dry run 11).
+
+=== Pod Security, encryption at rest, users (ClusterClass nkp-nutanix-v2.19.0, clusterConfig) ===
+encryptionAtRest.providers: array, maxItems 1, items {aescbc: {}} or {secretbox: {}}, default [{aescbc: {}}].
+  Description: "used by API server to encrypt data before storing it in ETCD. Currently the encryption only enabled for secrets and configmaps."
+  Lab value: [{secretbox: {}}]. KubeadmControlPlane file /etc/kubernetes/pki/encryptionconfig.yaml from Secret <mgmt-cluster>-encryption-config.
+  kube-apiserver arg --encryption-provider-config=/etc/kubernetes/pki/encryptionconfig.yaml.
+podSecurityAdmission: {enforce, audit, warn: string, default "privileged"; exemptions{namespaces default [kube-system],
+  runtimeClassNames, usernames (max 64 each)}}. "When not specified, no PodSecurity admission configuration is applied." No enum (dry run 8).
+  Lab value: not set. /etc/kubernetes/admission.yaml has only the EventRateLimit plugin.
+  Namespaces with label pod-security.kubernetes.io/enforce=privileged: kommander, metallb-system, node-feature-discovery, ntnx-system.
+  Pods with privileged containers: kube-system 5, ntnx-system 7. Pods with hostPath: kube-system 20, node-feature-discovery 5, ntnx-system 7.
+users: array maxItems 32, items {name (req), hashedPassword (crypt(5)), sshAuthorizedKeys[] (max 100), sudo}.
+  Lab value: one user `konvoy`, sudo "ALL=(ALL) NOPASSWD:ALL", sshAuthorizedKeys (the --ssh-public-key-file). KCP users[] adds lockPassword.
+
+=== API server hardening (live args) ===
+--profiling=false, --service-account-lookup=true, --enable-admission-plugins=DenyServiceExternalIPs,EventRateLimit,NodeRestriction,
+--audit-log-path=/var/log/audit/kube-apiserver-audit.log (maxage 30, maxbackup 90, maxsize 100, compress), --audit-policy-file=/etc/kubernetes/audit-policy.yaml,
+--tls-cipher-suites = six ECDHE AES-GCM and CHACHA20 suites. (security.txt)
+Bundle image: aquasec/kube-bench:v0.14.0 (bundle-images.txt).
+
+=== External Secrets Operator ===
+Namespace external-secrets: external-secrets, external-secrets-webhook (ghcr.io/external-secrets/external-secrets:v2.7.0). ClusterApp external-secrets-2.7.0.
+SecretStores in kommander: kommander-flux-<mgmt-cluster>, <mgmt-cluster> (Valid, ReadWrite). No ClusterSecretStore.
+ExternalSecret kommander/<mgmt-cluster>-nkp-oci-proxy-ca (SecretSynced). PushSecrets <mgmt-cluster>-nkp-oci-proxy-ca, -oci-cert, -oci-creds (Synced).
+Webhooks externalsecret-validate, secretstore-validate.
+
+=== License ===
+License kommander/nutanix-license: spec {}, status dkpLevel Starter, valid true (all other status fields empty).
+explain License.spec: nutanixLicenseRef.name, licenseRef.name, externalLicenseRef{type (req), awsLicense.licenseArn}.
+No Secret with key nutanix-license-key in kommander (default Starter key). Deployments kommander-licensing-cm, kommander-licensing-webhook.
+`nkp create metadata nutanix --help`: --endpoint url, --additional-trust-bundle, --insecure, --kubeconfig, --dry-run, -o, --output-directory.
+`nkp check cluster fips --help`: --kubeconfig, -n/--namespace (default "default"), --signature-file, --signature-configmap,
+  --output-configmap (default check-cluster-fips-output, deprecated), --timeout (default 10m0s).
+
+=== Batch 3 fix pass (2026-11-03), read-only ===
+dex-cluster-overrides (kommander), values.yaml key names only: config, issuer. `grep -c '^ *issuer:'` prints 1.
+HelmRelease kommander/dex valuesFrom: dex-2.14.5-config-defaults, dex-overrides (optional true), dex-cluster-overrides. ConfigMap dex-overrides: NotFound.
+AppDeployment kommander/dex spec.configOverrides: not set.
+ClusterRole cluster-admin rules: apiGroups/resources/verbs "*", and nonResourceURLs ["*"] verbs ["*"] (so it also covers /dkp/*).
+HelmRelease kommander/gatekeeper-proxy-mutations: chart gatekeeper-3.23.0-proxy-mutations. Deployments: gatekeeper-audit 1/1, gatekeeper-controller-manager 2/2 (no proxy-mutations Deployment).
+UI path (review, curl): /dkp/kommander/dashboard/ gives 302 to /dex/auth; /nkp/kommander/dashboard/ gives 404.
+Local test (no cluster): `kubectl create secret generic --from-file=key=<(printf %s "$(printenv VAR)") --dry-run=client` keeps the value byte-exact (tested with `$`, `!`, `@`).

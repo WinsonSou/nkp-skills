@@ -1,0 +1,1387 @@
+
+--- page 957 ---
+3. Retrieve the dashboard URL:
+kubectl -n kommander get svc kommander-traefik -o go-template='https://{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}/nkp/kommander/
+dashboard{{ "\n"}}'
+Use these static credentials only to configure an external identity provider. For more information, see
+Identity Providers. Treat them as backup credentials, not for regular UI access.
+4. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Are you sure you want to continue? [y/N]: y
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+5. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+For more information, see Rotating the NKP Dashboard Password on page 252.
+What to do next
+You can perform the following operations on Identity Providers:
+•
+Create an Identity Provider
+•
+Temporarily Disable an Identity Provider
+•
+Create Groups
+Dashboard UI Functions
+After installing the Konvoy component and building a cluster, as basic, successfully installing Kommander
+and logging into the UI, you are now ready to customize configurations.
+For more information, see Basic Installations by Infrastructure on page 76. The majority of the
+customization, such as attaching clusters and deploying applications, will take place in the dashboard or
+UI of NKP. The Basic Installation section allows you to manage cluster operations and their application
+workloads to optimize your organization’s productivity.
+If you want to enable a solution that detects current and future anomalies in workload configurations or
+Kubernetes clusters, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Kommander Customizations
+You can customize the Kommander component of NKP during initial installation or after deployment using
+the Nutanix Kubernetes® Platform (NKP) CLI.
+You can modify configuration values in the Kommander Helm chart, modify settings for identity
+providers, enable or disable workspace features, and apply post-install updates using the NKP CLI. The
+customizations allow you to configure Kommander for access control, UI preferences, and integration
+workflows across clusters.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 957
+
+--- page 958 ---
+Initializing a Kommander Installer Configuration File
+About this task
+You can install Kommander with a bare minimum of applications on a small environment with smaller
+memory, storage, and CPU requirements for testing and demo purposes, see Installing Kommander in a
+Small Environment on page 953.
+Before you begin
+•
+To ensure your cluster has enough resources, review the Nutanix Kubernetes Platform Management
+Cluster Application Requirements on page 698.
+•
+Ensure you have a default StorageClass, as shown in Identifying and Modifying Your StorageClass on
+page 942.
+Initialize a Kommander Installer Configuration File as follows:
+Procedure
+To begin configuring Kommander, run the following command to initialize a default configuration file.
+»
+For an air-gapped environment, run the following command:
+nkp install kommander --init --airgapped > kommander.yaml
+»
+For a non-air-gapped environment, run the following command:
+nkp install kommander --init > kommander.yaml
+Configuring Applications After Installing Kommander
+After you have a default configuration file, you can then configure each app either inline or by referencing
+another YAML file. The configuration values for each app correspond to the Helm Chart values for the
+application.
+Procedure
+After the initial deployment of Kommander, you can find the application Helm Charts by checking the
+spec.chart.spec.sourceRef field of the associated HelmRelease.
+kubectl get helmreleases <application> -o yaml -n kommander
+Inline configuration (using values) :
+In this example, you configure the centralized-grafana application with resource limits by defining the
+Helm Chart values in the Kommander configuration file.
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  centralized-grafana:
+    values: |
+      grafana:
+        resources:
+          limits:
+            cpu: 150m
+            memory: 100Mi
+          requests:
+            cpu: 100m
+            memory: 50Mi
+...
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 958
+
+--- page 959 ---
+Reference another YAML file (using valuesFrom):
+Alternatively, you can create another YAML file containing the configuration for centralized-grafana
+and reference that using valuesFrom. You can point to this file by using either a relative path (from the
+configuration file location) or by using an absolute path.
+cat > centralized-grafana.yaml <<EOF
+grafana:
+  resources:
+    limits:
+      cpu: 150m
+      memory: 100Mi
+    requests:
+      cpu: 100m
+      memory: 50Mi
+EOF
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  centralized-grafana:
+    valuesFrom: centralized-grafana.yaml
+...
+Minimal Kommander Installation
+You can install Kommander with a bare minimum of applications on a small environment with smaller
+memory, storage, and CPU requirements for testing and demo purposes.
+For more information, see Installing Kommander in a Small Environment on page 953.
+Installing Kommander with a Configuration File
+About this task
+In the following command, the --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you set the
+context for installing Kommander on the right cluster. For alternatives and recommendations around setting
+your context, see Commands within a kubeconfig File on page 34.
+Procedure
+1. Add the --installer-config flag to the kommander install command to use a custom configuration
+file.
+2. To reconfigure applications, you can also run this command after the initial installation.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Tip:  Sometimes, applications require a longer period of time to deploy, which causes the installation to
+time out. Add the --wait-timeout <time to wait> flag and specify a period of time (for example,
+1h) to allocate more time to the deployment of applications.
+What to do next
+After building the Konvoy cluster and installing Kommander, you can verify your Kommander installation
+(Verifying Kommander Installation on page 955), then you can log in to the Kommander UI (Logging into
+the UI with Kommander on page 956).
+Kommander Configuration Reference
+This page contains the configuration parameters for the Kommander component of NKP.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 959
+
+--- page 960 ---
+Configuration Parameters
+For additional information about configuring the Kommander component of NKP during initial installation,
+see Installing Kommander with a Configuration File  on page 959.
+Table 76: Configuration Parameters
+Parameter
+Description
+Default Value
+apps
+List of platform applications
+that will be installed on the
+management cluster.
+apps:
+  ai-navigator-app:
+    enabled: true
+  dex:
+    enabled: true
+  dex-k8s-authenticator:
+    enabled: true
+  nkp-insights-management:
+    enabled: true
+  gatekeeper:
+    enabled: true
+  git-operator:
+    enabled: true
+  grafana-logging:
+    enabled: true
+  grafana-loki:
+    enabled: true
+  kommander:
+    enabled: true
+  kube-prometheus-stack:
+    enabled: true
+    values: <shortened for
+ brevity>
+  kubefed:
+    enabled: true
+  kubernetes-dashboard:
+    enabled: true
+  kubetunnel:
+    enabled: true
+  logging-operator:
+    enabled: true
+  prometheus-adapter:
+    enabled: true
+  reloader:
+    enabled: true
+   rook-ceph:
+    enabled: true
+   rook-ceph-cluster:
+    enabled: true
+  traefik:
+    enabled: true
+  traefik-forward-auth-mgmt:
+    enabled: true
+  velero:
+    enabled: true
+ageEncryptionSecretName
+Defines the name of the secret in
+which to store the Age encryption.
+sops-age
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 960
+
+--- page 961 ---
+Parameter
+Description
+Default Value
+clusterHostName
+Allows users to provide a
+hostname that is used for
+accessing the cluster's ingresses.
+ingressCertificate
+Allows users to provide a custom
+certificate that's used for TLS in
+the cluster's ingresses.
+acme
+Enable automatic ingress
+certificate management through
+ACME.
+appManagementImageTag
+Specifies image tag of the
+AppManagement container.
+appManagementImageRepository Specifies the image repository of
+AppManagement container
+appManagementKubetoolsImageRepository
+Specifies the image repository of
+the Kubetools container
+kommanderChartsVersion
+Specifies NKP Kommander Helm
+chart version.
+air-gapped
+Specifies parameters for an air-
+gapped environment.
+catalog
+Specifies parameters for installing
+default catalog repositories.
+AppConfig Parameters
+Table 77: AppConfig Parameters
+Parameter
+Description
+Default Value
+enabled
+Denotes whether the specific app
+should be deployed or not.
+Note:  The ai-
+navigator-app entry
+defaults to true unless
+you are installing in an air-
+gapped environment. Set
+the value to false if you
+do not want to install the AI
+Navigator on page 1073
+application.
+false
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 961
+
+--- page 962 ---
+Parameter
+Description
+Default Value
+valuesFrom
+File path containing the values
+that are passed onto the
+application's HelmRelease.
+This is a Helm values file for all
+applications at the moment. The
+path in this field must either be a
+relative file location, which is then
+interpreted to be relative to the
+location of the configuration file,
+or an absolute path.
+Note:  Only one of
+valuesFrom or values
+might be set; both cannot
+be set.
+values
+Contains the values that are
+passed to the application's
+HelmRelease.
+Note:  Only one of
+valuesFrom or values
+may be set; both cannot be
+set.
+IngressCertificate
+Table 78: IngressCertificate Parameters
+Parameter
+Description
+Default Value
+certificate
+The path to a certificate PEM file.
+private_key
+The path to the certificate’s
+private key (PEM).
+ca
+The path to the certificate’s CA
+bundle; a PEM file containing root
+and intermediate certificates.
+Airgapped Parameters
+Table 79: Airgapped Parameters
+Parameter
+Description
+Default Value
+enabled
+Specifies if installation happens in
+an air-gapped environment.
+helmMirrorImageTag
+Specifies an image tag of the
+Helm-mirror container.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 962
+
+--- page 963 ---
+Parameter
+Description
+Default Value
+helmMirrorImageRepository
+Specifies image repository of
+Helm-mirror container.
+Next Step:
+Configuring HTTP proxy for the Kommander Clusters on page 980
+Configuring the Kommander Installation with a Custom Domain and Certificate
+Configure a custom domain and certificate during the installation of the Kommander component, for
+Management or Pro clusters only.
+There are two configuration methods:
+Table 80: Configuration Methods
+Configuration Methods
+Supported cluster types
+While installing the Kommander component
+Only Pro or Management clusters
+After installing the Kommander component
+All cluster types
+For more information, see Custom Domains and
+Certificates Configuration for All Cluster Types on
+page 490.
+NKP supports configuring a custom domain name for accessing the UI and other platform services, as well
+as setting up manual or automatic certificate renewal or rotation. This section provides instructions and
+examples on how to configure the NKP installation to add a customized domain and certificate to your Pro
+cluster or Management cluster.
+Reasons for Setting Up a Custom Domain or Certificate
+Reasons for Using a Custom DNS Domain
+NKP supports the customization of domains to allow you to use your domain or hostname for your
+services. For example, you can set up your NKP UI or any of your clusters to be accessible with your
+custom domain name instead of the domain provided by default.
+To set up a custom domain (without a custom certificate), see Configuring a Custom Domain Without a
+Custom Certificate on page 970.
+Reasons for Using a Custom Certificate
+NKP’s default CA identity supports the encryption of data exchange and traffic (between your client and
+your environment’s server). To configure an additional security layer that validates your environment’s
+server authenticity, NKP supports configuring a custom certificate issued by a trusted Certificate Authority
+either directly in a Secret or managed automatically using the ACME protocol (for example, Let’s Encrypt).
+Changing the default certificate for any of your clusters can be helpful. For example, you can adapt it to
+classify your NKP UI or any other type of service as trusted (when accessing a service through a browser).
+To set up a custom domain and certificate, refer to the following pages respectively:
+•
+Configure a custom domain and certificate as part of the cluster’s installation process. This is only
+possible for your Management or Pro cluster. For more information, see Configuring the Kommander
+Installation with a Custom Domain and Certificate on page 963.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 963
+
+--- page 964 ---
+•
+Update your cluster’s current domain and certificate configuration as part of your cluster operations.
+You can do this for any cluster type in your environment. For more information, see Cluster Operations
+Management on page 227.
+Note:  Using Let’s Encrypt or other public ACME certificate authorities does not work in air-gapped
+scenarios, as these services require a connection to the Internet for their setup. For air-gapped
+environments, you can either use self-signed certificates issued by the cluster (the default configuration) or a
+certificate created manually using a trusted Certificate Authority.
+Certificate Issuer and KommanderCluster Concepts
+If you set up an advanced configuration of your custom domain, ensure you understand the following
+concepts.
+KommanderCluster Object
+The KommanderCluster resource is an object that contains key information for all types of clusters that are
+part of your environment, such as:
+•
+Cluster access and endpoint information
+•
+Cluster attachment information
+•
+Cluster status and configuration information
+Issuer Objects
+Issuer, ClusterIssuer or certificateSecret?
+If you use a certificate issued and managed automatically by cert-manager, you need an Issuer or
+ClusterIssuerthat you reference in your KommanderCluster resource. The referenced object must
+contain the information of your certificate provider.
+If you want to use a manually-created certificate, you need a certificateSecret that you reference in
+your KommanderCluster resource.
+Location of the KommanderCluster and Issuer Objects
+In the Management or Pro cluster, both the KommanderCluster and issuer objects are stored on the same
+cluster. The issuer can be referenced as an Issuer, ClusterIssuer or certificateSecret.
+In Managed and Attached clusters, the KommanderCluster object is stored on the Management cluster.
+The Issuer, ClusterIssuer or certificateSecret is stored on the Managed or Attached cluster.
+HTTP and DNS solver
+When configuring a certificate for your NKP cluster, you can set up an HTTP solver or a DNS solver. The
+HTTP protocol exposes your cluster to the public Internet, whereas DNS keeps your traffic hidden. If you
+use HTTP, your cluster must be publicly accessible (through the ingress or load balancer). If you use
+DNS, this is not a requirement. For HTTP and DNS configuration options, see Advanced Configuration:
+ClusterIssuer on page 969.
+Note:  If you are enabling a proxied access (see Proxied Access to Network-Restricted Clusters on
+page 462) for a network-restricted cluster, this configuration is restricted to DNS.
+Certificate Authority
+The following table defines some values you require to set up a custom certificate according to your
+Certificate Authority (CA).
+Use these values for Configuring the Kommander Installation with a Custom Domain and Certificate on
+page 963.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 964
+
+--- page 965 ---
+Table 81: Table
+Certificate Authority
+Prerequisites
+Kommander Installervalues
+Let’s Encrypt
+None
+Generated automatically by
+Kommander when acme is
+enabled
+ZeroSSL
+An access and a secret key
+provided by ZeroSSL
+acme.server: https://
+acme.zerossl.com/v2/DV90
+SSL.com
+An access and a secret key
+provided by SSL
+acme.server: https://
+acme.ssl.com/sslcom-dv-rsa
+Certificate Configuration Options
+There are three certificate configuration options.
+For more information on values that are specific to your Certificate Authority or CA, see Certificate
+Authority on page 964. Choose an ACME-supported Certificate Authority if you want the cert-manager
+to handle certificate renewal and rotation automatically.
+The configuration options are as follows:
+•
+Choose an ACME-supported Certificate Authority, if you want the cert-manager to automatically
+handle certificate renewal and rotation.
+•
+For more information on values that are specific to your Certificate Authority or CA, see Certificate
+Authority on page 964.
+Warning:  Certificates issued by another Issuer: You can also configure a certificate issued by another
+Certificate Authority. In this case, the CA will determine which information to include in the configuration.
+•
+For configuration examples, https://cert-manager.io/docs/configuration/.
+•
+The ClusterIssuer's name must be kommander-acme-issuer.
+Next Step:
+Verifying and Troubleshooting the Domain and Certificate Customization on page 970
+Using an Automatically-generated Certificate with ACME and Required Basic Configuration
+When you enable ACME, by default NKP generates an ACME-supported certificate with an HTTP01
+solver. The cert-manager automatically issues a trusted certificate for the configured custom domain, and
+takes care of renewing the certificate before expiration.
+Procedure
+1. Open the Kommander Installer Configuration File or kommander.yaml file.
+a. If you do not have the kommander.yaml file to initialize the configuration file so that you can edit it in
+the following steps.
+Warning:  Initialize this file only ONE time, otherwise, you will overwrite previous customizations.
+b. If you have initialized the configuration file already, open the  <kommander.yaml> with the editor of
+your choice.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 965
+
+--- page 966 ---
+2. In that file, configure the custom domain for your cluster.
+[...]
+clusterHostname: <mycluster.example.com>
+[...]
+3. Enable ACME by adding acme value, the issuer's server, and your e-mail. If you don’t provide a server,
+NKP sets up Let's Encrypt as your certificate provider.
+acme:
+  email: <your_email>
+  server: <your_server>
+[...]
+4. Use the configuration file to install Kommander.
+See Kommander Customizations on page 957.
+Note:  Basic configuration in this topic refers to the ACME server without EAB (External Account
+Bindings) and HTTP solver.
+Using an Automatically-generated Certificate with ACME and Required Advanced Configuration
+If you require additional configuration options like DNS solver, EAB, among others, create a
+ClusterIssuer with the required configurations before you run the installation of Kommander. The cert-
+manager automatically issues a trusted certificate for the configured custom domain, and takes care of
+renewing the certificate before expiration.
+About this task
+For more information on the ClusterIssuer, other objects, and where to store them, see Advanced
+Configuration: ClusterIssuer on page 969 and Certificate Issuer and KommanderCluster Concepts on
+page 964.
+Procedure
+1. Create a ClusterIssuer and store it in the target cluster. It must be called kommander-acme-issuer:
+a. If you require an HTTP solver, adapt the following example with the properties required for your
+certificate and run the command:
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: kommander-acme-issuer # This part is important
+spec:
+  acme:
+    email: <your_email>
+    server: <https://acme.server.example>
+    skipTLSVerify: true
+    privateKeySecretRef:
+      name: kommander-acme-issuer-account # Set this to <name>-account
+    solvers:
+    - http01:
+        ingress:
+          ingressTemplate:
+            metadata:
+              annotations:
+                kubernetes.io/ingress.class: kommander-traefik
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 966
+
+--- page 967 ---
+                "traefik.ingress.kubernetes.io/router.priority": "2147483647"
+EOF
+Warning:  The values kommander-acme-issuer, kommander-acme-issuer-account
+and, "traefik.ingress.kubernetes.io/router.priority": "2147483647" are not
+placeholders and must be filled out exactly as in the example.
+In on-premises environments, replace the annotation in the previous example with
+traefik.ingress.kubernetes.io/router.tls: "true".
+b. If you require a DNS solver, adapt the following example with the properties required for your
+certificate and run the command:
+cat <<EOF | kubectl apply -f -
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: kommander-acme-issuer # This part is important
+spec:
+  acme:
+    email: <your_email>
+    server: <https://acme.server.example>
+    privateKeySecretRef:
+      name: kommander-acme-issuer-account # Set this to <name>-account
+    solvers:
+      - dns01:
+          route53:
+            region: us-east-1
+            role: arn:aws:iam::YYYYYYYYYYYY:role/dns-manager
+EOF
+Warning:  The values kommander-acme-issuer, and kommander-acme-issuer-account are
+not placeholders and must be filled out exactly as in the example.
+2. (Optional) If you require External Account Bindings to link your ACME account to an external database,
+see https://cert-manager.io/docs/configuration/acme/#external-account-bindings.
+3. (Optional): Create a DNS record by setting up the external-dns service. For more information, DNS
+Record Creation with External DNS on page 971. This way, the external-dns will take care of
+pointing the DNS record to the ingress of the cluster automatically.
+You can also manually create a DNS record , that maps your domain name or IP address to the cluster
+ingress. If you choose to create a DNS record manually, finish installing the Kommander component,
+and then manually create a DNS record that points to the load balancer address.
+4. Open the Kommander Installer Configuration File or kommander.yaml file.
+a. If you do not have the kommander.yaml file, initialize the configuration file, so you can edit it in the
+following steps.
+Warning:  Initialize this file only ONCE, otherwise you will overwrite previous customizations.
+b. If you have initialized the configuration file already, open the  kommander.yaml with the editor of
+your choice.
+5. In that file, configure the cluster to use your custom domain.
+[...]
+clusterHostname: <mycluster.example.com>
+[...]
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 967
+
+--- page 968 ---
+6. Enable ACME by configuring the issuer’s server and your e-mail.
+[...]
+acme:
+  email: <your_email>
+  server: <your_server>
+[...]
+7. Use the configuration file to install Kommander.
+See Kommander Customizations on page 957.
+Using a Manually-generated Certificate
+Nutanix supports the use of a manually-created certificate. In this case, there is no certificate controller
+that handles the renewal and update of your certificate automatically, so you will have to take care of these
+tasks manually.
+Before you begin
+Obtain the PEM files of your certificate and store them in the target cluster’s namespace:
+•
+Certificate
+•
+Private key of the certificate
+•
+CA bundle (containing the root and intermediate certificates)
+Important:  The following instructions are for configuring certificates during the initial installation. If you have
+an already deployed Kommander cluster and need to update or use manually generated certificates, see
+Using a Manually-generated Certificate in the Cluster Operations Management section.
+To configure the manually-generated certificate:
+Procedure
+1. Open the Kommander Installer Configuration File or <kommander.yaml>  file.
+a. If you do not have the kommander.yaml file, initialize the configuration file so that you can edit it in
+the following steps.
+Warning:  Initialize this file only ONCE; otherwise, you will overwrite previous customizations.
+b. If you have initialized the configuration file already, open the  kommander. yaml with the editor of
+your choice.
+2. In the Kommander Installer Configuration file, provide your custom domain and the paths to the PEM
+files of your certificate.
+[...]
+clusterHostname: <mycluster.example.com>
+ingressCertificate:
+  certificate: <certs/cert.pem>
+  private_key: <certs/key.pem>
+  ca: <certs/ca.pem>
+[...]
+3. Use the configuration file to install Kommander.
+See Kommander Customizations on page 957.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 968
+
+--- page 969 ---
+Advanced Configuration: ClusterIssuer
+When you enable ACME to understand the basic concepts for certificate configuration. by default NKP
+generates an ACME-supported certificate with an HTTP01 solver that is provided by Let’s Encrypt.
+For more information, see Configuring the Kommander Installation with a Custom Domain and Certificate
+on page 963.
+Ensure you review Certificate Issuer and KommanderCluster Concepts on page 964
+You can also set up an advanced configuration for a Custom Domain and Certificate. In these cases, the
+custom configuration cannot be done completely through the installer config file, but must be specified
+further in a ClusterIssuer. For more information, see Certificate Issuer and KommanderCluster Concepts
+on page 964.
+Whether it is sufficient to establish the configuration of your custom certificate in the installer config
+file only or you require a ClusterIssuer to define further configuration options depends on the degree of
+customization.
+Warning:  If you require a ClusterIssuer, you must create it before you run the Kommander installation.
+When do You Need a ClusterIssuer?
+The configuration of the ClusterIssuer resource depends on your NKP landscape:
+Figure 20: Cluster Domain in the NKP Landscape
+How do You Configure a ClusterIssuer?
+You can set configurable fields in a ClusterIssuer.
+For more information on the available options, see the ACME section in https://cert-manager.io/docs/
+configuration/acme/.
+Examples
+For configuration steps and examples, see Configuring the Kommander Installation with a Custom Domain
+and Certificate on page 963.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 969
+
+--- page 970 ---
+Warning:  If you need to make changes in the configuration of your domain or certificate after you have
+installed NKP, or if you want to set up a custom domain and certificate for Attached or Managed clusters ,
+modify the ingress in the KommanderCluster object as shown in the Custom domains and certificates
+configuration section.
+Configuring a Custom Domain Without a Custom Certificate
+To configure Kommander to use a custom domain, the domain name must be provided in an installation
+config file.
+Procedure
+1. Open the Kommander Installer Configuration File or kommander.yaml file.
+a. If you do not have the kommander.yaml file, see Installing Kommander with a Configuration File  on
+page 959, so you can edit it in the following steps.
+Warning:  Initialize this file only ONCE, otherwise, you will overwrite previous customizations.
+b. If you have initialized the configuration file already, open the  kommander.yaml with the editor of
+your choice.
+2. In that file, configure the custom domain for your cluster by adding this line.
+[...]
+clusterHostname: <mycluster.example.com>
+[...]
+3. This configuration can be used when installing or reconfiguring Kommander by passing it to the nkp
+install kommander command.
+nkp install kommander --installer-config <kommander.yaml> --kubeconfig=
+${CLUSTER_NAME}.conf
+Note:  To ensure Kommander is installed on the right cluster, use the --
+kubeconfig=cluster_name.conf flag as an alternative to KUBECONFIG.
+4. After the command completes, obtain the cluster ingress IP address or hostname using the following
+command.
+kubectl -n kommander get svc kommander-traefik -o go-template='{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}{{ "\n"}}'
+If required, create a DNS record (for example, by using external-dns) for your custom hostname that
+resolves to the cluster ingress load balancer hostname or IP address. If the previous command returns
+a hostname, you should create a CNAME DNS entry that resolves to that hostname. If the cluster
+ingress is an IP address, create a DNS A record.
+Warning:  The domain must be resolvable from both the client (your browser) and the cluster. If you set
+up an external-dns service, it automatically points the DNS record to the cluster ingress. If you are
+manually creating a DNS record, you have to install Kommander first to obtain the load balancer address
+required for the DNS record.
+For more details and examples on how and when to set up the DNS record, see Configuring the
+Kommander Installation with a Custom Domain and Certificate on page 963.
+Verifying and Troubleshooting the Domain and Certificate Customization
+If you want to ensure the customization for a domain and certificate is completed, or if you want to
+obtain more information on the status of the customization, display the status information for the
+KommanderCluster.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 970
+
+--- page 971 ---
+About this task
+On the Management cluster, perform the following steps:
+Procedure
+1. Inspect the modified KommanderCluster object.
+kubectl describe kommandercluster -n <workspace_name> <cluster_name>
+2. If the ingress is still being provisioned, the output looks similar to this.
+[...]
+Conditions:
+  Last Transition Time:  2022-06-24T07:48:31Z
+  Message:               Ingress service object was not found in the cluster
+  Reason:                IngressServiceNotFound
+  Status:                False
+  Type:                  IngressAddressReady
+[...]
+If the provisioning has been completed, the output looks similar to this.
+[...]
+Conditions:
+  Last Transition Time:  2022-06-28T13:43:33Z
+  Message:               Ingress service address has been provisioned
+  Reason:                IngressServiceAddressFound
+  Status:                True
+  Type:                  IngressAddressReady
+  Last Transition Time:  2022-06-28T13:42:24Z
+  Message:               Certificate is up to date and has not expired
+  Reason:                Ready
+  Status:                True
+  Type:                  IngressCertificateReady
+[...]
+The same command also prints the actual customized values for the
+KommanderCluster.Status.Ingress. Here is an example.
+[...]
+   ingress:
+    address: 172.20.255.180
+    caBundle: LS0tLS1CRUdJTiBD...<output has been shortened>...DQVRFLS0tLS0K
+[...]
+DNS Record Creation with External DNS
+This section describes how to use external-dns to maintain your DNS records
+When you set up a custom domain, that is, Custom Domains and Certificates Configuration for All Cluster
+Types for your cluster, you require a DNS record that maps the configured domain or IP address to the
+cluster’s ingress. You can either create one manual or set up the external-dns service to manage your
+DNS record automatically. For more information, see Custom Domains and Certificates Configuration for
+All Cluster Types on page 490.
+If you choose to use external-dns to maintain your DNS records, the external-dns will take care of
+pointing the DNS record to the ingress of the cluster automatically.
+Select one of the following options to configure the external-dns service for Management or Pro clusters
+or for Managed or Attached clusters.
+•
+Configuring External DNS with the CLI: Management or Pro Cluster on page 972
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 971
+
+--- page 972 ---
+•
+Configuring the External DNS Using the UI on page 973
+•
+Verifying Your External DNS Configuration on page 975
+If you choose to create a DNS record manually, finish installing the Kommander component and then
+manually create a DNS record that points to the load balancer address.
+Configuring External DNS with the CLI: Management or Pro Cluster
+This page contains information on how to configure an external-dns service to manage DNS records
+automatically in your Management or Pro cluster.
+Before you begin
+Ensure you have configured a DNS zone with your cloud provider.
+About this task
+Configure External DNS and Customize Traefik. The configuration varies depending on your cloud
+provider.
+Procedure
+1. Open the Kommander Installer Configuration File or kommander.yaml file.
+a. If you do not have the kommander.yaml file, see Installing Kommander with a Configuration File  on
+page 959 so that you can edit it in the following steps.
+Warning:  Initialize this file only ONCE; otherwise, you will overwrite previous customizations.
+b. If you have installed the Kommander component already, open the existing kommander.yaml with
+the editor of your choice.
+2. Adjust the app section of your kommander.yaml file to include these values.
+AWS Example: Replace the placeholders <...> with your environment's information.
+The following example shows how to configure external-dns to manage DNS records in AWS Route
+53 automatically:
+apps:
+  external-dns:
+    enabled: true
+    values: |
+      aws:
+        credentials:
+          secretKey: <secret-key>
+          accessKey: <access-key>
+        region: <provider-region>
+        preferCNAME: true
+      policy: upsert-only
+      txtPrefix: local-
+      domainFilters:
+        - <example.com>
+Azure Example: Replace the placeholders <...>with your environment's information.
+apps:
+  external-dns:
+    enabled: true
+    values: |
+      azure:
+        cloud: AzurePublicCloud
+        resourceGroup: <resource-group>
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 972
+
+--- page 973 ---
+        tenantId: <tenant-id>
+        subscriptionId: <your-subscription-id>
+        aadClientId: <client-id>
+        aadClientSecret: <client-secret>
+      domainFilters:
+        - <example.com>
+      txtPrefix: txt-
+      policy: sync
+      provider: azure
+3. In the same app section, adjust the traefiksection to include the following.
+traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          external-dns.alpha.kubernetes.io/hostname: <mycluster.example.com>
+4. Use the configuration file to install or update the Kommander component.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+For more information and configuring external-dns to use other DNS providers like Google Cloud
+DNS, CloudFlare, or on-site providers, see https://artifacthub.io/packages/helm/bitnami/external-dns.
+What to do next
+Verifying Your External DNS Configuration on page 975
+Configuring the External DNS Using the UI
+Configure External DNS with the UI: All Clusters.
+About this task
+This page contains information on how to configure an external-dns service to manage DNS records
+automatically and applies to all cluster types.
+The configuration varies depending on your cloud provider.
+Before you begin
+Ensure you have configured a DNS zone with your cloud provider.
+Procedure
+1. Select the target workspace from the top navigation bar.
+It must be the workspace that contains the cluster, for which you want to configure External DNS. In the
+case of the Management cluster, it is the Management cluster workspace.
+2. Select Applications from the sidebar menu.
+3. Search for the External DNS application.
+4. On the application card, select the triple dot vertical icon > Enable.
+5. On the Enable Workspace Platform Application page, select Configuration from the sidebar menu.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 973
+
+--- page 974 ---
+6. Copy and paste the following contents into the code editor and replace the placeholders <...> with
+your environment’s information.
+Here is an example configuration.
+AWS Example: Replace the placeholders <...>with your environment's information.
+The following example shows how to configure external-dns to manage DNS records in AWS Route
+53 automatically.
+aws:
+  credentials:
+    secretKey: <secret-key>
+    accessKey: <access-key>
+  region: <provider-region>
+  preferCNAME: true
+policy: upsert-only
+txtPrefix: local-
+domainFilters:
+  - <example.com>
+Azure Example: Replace the placeholders <...>with your environment's information.
+azure:
+  cloud: AzurePublicCloud
+  resourceGroup: <resource-group>
+  tenantId: <tenant-id>
+  subscriptionId: <your-subscription-id>
+  aadClientId: <client-id>
+  aadClientSecret: <client-secret>
+domainFilters:
+  - <example.com>
+txtPrefix: txt-
+policy: sync
+provider: azure
+For more information and configuring external-dns to use other DNS providers like Google Cloud
+DNS, CloudFlare, or on-site providers, see https://artifacthub.io/packages/helm/bitnami/external-dns.
+Customizing the Traefik Deployment Using the UI
+Customize the Traefik Deployment Using the UI.
+About this task
+Note:  NKP deploys Traefik to all clusters by default.
+Procedure
+1. Select the target workspace from the top navigation bar.
+It must be the workspace that contains the cluster, for which you want to configure External DNS. In the
+case of the Management cluster, it is the Management cluster workspace.
+2. Select Applications from the sidebar menu.
+3. Search for the Traefik application.
+4. On the application card, select the triple dot vertical icon > Edit.
+5. Select the Configuration lateral tab to add a customization.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 974
+
+--- page 975 ---
+6. Copy and paste the following configuration into the code editor:
+Use the Cluster Application Configuration Override code editor to apply a configuration per cluster.
+service:
+  annotations:
+    external-dns.alpha.kubernetes.io/hostname: <mycluster.example.com>
+Warning:  Ensure you set up a domain per cluster, for example: <mycluster1.example.com>,
+<mycluster2.example.com> and <mycluster3.example.com>.
+What to do next
+Verifying Your External DNS Configuration on page 975
+Verifying Your External DNS Configuration
+This page contains commands to verify that the external-dns service is functioning correctly.
+About this task
+If the external-dns service is not working properly, these commands also provide aids to find the cause or
+identify the issue.
+To verify that the deployment was triggered:
+About this task
+To verify that the deployment was triggered, follow these steps:
+Procedure
+1. Set the environment variable to the Management/Pro cluster by exporting the kubeconfig file in your
+terminal window or using the --kubeconfig=${CLUSTER_NAME}.conf as explained in Commands within
+a kubeconfig File on page 34.
+2. Verify that the external-dns deployment is present.
+Replace <target_WORKSPACE_NAMESPACE> in the namespace -n flag with the target cluster’s
+workspace namespace.
+kubectl get appdeployments.apps.kommander.d2iq.io -n <target_WORKSPACE_NAMESPACE>
+ external-dns
+The output should look like this:
+NAME           APP                          AGE
+external-dns   external-dns-<app_version>   36s
+The CLI has triggered the application's deployment. However, this does not mean that the application
+has been installed completely and successfully.
+Verifying Whether the DNS Deployment Is Successful
+Verify whether the DNS deployment is successful or not.
+Procedure
+1. Set the environment variable to the target cluster (where you enabled external-dns) by exporting
+the kubeconfig file in your terminal window or using the --kubeconfig=${CLUSTER_NAME}.conf as
+explained in Commands within a kubeconfig File on page 34.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 975
+
+--- page 976 ---
+2. Verify that the external-dns deployment is ready.
+Replace <target_WORKSPACE_NAMESPACE> in the namespace -n flag with the target cluster’s
+workspace namespace.
+kubectl get deployments.apps -n <target_WORKSPACE_NAMESPACE> external-dns
+The deployment should display a ready state.
+NAME           READY   UP-TO-DATE   AVAILABLE   AGE
+external-dns   1/1     1            1           42s
+The CLI has deployed the application completely and successfully.
+Examining the Cluster’s Ingress
+Examine the cluster's ingress.
+Procedure
+1. Set the environment variable to the target cluster (where you enabled external-dns) by exporting
+the kubeconfig file in your terminal window or using the --kubeconfig=${CLUSTER_NAME}.conf as
+explained in Commands within a kubeconfig File on page 34.
+2. Verify that the cluster’s ingress contains the correct hostname annotation.
+Replace <target_WORKSPACE_NAMESPACE> in the namespace -n flag with the target cluster’s
+workspace namespace.
+kubectl get services -n <target_WORKSPACE_NAMESPACE> kommander-traefik -o yaml
+The output looks like this.
+Ensure that the service object contains the external-dns.alpha.kubernetes.io/hostname:
+<mycluster.example.com> annotation.
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    meta.helm.sh/release-name: kommander-traefik
+    meta.helm.sh/release-namespace: kommander
+    external-dns.alpha.kubernetes.io/hostname: <mycluster.example.com>
+  creationTimestamp: "2023-06-21T04:52:49Z"
+  finalizers:
+[...]
+The external-dns service has been linked to the cluster correctly.
+Verifying the DNS Record
+Verify that the external-dns service has created a DNS record.
+About this task
+Note:  It can take a few minutes for the external-dns service to create a DNS record. The delay depends
+on your cloud provider.
+Procedure
+1. Set the environment variable to the target cluster (where you enabled external-dns) by exporting
+the kubeconfig file in your terminal window or using the --kubeconfig=${CLUSTER_NAME}.conf as
+explained in Commands within a kubeconfig File on page 34.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 976
+
+--- page 977 ---
+2. Access and run the required image.
+kubectl run -it --image=nicolaka/netshoot --rm test-dns -- /bin/bash
+3. Use the image to check your domain and see the record.
+Replace <mycluster.example.com> with the domain you assigned to your target cluster.
+nslookup <mycluster.example.com>
+The output should look like this.
+Server:  192.168.178.1
+Address: 192.168.178.1#53
+Non-authoritative answer:
+Name: <mycluster.example.com>
+Address: 134.568.789.12
+The external-dns service is working, and the DNS provider recognizes the record created by the
+service. If the command displays an error, the configuration is failing on the end of the DNS provider.
+Troubleshooting: If your deployment has not succeeded and the previous steps have not helped you
+identify the issue, you can also check the logs for the external-dns deployment:
+•
+1. Set the environment variable to the target cluster (where you enabled external-dns)
+by exporting the kubeconfigfile in your terminal window or using the --kubeconfig=
+${CLUSTER_NAME}.conf as explained in Commands within a kubeconfig File on page 34.
+2. Verify the external-dns logs:
+Replace <target_WORKSPACE_NAMESPACE> in the namespace -n flag with the target cluster’s
+workspace namespace.
+kubectl logs -n kommander deployment/external-dns
+The output displays the pod’s logs for the external-dns deployment. Here is an example:
+...
+time="2023-07-04T06:56:35Z" level=info msg="Instantiating new Kubernetes
+ client"
+time="2023-07-04T06:56:35Z" level=info msg="Using inCluster-config based on
+ serviceaccount-token"
+time="2023-07-04T06:56:35Z" level=info msg="Created Kubernetes client
+ https://10.96.0.1:443"
+time="2023-07-04T06:56:35Z" level=error msg="records retrieval failed: failed
+ to list hosted zones: 
+...
+External Load Balancer
+Load Balancing for External Traffic in NKP.
+NKP includes a load-balancing solution for the Supported Infrastructure Operating Systems on page 13
+and for pre-provisioned environments. For more information, see Load Balancing on page 593.
+If you want to use a non-NKP load balancer (for example, as an alternative to MetalLB in pre-provisioned
+environments), NKP supports setting up an external load balancer.
+When enabled, the external load balancer routes incoming traffic requests to a single point of entry in your
+cluster. Users and services can then access the NKP UI through an established IP or DNS address.
+Note:  In NKP environments, the external load balancer must be configured without TLS termination.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 977
+
+--- page 978 ---
+Configuring Kommander to Use an External Load Balancer
+To configure an external load balancer, configure a custom hostname (static IP or dynamic DNS address)
+and specify the target nodePorts for your cluster.
+Procedure
+1. Open the Kommander Installer Configuration File or kommander.yaml file.
+a. If you do not have the kommander.yaml file, see Installing Kommander with a Configuration File  on
+page 959 so that you can edit it in the following steps.
+Warning:  Initialize this file only once. Otherwise you will overwrite previous customizations.
+b. If you have installed the Kommander component already, open the existing kommander.yaml with
+the editor of your choice.
+2. In that file, add the following line for the IP address or DNS name:
+Warning:  ACME does not support the automatic creation of a certificate if you select an IP address for
+your clusterHostname.
+[...]
+clusterHostname: <mycluster.example.com OR IP_address>
+[...]
+3. (Optional): If you require a custom certificate for your clusterHostname, see Configuring the
+Kommander Installation with a Custom Domain and Certificate on page 963.
+4. In the same Kommander Installer Configuration File, configure Kommander to use the NodePort
+service by adding a custom configuration under traefik.
+Warning:  You can specify the nodePort entry points for the load balancer. Ensure the port is within the
+Kubernetes default (30 000 - 32 768). If not specified, Kommander assigns a port dynamically.
+traefik:
+  enabled: true
+  values: |-
+    ports:
+      web:
+        nodePort: 32080 #if not specified, will be assigned dynamically
+      websecure:
+        nodePort: 32443 #if not specified, will be assigned dynamically
+      registry:
+        nodePort: 35000 #if not specified, will be assigned dynamically
+      external-ceph:
+        nodePort: 32808 #if not specified, will be assigned dynamically
+ service:
+      type: NodePort
+Note:  Additional port configuration may be necessary depending on the Traefik port configuration.
+5. Use the configuration file to install Kommander.
+See Kommander Customizations on page 957.
+ Configuring the External Load Balancer to Target the Specified Ports
+The traefik service of the Kommander component now actively listens to the pod IP addresses and is
+accessible through the specified ports on every node.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 978
+
+--- page 979 ---
+Procedure
+Configure the load balancer targets to include every worker node address (DNS name or IP address) and
+node port combination by following this format.
+<node1>:<nodePort_web> # for example, my.node1.internal:32080
+<node2>:<nodePort_web>
+<node3>:<nodePort_web>
+[...]
+<node1>:<nodePort_websecure> # for example, my.node1.internal:32443
+<node2>:<nodePort_websecure>
+<node3>:<nodePort_websecure>
+[...]
+Note:  The exact configuration depends on your load balancer provider.
+HTTP Proxy Configuration Considerations
+HTTP proxy configurations require specific network addresses in the noProxy list to ensure core
+Kubernetes components function correctly and avoid routing internal traffic through external proxies.
+When you configure HTTP proxy settings for a Kubernetes cluster, you must exclude certain network
+addresses from proxy routing. Internal cluster communications must bypass the proxy to maintain
+performance and security. Always add the following addresses to the noProxy configuration:
+•
+Loopback addresses such as 127.0.0.1 and localhost.
+•
+Kubernetes API server addresses:
+•
+The current cluster's endpoint VIP address and all control-plane addresses, including the IP pool.
+Kubelet (Go-based) handles CIDR in NO_PROXY, so you can specify these in CIDR format.
+•
+On management clusters, the Kubernetes API endpoint VIPs of all managed clusters must be listed
+as explicit IP addresses, not in CIDR format. The Kommander UI does not interpret CIDR format in
+NO_PROXY.
+•
+Kubernetes Pod IP addresses. For example, 192.168.0.0/16.
+Pod IP addresses come from two sources:
+•
+The pod CIDR configured in the CNI plugin. Defaults to 192.168.0.0/16.
+•
+The podSubnet value configured in CAPI objects, which must match the CNI pod CIDR. Defaults to
+192.168.0.0/16.
+•
+Kubernetes Service addresses and DNS names:
+•
+Service CIDR. For example, 10.96.0.0/12.
+•
+Kubernetes API service names such as kubernetes, kubernetes.default, and so on.
+•
+Service DNS suffixes such as .svc, .svc.cluster, .svc.cluster.local, svc., .svc.cluster.,
+and .svc.cluster.local..
+•
+Auto-IP addresses such as 169.254.169.254 and 169.254.0.0/24.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 979
+
+--- page 980 ---
+•
+IP address or hostname of the kommander-traefik service for the type: LoadBalancer in the
+kommander namespace.
+•
+For Nutanix infrastructure, Preprovisioned, and vSphere: Use the first IP address in the MetalLB
+range for the kommander-traefik service.
+•
+For cloud providers: By default, the kommander-traefik IP address or hostname is unknown before
+creation.
+Infrastructure-Specific Settings
+In addition, the following infrastructure-specific settings might apply:
+For AWS, add the default VPC CIDR range 10.0.0.0/16 to noProxy configuration.
+Additional Notes
+Add all of the addresses listed above to the NO_PROXY variable when configuring HTTP proxy settings for
+your cluster.
+Important:
+•
+The NO_PROXY variable contains the Kubernetes Services CIDR. This documentation uses the
+default CIDR (10.96.0.0/12). If your cluster uses a different CIDR, update the value in the
+NO_PROXY field accordingly.
+•
+Core services might not receive proxy environment variables due to Gatekeeper deployment
+timing. Gatekeeper guarantees proxy environment variables only to user-deployed workloads.
+To ensure a core service uses your proxy environment variables, restart the AppDeployment
+for that service.
+•
+Add a trailing dot to wildcard domain suffixes in NO_PROXY (for example,
+.svc.cluster.local. instead of .svc.cluster.local). Without the trailing dot, proxy clients
+append the cluster search domain, which routes internal cluster traffic through the proxy.
+Configuring HTTP proxy for the Kommander Clusters
+Configure HTTP proxy for the Kommander clusters.
+About this task
+Kommander supports environments that connect through an HTTP/HTTPS proxy when access to the
+Internet is restricted. Use the information in this section to configure the Kommander component of NKP
+correctly.
+In these environments, you must configure Kommander to use the HTTP/HTTPS proxy. In turn,
+Kommander configures all platform services to use the HTTP/HTTPS proxy.
+Note:  Kommander follows a common convention for using an HTTP proxy server. The convention is based
+on three environment variables, and is supported by many, though not all, applications.
+•
+HTTP_PROXY: the HTTP proxy server address
+•
+HTTPS_PROXY: the HTTPS proxy server address
+•
+NO_PROXY: a list of IP addresses and domain names that are not subject to proxy settings
+Before you begin
+•
+The curl command-line tool is available on the host.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 980
+
+--- page 981 ---
+•
+The proxy server address is http://proxy.company.com:3128.
+•
+The HTTP and HTTPS proxy server addresses use the http scheme.
+•
+The proxy server can reach www.google.com using HTTP or HTTPS.
+Procedure
+1. Verify the cluster nodes can access the Internet through the proxy server.
+2. On each cluster node, run the following command.
+curl --proxy http://proxy.company.com:3128 --head http://www.google.com
+curl --proxy http://proxy.company.com:3128 --head https://www.google.com
+If the proxy is working for HTTP and HTTPS, respectively, the curl command returns a 200 OK HTTP
+response.
+Enabling Gatekeeper
+Gatekeeper acts as a Kubernetes mutating webhook.
+About this task
+For more information, see MutatingAdmissionWebhook.
+You can use this to mutate the Pod resources with HTTP_PROXY, HTTPS_PROXY and NO_PROXY environment
+variables.
+To enable Gatekeeper, follow these steps:
+Procedure
+1. Create (if necessary) or update the Kommander installation configuration file. If one does not already
+exist, then create it using the following commands.
+nkp install kommander --init > kommander.yaml
+2. Append this apps section to the kommander.yaml file with the following values to enable Gatekeeper
+and configure it to add HTTP proxy settings to the pods.
+Note:  Only pods created after applying this setting will be mutated. Also, this will only affect pods in the
+namespace with the "gatekeeper.d2iq.com/mutate=pod-proxy" label.
+apps:
+  gatekeeper:
+    values: |
+      disableMutation: false
+      mutations:
+        enablePodProxy: true
+        podProxySettings:
+          noProxy:
+ "127.0.0.1,192.168.0.0/16,10.0.0.0/16,10.96.0.0/12,169.254.169.254,169.254.0.0/24,localhost,kub
+operator-logging-fluentd.kommander.svc.cluster.local,elb.amazonaws.com"
+          httpProxy: "http://proxy.company.com:3128"
+          httpsProxy: "http://proxy.company.com:3128"
+        excludeNamespacesFromProxy: []
+        namespaceSelectorForProxy:
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 981
+
+--- page 982 ---
+          "gatekeeper.d2iq.com/mutate": "pod-proxy"
+Note:  If you choose to keep the Kubecost application and its data running while upgrading Kommander
+to Nutanix Kubernetes Platform (NKP) 2.17, ensure that you include kubecost-prometheus-
+server.kommander as a comma#separated value for noProxy.
+3. Create the kommander and kommander-flux namespaces, or the namespace where Kommander will be
+installed. Label the namespaces to activate the Gatekeeper mutation on them.
+kubectl create namespace kommander
+kubectl label namespace kommander gatekeeper.d2iq.com/mutate=pod-proxy
+kubectl create namespace kommander-flux
+kubectl label namespace kommander-flux gatekeeper.d2iq.com/mutate=pod-proxy
+Creating Gatekeeper ConfigMap in the Kommander Namespace
+To configure Gatekeeper so that these environment variables are mutated in the pods, create the following
+gatekeeper-overrides ConfigMap in the kommander Workspace you created in a previous step:
+Procedure
+Run the following command.
+export NAMESPACE=kommander
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-overrides
+  namespace: ${NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    # enable mutations
+    disableMutation: false
+    mutations:
+      enablePodProxy: true
+      podProxySettings:
+        noProxy:
+ "127.0.0.1,192.168.0.0/16,10.0.0.0/16,10.96.0.0/12,169.254.169.254,169.254.0.0/24,localhost,kubern
+operator-logging-fluentd.kommander.svc.cluster.local,elb.amazonaws.com"
+        httpProxy: "http://proxy.company.com:3128"
+        httpsProxy: "http://proxy.company.com:3128"
+      excludeNamespacesFromProxy: []
+      namespaceSelectorForProxy:
+        "gatekeeper.d2iq.com/mutate": "pod-proxy"
+EOF
+Note:  If you choose to keep the Kubecost application and its data running while upgrading Kommander
+to Nutanix Kubernetes Platform (NKP) 2.17, ensure that you include kubecost-prometheus-
+server.kommander as a comma#separated value for noProxy.
+Set the httpProxy and httpsProxy environment variables to the address of the HTTP and HTTPS proxy
+servers, respectively. Set the noProxy environment variable to the addresses that should be accessed
+directly, not through the proxy.
+Performing this step before installing Kommander allows the Flux components to respect the proxy
+configuration in this ConfigMap.
+Configuring the Workspace or Project
+Configure the Workspace or Project in which you want to use the proxy.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 982
+
+--- page 983 ---
+Procedure
+1. To have Gatekeeper mutate the manifests, create the Workspace (or Project) with the following label.
+labels:
+  gatekeeper.d2iq.com/mutate: "pod-proxy"
+2. This can be done when creating the Workspace (or Project) from the UI OR by running the following
+command from the CLI after creating the namespace.
+kubectl label namespace <NAMESPACE> "gatekeeper.d2iq.com/mutate=pod-proxy"
+Note:  For NKP Starter clusters, you cannot perform this procedure from the UI. Instead, configure the
+Kommander namespace labels by modifying the template of the federated namespace directly:
+kubectl patch fns -n kommander kommander --type json -p '[{"op":"add",
+ "path":"/spec/template/metadata/labels/gatekeeper.d2iq.com~1mutate",
+ "value":"pod-proxy"}]'
+Configuring HTTP Proxy in Attached Clusters
+To ensure that Gatekeeper is deployed before everything else in the attached clusters that you want to
+configure with proxy configuration, you must manually create the exact Namespace of the Workspace in
+which the cluster is going to be attached before attaching the cluster.
+Procedure
+1. Run the following command in the attached cluster before attaching it to the management cluster.
+kubectl create namespace <NAMESPACE>
+2. Then, to configure the pods in this namespace to use proxy configuration, you must label the
+Workspace with gatekeeper.d2iq.com/mutate=pod-proxy when creating it so that Gatekeeper
+deploys a validatingwebhook to mutate the pods with proxy configuration.
+kubectl label namespace <NAMESPACE> "gatekeeper.d2iq.com/mutate=pod-proxy"
+Creating Gatekeeper ConfigMap in the Workspace Namespace
+About this task
+To configure Gatekeeper so that these environment variables are mutated in the pods, create the following
+gatekeeper-overrides ConfigMap in the Workspace Namespace.
+Procedure
+To export the Workspace Namespace, follow these steps:
+export NAMESPACE=<NAMESPACE>
+cat << EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gatekeeper-overrides
+  namespace: ${NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    # enable mutations
+    disableMutation: false
+    mutations:
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 983
+
+--- page 984 ---
+      enablePodProxy: true
+      podProxySettings:
+        noProxy:
+ "127.0.0.1,192.168.0.0/16,10.0.0.0/16,10.96.0.0/12,169.254.169.254,169.254.0.0/24,localhost,kubern
+operator-logging-fluentd.kommander.svc.cluster.local,elb.amazonaws.com"
+        httpProxy: "http://proxy.company.com:3128"
+        httpsProxy: "http://proxy.company.com:3128"
+      excludeNamespacesFromProxy: []
+      namespaceSelectorForProxy:
+        "gatekeeper.d2iq.com/mutate": "pod-proxy"
+EOF
+Set the httpProxy and httpsProxy environment variables to the address of the HTTP and HTTPS proxy
+servers, respectively. Set the noProxy environment variable to the addresses that should be accessed
+directly, not through the proxy. To view the list of the recommended settings, see HTTP Proxy Configuration
+Considerations on page 979.
+Configuring Your Application Manually
+About this task
+Note:  If Gatekeeper is not installed and you need to use an HTTP proxy, you must manually configure your
+applications.
+In this example, the environment variables are set for a container in a Pod.
+For more information, see https://kubernetes.io/docs/tasks/inject-data-application/define-environment-
+variable-container/#define-an-environment-variable-for-a-container.
+Procedure
+Some applications follow the convention of HTTP_PROXY, HTTPS_PROXY, and NO_PROXY environment
+variables.
+What to do next
+Select your environment, and finish your Kommander Installation using one of the following:
+•
+Installing Kommander in an Air-gapped Environment on page 943
+•
+Installing Kommander in a Non-Air-gapped Environment on page 946
+•
+Installing Kommander in a Small Environment on page 953
+Creating Configuration Overrides for Flux Customizations
+Nutanix Kubernetes® Platform (NKP) simplifies Flux resource management, where you can customize Flux
+configuration.
+About this task
+To create the configuration overrides for Flux, follow these steps:
+Note:  Flux is a fundamental part of NKP. Ensure that you make the configuration changes with care. NKP
+provides default configurations that cover most use cases. For advanced scenarios, follow these steps:
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 984
+
+--- page 985 ---
+Procedure
+1. Set the namespace value to WORKSPACE_NAMESPACE:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+When you update Flux on the management cluster, the workspace defaults to Kommander.
+2. Create a kommander-flux-overrides.yaml:
+For more information, see the following example:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kommander-flux-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    helmController:
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 2Gi
+        requests:
+          cpu: 500m
+          memory: 250Mi
+    kustomizeController:
+      resources:
+        limits:
+          cpu: 2500m
+          memory: 1Gi
+        requests:
+          cpu: 250m
+          memory: 150Mi
+    notificationController:
+      resources:
+        limits:
+          cpu: 1000m
+          memory: 1Gi
+        requests:
+          cpu: 100m
+          memory: 64Mi
+    sourceController:
+      resources:
+        limits:
+          cpu: 2000m
+          memory: 1Gi
+        requests:
+          cpu: 250m
+          memory: 100Mi
+   imageAutomationController:
+     create: true
+   imageReflectionController:
+     create: true
+By default, NKP enables the imageAutomationController and imageReflectionController. To
+disable these controllers, you can set the create value to false.
+3. Create a configuration customization for Flux:
+kubectl apply -f kommander-flux-overrides.yaml
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 985
+
+--- page 986 ---
+4. (Optional) To update the configuration customization for Flux, follow Step 1 and to update and re-apply
+the kommander-flux-overrides.yaml, follow Step 2.

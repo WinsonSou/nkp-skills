@@ -1,0 +1,274 @@
+
+--- page 20 ---
+NKP Concepts and Terms
+This topic describes the terminology used in Nutanix Kubernetes Platform (NKP) to help you understand
+important NKP concepts and terms.
+NKP is composed of three main components: Konvoy, Kommander, and Nutanix Image Builder
+(NIB). These three components work together to provide a single and centralized control point for an
+organization’s application infrastructure. NKP empowers organizations to deploy, manage, and scale
+Kubernetes workloads in production environments more efficiently.
+Each of the three main components specifically manages the following:
+•
+Konvoy is the cluster life cycle manager component of NKP. Konvoy relies on, Kubernetes Cluster API
+and other open-source and proprietary software to provide simple cluster life cycle management for
+conformant Kubernetes clusters with networking and storage capabilities.
+Konvoy uses industry-standard tools to provision certified Kubernetes clusters on multiple cloud
+providers, vSphere, and on-premises hardware in connected and air-gapped environments. Konvoy
+contains the following components:
+Cluster Manager consists of Cluster API, Container Storage Interface (CSI), Container Network
+Interface (CNI), Cluster Autoscaler, Cert Manager, and load balancers.
+For Networking, Kubernetes uses CNI (Container Network Interface) as an interface between network
+infrastructure and Kubernetes pod networking. In NKP, the Nutanix provider and Amazon EKS provider
+use the Cilium CNI. All other providers use Calico CNI.
+The Konvoy component is installed according to the cluster’s infrastructure. Remember:
+1. To install NKP quickly and without much customization, see Basic Installations by Infrastructure on
+page 76.
+2. To choose more environments and cluster customizations, see Custom Installation and Additional
+Infrastructure Tools.
+•
+Kommander is the fleet management component of NKP. Kommander delivers centralized observability,
+control, governance, unified policy, and better operational insights.
+In NKP Ultimate, Kommander supports attaching workload clusters and life cycle management of
+clusters using Cluster API. NKP Ultimate also offers life cycle management of applications through
+FluxCD. Kommander contains the following components:
+•
+User interface, Security, Observability, Networking, and Application Management.
+•
+Platform Applications: Applications such as observability, cost management, monitoring, and
+logging are available with NKP and making NKP clusters production-ready right through. Platform
+applications are a choice of selected applications from the open-source community consumed by the
+platform.
+•
+Platform Applications: Monitoring, Logging, Backup or Restore, Policy Agent, External DNS, Load
+Balance, Ingress, SSO, Service Mesh.
+•
+Ultimate Platform Applications: Includes all of the Pro Platform applications, plus additional Access
+Control and Centralized Cost Management.
+•
+Catalog Applications: Applications in NKP Ultimate that are deployed to be used for customer
+workloads.
+The Kommander component is installed according to the cluster’s environment type. For more
+information, see Installing Kommander by Environment .
+•
+Nutanix Image Builder (NIB) creates Cluster API-compliant machine images. It configures only those
+images to contain all the necessary software to deploy Kubernetes cluster nodes. For more information,
+see Nutanix Image Builder on page 55.
+Nutanix Kubernetes Platform | Getting Started with NKP | 20
+
+--- page 21 ---
+NKP also provide a helpful add-on called NKP Insights. For more information, see Nutanix Kubernetes
+Platform Insights Guide on page 1086.
+Cluster Types
+Cluster types such as Management clusters, Managed clusters, and Attached clusters are key concepts in
+understanding and getting the most out of Nutanix Kubernetes Platform (NKP).
+Multi-cluster Environment
+•
+Management Cluster (All NKP editions): Is the cluster where you install NKP, and it is self-managed.
+In a multi-cluster environment, the Management cluster also manages other clusters. Customers are
+encouraged to run workloads on Managed and Attached clusters, not on the Management cluster
+except in single-cluster environments. For more information, see License Packaging.
+•
+Managed Cluster (All NKP editions): Also called an “NKP cluster,” this is a type of workload cluster
+that you can create with NKP. The NKP Management cluster manages its infrastructure, its life cycle,
+and its applications.
+•
+Attached Cluster (NKP Ultimate only): This is a type of managed cluster that is created outside of
+NKP but is then connected to the NKP Management Cluster so that NKP can manage it's applications.
+The lifecycle will not be managed by NKP.
+Figure 2: Multi-cluster Environment
+Single-cluster Environment
+The initial NKP cluster is a stand-alone cluster. It is self-managed and capable of handling its own scaling,
+upgrades, and life-cycle. For more information, see Self-Managed Cluster on page 22. In this single-
+cluster environment, all workloads are run on your single NKP cluster. In distributed environments with
+limited or unreliable connections, you can have separate NKP instances, each with its own license.
+If you expect to have more than one NKP cluster, we recommend using an architecture including an NKP
+Management cluster and running the applications in the NKP Managed clusters.
+Nutanix Kubernetes Platform | Getting Started with NKP | 21
+
+--- page 22 ---
+Figure 3: Single-cluster Environment
+Self-Managed Cluster
+In the Nutanix Kubernetes Platform (NKP) landscape, the initial NKP cluster is self-managed. You can
+run multiple self-managed clusters using any NKP edition. Self-managed clusters manage its own cluster
+lifecycle with Kubernetes Cluster API(CAPI) .
+A self-managed cluster is one in which the CAPI resources and controllers that describe and manage it
+run on the same cluster they are managing. The high level process to create a self-managed cluster is the
+following:
+•
+Creates a bootstrap cluster.
+Run the following command:
+nkp create bootstrap
+•
+Creates a management cluster.
+Run the following command:
+nkp create cluster nutanix \
+    --control-plane-prism-element-cluster=${NUTANIX_CLUSTER} \
+    --control-plane-subnets=${NUTANIX_SUBNET} \
+    --control-plane-endpoint-ip=${CONTROL_PLANE_ENDPOINT} \
+    --control-plane-replicas=3 \
+    --worker-prism-element-cluster=${NUTANIX_CLUSTER} \
+    --worker-subnets=${NUTANIX_SUBNET} \
+    --worker-replicas=4 \
+    --endpoint="https://${NUTANIX_PRISM_CENTRAL_ENDPOINT}:9440" \
+    --kubernetes-service-load-balancer-ip-range="${LOAD_BALANCER_IP_RANGE}" \
+    --registry-mirror-url=${REGISTRY_URL} \
+    --registry-mirror-username=${DOCKERHUB_USERNAME} \
+    --registry-mirror-password=${DOCKERHUB_PASSWORD} \
+    --cluster-name=${CLUSTER_NAME} \
+    --control-plane-vm-image="${NIB_IMAGE}" \
+    --worker-vm-image="${NIB_IMAGE}" \
+# export kubeconfig of the cluster
+nkp get kubeconfig --cluster-name ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+•
+Deploys CAPI controllers on the management cluster.
+Run the following command:
+nkp create capi-components --kubeconfig ${CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Getting Started with NKP | 22
+
+--- page 23 ---
+•
+Pivots CAPI resources from the bootstrap cluster to the management cluster, making it self-managed.
+Run the following command:
+nkp  move capi-resources --to-kubeconfig ${CLUSTER_NAME}.conf
+•
+Deletes the bootstrap cluster.
+Run the following command:
+nkp delete bootstrap
+Network-Restricted Cluster
+A network-restricted cluster is not the same as an air-gapped cluster.
+A firewall secures a network-restricted or firewalled cluster, Perimeter Network, Network Address
+Translation (NAT) gateway, or proxy server requires additional access information. Network-restricted
+clusters are usually located in remote locations or at the edge and, therefore, not in the same network as
+the Management cluster.
+The main difference between network-restricted and air-gapped clusters is that network-restricted clusters
+can reach external networks (like the Internet), but their services or ingresses cannot be accessed from
+outside. Air-gapped clusters, however, do not allow ingress or egress traffic.
+In a multi-cluster environment, NKP supports attaching a network-restricted cluster to an NKP
+Management cluster. You can also enable a proxied access pipeline through the Management cluster,
+which allows you to access the network-restricted cluster’s dashboards without being in the same network.
+CAPI Concepts and Terms
+Nutanix Kubernetes Platform (NKP) uses ClusterAPI (CAPI) technology to create and manage the life
+cycle of Kubernetes Clusters. A basic understanding of CAPI concepts and terms helps understand how
+to install and maintain NKP. You can find a deeper discussion of the architecture in the ClusterAPI Book
+(https://cluster-api.sigs.k8s.io/user/concepts.html).
+CAPI makes use of a bootstrap cluster for provisioning and managing clusters. A bootstrap cluster handles
+the following actions:
+•
+Generating the cluster certificates if they are not otherwise specified.
+•
+Initializing the control plane and managing the creation of other nodes until it is complete.
+•
+Joining control plane and worker nodes to the cluster.
+•
+Installing and configuring the networking plugin (CNI), Container Storage Interface (CSI) volume
+provisioners, cluster Autoscaler, and core Kubernetes components.
+BootstrapData
+BootstrapData is machine or node role-specific data, such as cloud initialization data, used to bootstrap a
+“machine” onto a node.
+For customers using NKP for multi-cluster management, a management cluster manages the life cycle of
+workload clusters. As the management cluster, NKP works with bootstrap and infrastructure providers and
+maintains cluster resources such as bootstrap configurations and templates. If you are working with only
+one cluster, Kommander will provide you with add-on (platform application) management for that cluster
+but not others.
+Managed Cluster
+A managed cluster is a Kubernetes cluster whose life cycle is managed by a management cluster. It
+provides the platform to deploy, execute, and run workloads.
+Nutanix Kubernetes Platform | Getting Started with NKP | 23
+
+--- page 24 ---
+These additional concepts are essential for understanding the upgrade. They are part of a collection of
+Custom Resource Definitions (CRDs) that extend the Kubernetes API.
+ClusterResourceSet
+A ClusterResourceSet Kubernetes cluster created by CAPI is functionally minimal. Crucial components
+like CSI and CNI are not in the default cluster spec. A ClusterResourceSet is a custom resource definition
+(CRD) that can be used to group and deploy core cluster components after the installation of the
+Kubernetes cluster.
+When you create a bootstrap cluster, you can find all the components in the default namespace, and we
+move them to the managed cluster while making the cluster self-managed.
+Machine
+A machine is a declarative specification for a platform or infrastructure component that hosts a Kubernetes
+node as a bare metal server or a VM. CAPI uses provider-specific controllers to provision and install new
+hosts that register as nodes. When you update a machine spec other than for specific values, such as
+annotations, status, and labels, the controller deletes the host and creates a new one that conforms to
+the latest spec. This is called machine immutability. If you delete a machine, the controller deletes the
+infrastructure and the node. Provider-specific information is not portable between providers.
+MachineDeployments
+Within CAPI, you use declarative MachineDeployments to handle changes to machines by replacing them
+like a core Kubernetes Deployment replaces Pods. MachineDeployments reconcile changes to machine
+specs by rolling out changes to two MachineSets (similar to a ReplicaSet), both the old and the newly
+updated.
+MachineHealthCheck
+A MachineHealthCheck (MHC) identifies unhealthy node conditions and initiates remediation for nodes
+owned by a MachineSet.
+In a MachineHealthCheck, the default value of maxunhealthy is set to 40%. You can customize this
+value as per your requirements for self-healing. For more information, see Configuring Self-healing on
+page 684.
+Related Information
+For information on related topics or procedures, see:
+•
+ClusterAPI Book: https://cluster-api.sigs.k8s.io/user/concepts.html
+Air-Gapped or Non-Air-Gapped Environment
+This topic describes an air-gapped and a non-air-gapped environment.
+Air-Gapped Environments
+An air-gapped environment is a network setup that is isolated from unsecured networks, such as the
+internet. Nutanix Kubernetes Platform (NKP) supports cluster deployment and management in air-gapped
+environments, allowing organizations to run workloads securely while shielding infrastructure from external
+threats or unauthorized access.
+To create an air-gapped cluster in on-premises environments or any other environment, you must configure
+access to container images and Helm charts through one of the following registry types:
+•
+Local Registry Mirror: A local registry mirror is the network-accessible container image repository
+populated by pulling images from public registries and storing them locally. It is used in environments
+that have limited or controlled internet access, allowing faster and more reliable image retrieval while
+reducing dependency on external sources.
+Nutanix Kubernetes Platform | Getting Started with NKP | 24
+
+--- page 25 ---
+•
+Internal Registry Mirror: An internal registry mirror is a container image repository hosted on an
+NKP cluster managed by NKP. The internal registry mirror is populated using an air-gapped bundle,
+allowing Kubernetes clusters to pull the required NKP images locally without relying on external network
+connectivity.
+Air-gapped environments are designed to securely isolate systems from external networks. However, there
+are several methods to perform actions that require incoming data from other networks, even within such
+isolated environments. Air-gapped environments might vary in their level of isolation:
+•
+Fully Isolated: No inbound or outbound network connections.
+•
+Inbound-Only: Clusters can receive data but cannot initiate outbound connections.
+•
+Bastion Host Setup: A bastion host acts as a secure gateway between the air-gapped environment
+and external networks, facilitating controlled downloads of updates, images, and installation files.
+Common industry synonyms include darksite, fettered, disconnected, restricted, session initiation protocol
+(SIPREC), and so on.
+Non-Air-Gapped Environments
+In a non-air-gapped environment, two-way access to and from the Internet exists. You can create a non-air-
+gapped cluster on on-premises environments or any cloud infrastructure.
+NKP in a non-air-gapped environment allows you to manage your clusters while facilitating connections
+and offering integration with other tools and systems.
+Common Industry Synonyms: Open, accessible (to the Internet), not restricted, Non-classified Internet
+Protocol (IP) Router Network (NIPRNet), etc.
+Pre-provisioned Infrastructure
+The pre-provisioned infrastructure allows the deployment of Kubernetes using Nutanix Kubernetes
+Platform (NKP) to pre-existing machines. Other providers, such as Nutanix AHV, vSphere, AWS, or Azure,
+automatically provision the machines before Kubernetes is deployed. On most infrastructures (including
+Nutanix AHV and cloud providers), NKP provisions the actual nodes automatically as part of deploying a
+cluster. It creates the virtual machine (VM) using the appropriate image and then handles the networking
+and installation of Kubernetes.
+However, NKP can also work with pre-provisioned infrastructure in which you provision the VMs for the
+nodes. You can pre-provision nodes for NKP on bare metal, Nutanix AHV, or cloud. Pre-provisioned and
+vSphere combine the physical (on-premises bare metal) and virtual machines (Nutanix AHV).
+Usage of Pre-provisioned Environments
+Pre-provisioned environments is often used in bare metal deployments, where you deploy your OS
+(see Cluster Types on page 21 (such as Red Hat Enterprise Linux (RHEL) or Ubuntu, and so on) on
+physical machines. Creating a pre-provisioned cluster as an Infrastructure Operations Manager, you are
+responsible for allocating compute resources, setting up networking, and collecting IP and Secure Shell
+(SSH) information to NKP. You can then provide all the required details to the pre-provisioned provider to
+deploy Kubernetes. These operations are done manually or with the help of other tools.
+In pre-provisioned environments, NKP handles your cluster’s life cycle (installation, upgrade, node
+management, and so on). NKP installs Kubernetes, performs monitoring and logging applications, and has
+its own UI.
+The main use cases for the pre-provisioned provider are:
+•
+On-premises clusters.
+Nutanix Kubernetes Platform | Getting Started with NKP | 25

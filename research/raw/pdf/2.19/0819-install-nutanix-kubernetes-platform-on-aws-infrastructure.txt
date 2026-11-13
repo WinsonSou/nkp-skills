@@ -1,0 +1,773 @@
+
+--- page 819 ---
+build_name_extra: "-nvidia"
+2. Create a secret on the bootstrap cluster populated from the above file. We will name it
+${CLUSTER_NAME}-user-overrides
+kubectl create secret generic ${CLUSTER_NAME}-user-overrides --from-
+file=overrides.yaml=overrides/nvidia.yaml
+3. Create an inventory and node pool with the instructions below and use the $CLUSTER_NAME-user-
+overrides secret.
+Follow these steps.
+a. Create an inventory object with the same name as the node pool you’re creating and the details of
+the pre-provisioned machines you want to add to it. For example, to create a node pool named gpu-
+nodepool an inventory named gpu-nodepool must be present in the same namespace.
+apiVersion: infrastructure.cluster.konvoy.d2iq.io/v1alpha1
+kind: PreprovisionedInventory
+metadata:
+  name: ${MY_NODEPOOL_NAME}
+spec:
+  hosts:
+    - address: ${IP_OF_NODE}
+  sshConfig:
+    port: 22
+    user: ${SSH_USERNAME}
+    privateKeyRef:
+      name: ${NAME_OF_SSH_SECRET}
+      namespace: ${NAMESPACE_OF_SSH_SECRET}
+b. (Optional) If your pre-provisioned machines have overrides, you must create a secret that includes
+all the overrides you want to provide in one file. Create an override secret using the instructions
+detailed on this page. See Pre-provisioned FIPS Air-gapped Installation on page 123.
+c. Once the PreprovisionedInventory object and overrides are created, create a node pool.
+nkp create nodepool preprovisioned -c ${MY_CLUSTER_NAME} ${MY_NODEPOOL_NAME} --
+override-secret-name ${MY_OVERRIDE_SECRET}
+•
+Advanced users can use a combination of the --dry-run and --output=yaml or --output-
+directory=<existing-directory> flags to get a complete set of node pool objects to modify
+locally or store in version control.
+For more information regarding this flag or others, please refer to the nkp create nodepool 
+section of the documentation for either cluster or nodepool and select your provider.
+Install Nutanix Kubernetes Platform on AWS Infrastructure
+Install Nutanix Kubernetes Platform (NKP) on AWS infrastructure.
+This table lists all the steps to configure AWS infrastructure and NKP for air-gapped and non-air-gapped
+environments.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 819
+
+--- page 820 ---
+Table 73: Install NKP on AWS Infrastructure
+Section
+Steps
+Pre-requisites and Planning
+•
+Nutanix Kubernetes Platform Requirements on
+page 48
+•
+AWS Prerequisites on page 820
+Infrastructure Preparation
+•
+Building a Custom Image with AWS on page 63
+•
+Preparing a Local Registry Mirror on page 826
+(Required for air-gapped, and optional for non-
+airgapped environments)
+•
+Pushing Images to the Registry on page 827
+(Required for air-gapped, and optional for non-
+airgapped environments)
+•
+Docker Hub Registry Credentials on page 675
+(Required for non-airgapped environments if
+registry mirror is not configured)
+Installation
+•
+Creating the NKP Management Cluster on AWS
+on page 828
+Post-Installation
+•
+Setting up the Nutanix Kubernetes Platform User
+Interface Access on page 729
+•
+AWS Node Pool Operations on page 830
+•
+Delete an AWS Cluster on page 832
+AWS Prerequisites
+This topic lists the requirements for installing NKP on AWS infrastructure before you deploy a NKP cluster.
+Operator Machine Requirements
+The machine that you use to run the installation must meet the following requirements:
+•
+An x86_64-based Linux or macOS machine.
+•
+Ensure the NKP binary for Linux or macOS is downloaded and accessible.
+•
+A supported container engine must be installed and running. You can use the Docker container engine
+version 27.4.0 (for Linux or macOS) or Podman version 4.0 or later (for Linux).
+•
+Ensure the AWS CLI utility, and the kubectl command-line tool is installed.
+AWS Account and Security Requirements
+Ensure your AWS environment has the appropriate access and permissions:
+•
+AWS account: You must have a valid AWS account with configured credentials that grant permissions to
+manage CloudFormation Stacks, IAM Policies, IAM Roles, and IAM Instance Profiles.
+•
+IAM policies and roles: Ensure that you created the minimum permissions and roles required to create
+clusters, as well as specific cluster IAM policies and roles for the control plane and worker nodes.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 820
+
+--- page 821 ---
+•
+Environment variables: Ensure that you exported the AWS region (for example, export
+AWS_REGION=us-west-2) and the AWS profile containing the credentials that you plan to use (export
+AWS_PROFILE=profile).
+•
+Multi-tenancy: If you plan to host multiple tenants, every tenant must be placed in a different AWS
+account to ensure complete independence and enforce security.
+Cluster resource requirements
+Verify that your AWS environment can support the default resource allocations for NKP clusters. NKP
+requires a minimum of three control plane nodes and four worker nodes for production deployments.
+•
+Control plane nodes: NKP defaults to deploying an m5.xlarge instance with an 80 GiB root volume.
+Each node must have at least four CPU cores, 16 GiB of memory, and approximately 80 GiB of free
+space for the /var/lib/kubelet and /var/lib/containerd volumes.
+•
+Worker nodes: NKP defaults to deploying an m5.2xlarge instance with an 80 GiB root volume. Each
+node must have at least eight CPU cores, 32 GiB of memory, and approximately 80 GiB of free space
+for the /var/lib/kubelet and /var/lib/containerd volumes.
+•
+Disk usage: For all nodes, root volume disk usage must remain below 85%.
+Amazon Machine Image requirements
+NKP requires you to specify an Amazon Machine Image (AMI) when creating a cluster. Nutanix strongly
+recommends using the Nutanix Image Builder (NIB) to create a custom, Cluster API-compliant AMI rather
+than using default upstream images. Using a custom AMI ensures your cluster includes the necessary
+optimizations and components, such as FIPS-compliant binaries if required.
+Air-gapped environment requirements
+If you install NKP in an air-gapped environment, you must meet the following additional prerequisites:
+•
+A Linux-based bastion machine that has access to the existing AWS Virtual Private Cloud (VPC).
+•
+The NKP binary and kubectl tool installed on the bastion machine.
+•
+An existing container registry that can be reached by the VPC to host the required NKP container
+images.
+•
+The complete NKP air-gapped bundle (nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz)
+downloaded from an internet-connected machine and extracted to the local directory.
+Minimal Permissions and Role to Create Clusters on AWS Infrastructure
+About this task
+Configure IAM Prerequisites before starting a cluster.
+This section guides you in creating and using a minimally-scoped policy to create Nutanix Kubernetes
+Platform (NKP) clusters on an AWS account. For multi-tenancy, every tenant must be in a different AWS
+account to ensure they are truly independent of other tenants to enforce security.
+Before you begin
+Before applying the IAM Policies, verify the following:
+•
+You have a valid AWS account with credentials configured that can manage CloudFormation Stacks,
+IAM Policies, IAM Roles, and IAM Instance Profiles.
+•
+The AWS CLI utility is installed.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 821
+
+--- page 822 ---
+If you use the AWS STS (Short Lived Token) to create the cluster, you must run the ./nkp update bootstrap
+credentials aws --kubeconfig=<kubeconfig file> before you update the node for the management cluster or
+managed clusters.
+Minimal Permissions
+The following is an AWSCloudFormation stack that creates:
+•
+A policy named nkp-bootstrapper-policy that enumerate the minimal permissions for a user that can
+create NKP aws clusters.
+•
+A role named nkp-bootstrapper-role that uses the nkp-bootstrapper-policy with a trust policy to
+allow IAM users and ec2 instances from MYAWSACCOUNTID to use the role through STS.
+•
+An instance profile NKPBootstrapInstanceProfile that wraps the nkp-bootstrapper-role to be
+used by ec2 instances.
+Create Resources in CloudFormation Stack
+Procedure
+1. To create the resources in the CloudFormation stack, copy the following contents into a file.
+AWSTemplateFormatVersion: 2010-09-09
+Resources:
+  AWSIAMInstanceProfileNKPBootstrapper:
+    Properties:
+      InstanceProfileName: NKPBootstrapInstanceProfile
+      Roles:
+      - Ref: NKPBootstrapRole
+    Type: AWS::IAM::InstanceProfile
+  AWSIAMManagedPolicyNKPBootstrapper:
+    Properties:
+      Description: Minimal policy to create NKP clusters in AWS
+      ManagedPolicyName: nkp-bootstrapper-policy
+      PolicyDocument:
+        Statement:
+        - Action:
+          - ec2:AllocateAddress
+          - ec2:AssociateRouteTable
+          - ec2:AttachInternetGateway
+          - ec2:AuthorizeSecurityGroupIngress
+          - ec2:CreateInternetGateway
+          - ec2:CreateNatGateway
+          - ec2:CreateRoute
+          - ec2:CreateRouteTable
+          - ec2:CreateSecurityGroup
+          - ec2:CreateSubnet
+          - ec2:CreateTags
+          - ec2:CreateVpc
+          - ec2:ModifyVpcAttribute
+          - ec2:DeleteInternetGateway
+          - ec2:DeleteNatGateway
+          - ec2:DeleteRouteTable
+          - ec2:DeleteSecurityGroup
+          - ec2:DeleteSubnet
+          - ec2:DeleteTags
+          - ec2:DeleteVpc
+          - ec2:DescribeAccountAttributes
+          - ec2:DescribeAddresses
+          - ec2:DescribeAvailabilityZones
+          - ec2:DescribeDhcpOptions
+          - ec2:DescribeInstanceTypes
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 822
+
+--- page 823 ---
+          - ec2:DescribeInternetGateways
+          - ec2:DescribeImages
+          - ec2:DescribeNatGateways
+          - ec2:DescribeNetworkInterfaces
+          - ec2:DescribeNetworkInterfaceAttribute
+          - ec2:DescribeRouteTables
+          - ec2:DescribeSecurityGroups
+          - ec2:DescribeSubnets
+          - ec2:DescribeVpcs
+          - ec2:DescribeVpcAttribute
+          - ec2:DescribeVpcEndpoints
+          - ec2:DescribeVolumes
+          - ec2:DetachInternetGateway
+          - ec2:DisassociateRouteTable
+          - ec2:DisassociateAddress
+          - ec2:ModifyInstanceAttribute
+          - ec2:ModifyInstanceMetadataOptions
+          - ec2:ModifyNetworkInterfaceAttribute
+          - ec2:ModifySubnetAttribute
+          - ec2:ReleaseAddress
+          - ec2:RevokeSecurityGroupIngress
+          - ec2:RunInstances
+          - ec2:TerminateInstances
+          - tag:GetResources
+          - elasticloadbalancing:AddTags
+          - elasticloadbalancing:CreateLoadBalancer
+          - elasticloadbalancing:ConfigureHealthCheck
+          - elasticloadbalancing:DeleteLoadBalancer
+          - elasticloadbalancing:DescribeLoadBalancers
+          - elasticloadbalancing:DescribeLoadBalancerAttributes
+          - elasticloadbalancing:DescribeTargetGroups
+          - elasticloadbalancing:ApplySecurityGroupsToLoadBalancer
+          - elasticloadbalancing:DescribeTags
+          - elasticloadbalancing:ModifyLoadBalancerAttributes
+          - elasticloadbalancing:RegisterInstancesWithLoadBalancer
+          - elasticloadbalancing:DeregisterInstancesFromLoadBalancer
+          - elasticloadbalancing:RemoveTags
+          - autoscaling:DescribeAutoScalingGroups
+          - autoscaling:DescribeInstanceRefreshes
+          - ec2:CreateLaunchTemplate
+          - ec2:CreateLaunchTemplateVersion
+          - ec2:DescribeLaunchTemplates
+          - ec2:DescribeLaunchTemplateVersions
+          - ec2:DeleteLaunchTemplate
+          - ec2:DeleteLaunchTemplateVersions
+          - ec2:DescribeKeyPairs
+          Effect: Allow
+          Resource:
+          - '*'
+        - Action:
+          - autoscaling:CreateAutoScalingGroup
+          - autoscaling:UpdateAutoScalingGroup
+          - autoscaling:CreateOrUpdateTags
+          - autoscaling:StartInstanceRefresh
+          - autoscaling:DeleteAutoScalingGroup
+          - autoscaling:DeleteTags
+          Effect: Allow
+          Resource:
+          - arn:*:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*
+        - Action:
+          - ecr:DescribeRepositories
+          - ecr:CreateRepository
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 823
+
+--- page 824 ---
+          - ecr:PutLife cyclePolicy
+          - ecr:CompleteLayerUpload
+          - ecr:GetAuthorizationToken
+          - ecr:UploadLayerPart
+          - ecr:InitiateLayerUpload
+          - ecr:BatchCheckLayerAvailability
+          - ecr:BatchGetImage
+          - ecr:GetDownloadUrlForLayer
+          - ecr:PutImage
+          Effect: Allow
+          Resource:
+          - arn:aws:ecr:*:MYAWSACCOUNT:repository/*
+        - Action:
+          - iam:CreateServiceLinkedRole
+          Condition:
+            StringLike:
+              iam:AWSServiceName: autoscaling.amazonaws.com
+          Effect: Allow
+          Resource:
+          - arn:*:iam::*:role/aws-service-role/autoscaling.amazonaws.com/
+AWSServiceRoleForAutoScaling
+        - Action:
+          - iam:CreateServiceLinkedRole
+          Condition:
+            StringLike:
+              iam:AWSServiceName: elasticloadbalancing.amazonaws.com
+          Effect: Allow
+          Resource:
+          - arn:*:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/
+AWSServiceRoleForElasticLoadBalancing
+        - Action:
+          - iam:CreateServiceLinkedRole
+          Condition:
+            StringLike:
+              iam:AWSServiceName: spot.amazonaws.com
+          Effect: Allow
+          Resource:
+          - arn:*:iam::*:role/aws-service-role/spot.amazonaws.com/
+AWSServiceRoleForEC2Spot
+        - Action:
+          - iam:PassRole
+          Effect: Allow
+          Resource:
+          - arn:*:iam::*:role/*.cluster-api-provider-aws.sigs.k8s.io
+        - Action:
+          - secretsmanager:CreateSecret
+          - secretsmanager:DeleteSecret
+          - secretsmanager:TagResource
+          Effect: Allow
+          Resource:
+          - arn:*:secretsmanager:*:*:secret:aws.cluster.x-k8s.io/*
+        Version: 2012-10-17
+      Roles:
+      - Ref: NKPBootstrapRole
+    Type: AWS::IAM::ManagedPolicy
+  NKPBootstrapRole:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action:
+          - sts:AssumeRole
+          Effect: Allow
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 824
+
+--- page 825 ---
+          Principal:
+            Service:
+            - ec2.amazonaws.com
+        - Action:
+            - sts:AssumeRole
+          Effect: Allow
+          Principal:
+                AWS: arn:aws:iam::MYAWSACCOUNT:root
+        Version: 2012-10-17
+      RoleName: nkp-bootstrapper-role
+    Type: AWS::IAM::Role
+Note:  If your organization uses Flatcar, add the following s3 permissions to your CloudFormation stack
+in the nkp-bootstrapper-policy.
+- Action:
+          - 's3:CreateBucket'
+          - 's3:DeleteBucket'
+          - 's3:PutObject'
+          - 's3:DeleteObject'
+          - 's3:PutBucketPolicy'
+          Effect: Allow
+          Resource:
+          - 'arn:*:s3:::cluster-api-provider-aws-*'
+2. Replace the following with the correct values.
+a. MYFILENAME.yaml - give your file a meaningful name.
+b. MYSTACKNAME - give your cloudformation stack a meaningful name.
+c. MYAWSACCOUNT- replace with an AWS Account ID number such as:111122223333
+3. Create the stack:
+aws cloudformation create-stack --template-body=file://MYFILENAME.yaml --stack-
+name=MYSTACKNAME --capabilities CAPABILITY_NAMED_IAM
+Cluster Identity and Access Management Policies and Roles for NKP on AWS Infrastructure
+This section guides a Nutanix Kubernetes Platform (NKP) user in creating Identity and Access
+Management (IAM) Policies and Instance Profiles used by the cluster’s control plane and worker nodes
+using the provided Amazon Web Services (AWS) CloudFormation Stack. For multi-tenancy, every tenant
+must be in a different AWS account to ensure they are truly independent of other tenants in order to
+enforce security.
+Prerequisites
+Before applying the IAM Policies, verify the following.
+•
+You have a valid AWS account with credentials configured that can manage CloudFormation
+Stacks, IAM Policies, IAM Roles, and IAM Instance Profiles. For more information, see https://
+docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html.
+•
+You have the AWS CLI utility installed, see https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-
+install.html.
+Below is information regarding the setup for policies and roles. After reading the information for each area,
+you will find the CloudFormation Stack that creates these policies and roles in the IAM Artifacts topic.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 825
+
+--- page 826 ---
+Policies
+1. AWSIAMManagedPolicyCloudProviderControlPlane enumerates the Actions required by the managed
+cluster control plane machines. It is attached to the AWSIAMRoleControlPlane Role.
+2. AWSIAMManagedPolicyCloudProviderNodes enumerates the Actions required by the managed cluster
+worker machines. It is attached to the AWSIAMRoleNodes Role.
+3. AWSIAMManagedPolicyControllers enumerates the Actions required by the Cluster API AWS
+Infrastructure Provider, which manages the cluster, and runs on the control plane machines. It is
+attached to the AWSIAMRoleControlPlane Role.
+Roles
+1. AWSIAMRoleControlPlane is the Role associated with the AWSIAMInstanceProfileControlPlane
+Instance Profile.
+2. AWSIAMRoleNodes is the Role associated with the AWSIAMInstanceProfileNodes Instance Profile.
+For more information on how to grant cluster access to IAM users and roles, see https://
+docs.aws.amazon.com/eks/latest/userguide/add-user-role.html.
+Preparing a Local Registry Mirror
+Configure environment variables so that the NKP CLI can use a local registry mirror when you deploy the
+management cluster on AWS.
+Before you begin
+If you do not already have a container registry set up, configure one before proceeding. For AWS
+environments, you can use Amazon Elastic Container Registry (ECR) or other compatible external tools
+such as JFrog Artifactory, Nexus, or Harbor.
+About this task
+Important:  This procedure is required for an air-gapped environment. It is optional for a non-air-gapped
+environment; however it can increase stability and security. You can also use a registry mirror with a self-
+signed registry CA certificate in a non-air-gapped environment.
+To prepare a local registry mirror to host container images for deploying the NKP management cluster on
+AWS, follow these steps:
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. Provide the registry URL by exporting it as an environment variable:
+export REGISTRY_MIRROR_URL=ecr-registry-URI
+The environment where you run the NKP CLI must authenticate with AWS to load images into ECR.
+3. (Optional) If your registry requires authentication, export the registry username and password:
+export REGISTRY_MIRROR_USERNAME=username
+export REGISTRY_MIRROR_PASSWORD=password
+4. (Optional) If your registry uses a self-signed certificate and the AWS AMIs do not already trust this CA,
+set variables for the CA file path, registry host, and registry port; then download the CA certificate:
+a. Export the path to the CA certificate and the registry address and port on the bastion host:
+export REGISTRY_MIRROR_CA=path-to-ca-file
+export REGISTRY_MIRROR_ADDRESS=registry-host
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 826
+
+--- page 827 ---
+export REGISTRY_MIRROR_PORT=registry-port
+Replace path-to-ca-file with the path where the downloaded CA certificate is stored. Replace
+registry-host with the host of the registry URL. Replace registry-port with the port of the
+registry URL.
+b. Download the CA certificate:
+openssl s_client \
+  -showcerts \
+  -connect $REGISTRY_MIRROR_ADDRESS:$REGISTRY_MIRROR_PORT \
+  </dev/null | \
+openssl x509 \
+  -outform PEM \
+  > $REGISTRY_MIRROR_CA
+Pushing Images to the Registry
+Extract the air-gapped bundle on your bastion host and push container images to your private registry for
+AWS deployments.
+Before you begin
+•
+Ensure that your registry (such as AWS ECR, Harbor, or JFrog) is configured and accessible from both
+your bastion machine and the AWS EC2 instances that you plan to create for the Kubernetes cluster.
+•
+Ensure that you downloaded the complete NKP air-gapped bundle to your bastion host.
+•
+Ensure that your registry environment variables are configured.
+About this task
+Push container images to your registry to deploy the NKP management cluster on AWS.
+To extract the bundle and push images to the registry, follow these steps:
+Procedure
+1. Extract the downloaded air-gapped bundle to a local directory on your bastion host:
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+2. Navigate to the extracted directory:
+cd nkp-nkp-version/
+3. Set the environment variables with your registry address and credentials:
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_USERNAME=username
+export REGISTRY_PASSWORD=password
+(Optional) If your registry uses a self-signed certificate, specify the path to the CA certificate on the
+bastion:
+export REGISTRY_CA=path-to-cacert-on-bastion
+If you are using AWS ECR, your REGISTRY_URL is your ECR registry URL, and your environment
+must be authenticated with AWS to push the images.
+4. Load the air-gapped image bundle into your private registry:
+cd cli/
+nkp push bundle \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 827
+
+--- page 828 ---
+  --bundle ../container-images/konvoy-image-bundle-nkp-version.tar \
+  --to-registry=${REGISTRY_URL} \
+  --to-registry-username=${REGISTRY_USERNAME} \
+  --to-registry-password=${REGISTRY_PASSWORD} \
+  --to-registry-ca-cert-file=${REGISTRY_CA:-""}
+The time taken to push all the images depends on network performance between the bastion host and
+the registry.
+5. Load the Kommander component images into your private registry:
+nkp push bundle \
+  --bundle ../container-images/kommander-image-bundle-nkp-version.tar \
+  --to-registry=${REGISTRY_URL} \
+  --to-registry-username=${REGISTRY_USERNAME} \
+  --to-registry-password=${REGISTRY_PASSWORD} \
+  --to-registry-ca-cert-file=${REGISTRY_CA:-""}
+6. On the bastion host, load the Konvoy bootstrap image into your local container runtime:
+cd ../
+docker load -i konvoy-bootstrap-image-nkp-version.tar
+If you are using Podman, replace docker with podman.
+Creating the NKP Management Cluster on AWS
+Create an NKP management cluster on AWS using the NKP CLI in non-air-gapped or air-gapped
+environments.
+Before you begin
+•
+Ensure that your AWS credentials are configured.
+•
+Ensure that you loaded the necessary container images into your registry mirror.
+•
+Ensure that you created a custom Amazon Machine Image (AMI) in the AWS region where you are
+deploying to use the Nutanix Image Builder (NIB).
+•
+Ensure that your AWS VPC has the required VPC endpoints if operating in an air-gapped environment.
+About this task
+To create a NKP management cluster in a non-air-gapped and air-gapped environment using the NKP
+default settings, follow these steps:
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. (Required for air-gapped environments and optional for non-air-gapped environments) Load the NKP
+bootstrap cluster container image into the local container runtime store.
+docker load --input "nkp-nkp-version/konvoy-bootstrap-image-nkp-version.tar"
+The NKP CLI uses a container image to create the temporary bootstrap cluster. In an air-gapped
+environment, you cannot automatically download the image from the public registry. The image is
+included in the air-gapped bundle, and you must load it manually using either Docker or Podman.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 828
+
+--- page 829 ---
+3. Assign a unique name to your cluster and store it in an environment variable.
+export CLUSTER_NAME=aws-example
+In AWS it is critical that the name is unique, because no two clusters in the same AWS account can
+have the same name. The cluster name must contain only lowercase alphanumeric characters and
+hyphens.
+4. Export variables for your existing AWS infrastructure details.
+export AWS_VPC_ID=vpc-id
+export AWS_SUBNET_IDS=subnet-id-1,subnet-id-2,subnet-id-3
+export AWS_ADDITIONAL_SECURITY_GROUPS=security-group-id
+export AWS_AMI_ID=custom-ami-id
+•
+vpc-id: VPC ID where the cluster will be created. The VPC requires the following AWS VPC
+endpoints to be already present: ec2, elasticloadbalancing, secretsmanager, autoscaling, ecr.api,
+and ecr.dkr (required in an air-gapped environment).
+•
+subnet-ids: Comma-separated list of one or more private subnet IDs, each in a different Availability
+Zone (required in an air-gapped environment).
+•
+security-group-id: Optional comma-separated list of security group IDs to use in addition to
+those automatically created by NKP (required in an air-gapped environment when you use additional
+groups).
+•
+custom-ami-id: ID of the AMI you created using Nutanix Image Builder (NIB).
+5. (Optional) If you are using a local registry such as AWS ECR, provide the registry mirror configuration
+environment variables.
+export REGISTRY_URL=ecr-registry-URL
+export REGISTRY_USERNAME=username
+export REGISTRY_PASSWORD=password
+Optional: If your registry uses a self-signed certificate, export the path to your CA certificate:
+export REGISTRY_CA=path-to-cacert-on-bastion
+6. (Required for air-gapped environments and optional for non-air-gapped environments) Configure local
+registry mirror flags to append to your cluster creation command.
+ --registry-mirror-url=${REGISTRY_URL} \
+ --registry-mirror-username=${REGISTRY_USERNAME} \
+ --registry-mirror-password=${REGISTRY_PASSWORD} \
+ --registry-mirror-cacert=${REGISTRY_CA:-""} \
+Important:  To increase Docker Hub rate limits, use your Docker Hub credentials when creating the
+cluster by setting the following flags on the nkp create cluster command:
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME}
+--registry-mirror-password=${REGISTRY_PASSWORD}
+7. (Optional) Export variables for FIPS mode.
+export FIPS_FLAGS=" \
+--kubernetes-version=vkubernetes-version+fips.0 \
+--etcd-version=etcd-version+fips.0 \
+--kubernetes-image-repository=docker.io/mesosphere \
+--etcd-image-repository=docker.io/mesosphere \
+"
+The image created using NIB must be FIPS compliant.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 829
+
+--- page 830 ---
+8. (Optional) Export variables to provision the cluster on Flatcar Linux.
+export FLATCAR_FLAGS=" \
+--os-hint flatcar
+"
+9. Create a self-managed management cluster using the nkp create cluster aws command.
+Include optional flags such as --internal-load-balancer=true, --additional-security-group-
+ids=${AWS_ADDITIONAL_SECURITY_GROUPS}, or --os-hint flatcar when your environment requires
+them. Append ${FIPS_FLAGS} or ${FLATCAR_FLAGS} when you set those variables.
+nkp create cluster aws \
+ --cluster-name=${CLUSTER_NAME} \
+ --additional-tags=owner=$(whoami) \
+ --with-aws-bootstrap-credentials=true \
+ --vpc-id=${AWS_VPC_ID} \
+ --ami=${AWS_AMI_ID} \
+ --subnet-ids=${AWS_SUBNET_IDS} \
+ --internal-load-balancer=true \
+ --additional-security-group-ids=${AWS_ADDITIONAL_SECURITY_GROUPS} \
+ --registry-mirror-url=${REGISTRY_URL} \
+ --registry-mirror-username=${REGISTRY_USERNAME} \
+ --registry-mirror-password=${REGISTRY_PASSWORD} \
+ --registry-mirror-cacert=${REGISTRY_CA:-""} \
+ --self-managed
+The NKP CLI creates a management cluster using the configuration and environment variables that you
+exported.
+If you require an HTTP or HTTPS proxy, add the flags --http-proxy, --https-proxy, and --no-
+proxy. For more information, see Cluster Creation with HTTP or HTTPS Proxy.
+For advanced customizations, remove the --self-managed flag and use --dry-run and --
+output=yaml > ${CLUSTER_NAME}.yaml to generate Cluster API configuration files. Edit the YAML file
+and use kubectl create -f ${CLUSTER_NAME}.yaml to create the cluster.
+AWS Node Pool Operations
+Operate node pools and delete clusters after you deploy NKP on AWS.
+Use the topics in this section to scale worker node pools, tune the Cluster Autoscaler, and remove clusters
+safely—including bootstrap and workload clusters when your management cluster is self-managed.
+Scaling AWS Node Pools Up and Down
+Node pools are part of a cluster and are managed as a group. You can use a node pool to manage
+machines that share the same properties. When Konvoy creates a new default cluster, one node pool is
+created for the worker nodes, and all nodes in that node pool have the same configuration. You can create
+additional node pools for more specialized hardware or configuration.
+NKP implements node pools using Cluster API MachineDeployments. While running the Cluster Autoscaler
+allows dynamic adjustments, you can manually scale your node pools up or down when you require direct
+control over capacity.
+List AWS Node Pools
+Use the nkp get nodepools command to list node pools for an AWS cluster using the NKP CLI.
+For example:
+nkp get nodepools --cluster-name=${CLUSTER_NAME} --kubeconfig=${CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 830
+
+--- page 831 ---
+Scaling AWS Node Pools
+Increase or decrease worker replicas for a node pool using the nkp scale nodepools command.
+About this task
+To scale AWS nodepools, follow this step:
+Note:  To scale node pools on the management cluster on NKP 2.18 or later, add -n kommander to the
+command. Starting in NKP 2.18, the management cluster runs in the kommander namespace. In NKP 2.17
+and earlier, this flag was not required.
+Procedure
+•
+Scale the node pool to the target number of replicas.
+nkp scale nodepools ${NODEPOOL_NAME} --replicas=count --cluster-name=${CLUSTER_NAME}
+Replace the count with the target replica count that is more than the current value to scale up the node
+pools, or a count that is less than the current value to scale down the node pools.
+Scaling Node Pools Using the Cluster Autoscaler
+Verify the Cluster Autoscaler, set min and max node annotations on a MachineDeployment, and validate
+behavior with a sample workload.
+About this task
+To scale node pools using the Cluster Autoscaler, follow these steps:
+Procedure
+1. Verify that the Cluster Autoscaler controller is running without errors or restarts in the logs.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf logs deployments/cluster-autoscaler
+ cluster-autoscaler -n kube-system -f
+2. Enable the Cluster Autoscaler by applying the minimum and maximum range annotations to your target
+node pool MachineDeployment.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf annotate machinedeployment ${NODEPOOL_NAME}
+ cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size=2
+kubectl --kubeconfig=${CLUSTER_NAME}.conf annotate machinedeployment ${NODEPOOL_NAME}
+ cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size=6
+In this example, the minimum range is 2 nodes and the maximum is 6 nodes.
+Note:  If you scale a node pool beyond the maximum bounds in MachineDeployment, the NKP CLI
+returns an error. Scaling below the minimum size also returns an error.
+What to do next
+Review the Cluster Autoscaler logs to confirm that worker nodes are associated with the node groups and
+the controller is watching for pending pods.
+cat <<EOF | kubectl --kubeconfig=${CLUSTER_NAME}.conf apply -f -
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: busybox-deployment
+  labels:
+    app: busybox
+spec:
+  replicas: 600
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 831
+
+--- page 832 ---
+  selector:
+    matchLabels:
+      app: busybox
+  template:
+    metadata:
+      labels:
+        app: busybox
+    spec:
+      containers:
+      - name: busybox
+        image: busybox:latest
+        command:
+          - sleep
+          - "3600"
+        imagePullPolicy: IfNotPresent
+      restartPolicy: Always
+EOF
+Delete an AWS Cluster
+A self-managed cluster cannot delete itself; you may need a bootstrap cluster and CAPI resource moves
+before you delete the workload cluster and bootstrap cluster.
+A self-managed cluster cannot delete itself. If your managed cluster is self-managed, you must first create
+a temporary bootstrap cluster and move the cluster lifecycle services to it before deleting the managed
+cluster. If you did not make your managed cluster self-managed, you can skip the bootstrap creation steps
+and proceed directly to deleting the workload cluster.
+Creating a Bootstrap Cluster and Nutanix Move CAPI Resources
+If your cluster is self-managaed, you must create a bootstrap cluster, move Cluster API resources from the
+workload cluster, and verify cluster status before you delete a self-managed AWS cluster. If your cluster is
+not self managed, you can skip this task.
+About this task
+To create a bootstrap cluster and move CAPI resources for a self-managed cluster, follow these steps:
+Procedure
+1. Ensure that your AWS credentials are up to date:
+nkp update bootstrap credentials aws --kubeconfig $HOME/.kube/config
+2. Create a bootstrap cluster that can host the Cluster API controllers that reconcile cluster objects marked
+for deletion:
+nkp create bootstrap --kubeconfig $HOME/.kube/config --with-aws-bootstrap-
+credentials=true
+3. Move the Cluster API objects from the workload cluster to the bootstrap cluster:
+nkp move capi-resources \
+ --from-kubeconfig ${CLUSTER_NAME}.conf \
+ --from-context ${CLUSTER_NAME}-admin@${CLUSTER_NAME} \
+ --to-kubeconfig $HOME/.kube/config \
+ --to-context kind-konvoy-capi-bootstrapper
+The cluster lifecycle services on the bootstrap cluster are ready, but the workload cluster configuration
+is still on the managed cluster. The move command pivots the Cluster API custom resources from the
+workload cluster to the bootstrap cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 832
+
+--- page 833 ---
+4. Check the managed cluster status using cluster lifecycle services:
+nkp describe cluster --kubeconfig $HOME/.kube/config -c ${CLUSTER_NAME}
+Sample output:
+NAME                                                            READY  SEVERITY 
+ REASON  SINCE  MESSAGE
+Cluster/aws-example                                             True                 
+    91s
+##ClusterInfrastructure - AWSCluster/aws-example                True                 
+    103s
+##ControlPlane - KubeadmControlPlane/aws-example-control-plane  True                 
+    91s
+# ##Machine/aws-example-control-plane-55jh4                     True                 
+    102s
+# ##Machine/aws-example-control-plane-6sn97                     True                 
+    102s
+# ##Machine/aws-example-control-plane-nx9v5                     True                 
+    102s
+##Workers
+  ##MachineDeployment/aws-example-md-0                          True                 
+    108s
+ ##Machine/aws-example-md-0-cb9c9bbf7-hcl8z                  True                    
+ 102s
+ ##Machine/aws-example-md-0-cb9c9bbf7-rtdqw                  True                    
+ 102s
+ ##Machine/aws-example-md-0-cb9c9bbf7-td29r                  True                    
+ 102s
+ ##Machine/aws-example-md-0-cb9c9bbf7-w64kg                  True                    
+ 102s
+Note:  After moving cluster lifecycle services, use the appropriate kubeconfig for each cluster when you
+run NKP commands for deletion.
+Delete an AWS Workload Cluster
+Delete the provisioned Kubernetes cluster to remove the cluster and its resources from AWS.
+About this task
+To delete the provisioned Kubernetes cluster to remove the cluster and its resources from your cloud
+provider, follow these steps:
+Procedure
+1. Ensure that your AWS credentials are up to date:
+nkp update bootstrap credentials aws --kubeconfig $HOME/.kube/config
+2. Retrieve the details of the Kubernetes cluster that you plan to delete:
+kubectl get nkpclusters
+Note:  Do not use nkp get clusters for Konvoy Kubernetes cluster details; that command returns NKP
+cluster information.
+3. Delete the Kubernetes cluster and wait for the operation to complete.
+nkp delete cluster --cluster-name=${CLUSTER_NAME} --kubeconfig $HOME/.kube/config
+Persistent volumes (PVs) are not deleted during this process. PVs continue to consume storage until
+you delete them manually in AWS.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 833

@@ -1,0 +1,130 @@
+=== clusterapps -A ===
+NAME                                       APP ID                               APP VERSION   SOURCE       AGE
+centralized-grafana-87.16.0                centralized-grafana                  87.16.0       management   3d2h
+centralized-opencost-2.5.28                centralized-opencost                 2.5.28        management   3d2h
+cert-manager-1.20.3                        cert-manager                         1.20.3        management   3d2h
+cert-manager-bootstrap                     cert-manager                         bootstrap     management   3d2h
+cilium-hubble-relay-traefik-0.0.5          cilium-hubble-relay-traefik          0.0.5         management   3d2h
+cloudnative-pg-0.29.0                      cloudnative-pg                       0.29.0        management   3d2h
+cloudnative-pg-plugin-barman-cloud-0.7.1   cloudnative-pg-plugin-barman-cloud   0.7.1         management   3d2h
+cosi-driver-nutanix-0.6.3                  cosi-driver-nutanix                  0.6.3         management   3d2h
+dex-2.14.5                                 dex                                  2.14.5        management   3d2h
+dex-k8s-authenticator-1.4.9                dex-k8s-authenticator                1.4.9         management   3d2h
+external-dns-10.20.0                       external-dns                         10.20.0       management   3d2h
+external-secrets-2.7.0                     external-secrets                     2.7.0         management   3d2h
+fluent-bit-0.57.9                          fluent-bit                           0.57.9        management   3d2h
+gatekeeper-3.23.0                          gatekeeper                           3.23.0        management   3d2h
+gatekeeper-bootstrap                       gatekeeper                           bootstrap     management   3d2h
+gateway-api-crds-1.11.2                    gateway-api-crds                     1.11.2        management   3d2h
+git-operator-0.13.24                       git-operator                         0.13.24       management   3d2h
+grafana-logging-11.3.3                     grafana-logging                      11.3.3        management   3d2h
+grafana-loki-v3-3.6.7                      grafana-loki-v3                      3.6.7         management   3d2h
+harbor-1.19.1                              harbor                               1.19.1        management   3d2h
+headlamp-0.45.0                            headlamp                             0.45.0        management   3d2h
+istio-helm-1.25.0                          istio-helm                           1.25.0        management   3d2h
+jaeger-2.57.4                              jaeger                               2.57.4        management   3d2h
+karma-2.0.10                               karma                                2.0.10        management   3d2h
+karma-traefik-0.0.5                        karma-traefik                        0.0.5         management   3d2h
+kiali-2.29.0                               kiali                                2.29.0        management   3d2h
+knative-1.21.0                             knative                              1.21.0        management   3d2h
+kommander-0.19.0                           kommander                            0.19.0        management   3d2h
+kommander-appmanagement-0.19.0             kommander-appmanagement              0.19.0        management   3d2h
+kommander-charts                           kommander                            charts        management   3d2h
+kommander-flux-2.8.5                       kommander-flux                       2.8.5         management   3d2h
+kommander-ui-17.313.79                     kommander-ui                         17.313.79     management   3d2h
+kube-oidc-proxy-0.3.8                      kube-oidc-proxy                      0.3.8         management   3d2h
+kube-prometheus-stack-87.16.0              kube-prometheus-stack                87.16.0       management   3d2h
+kubefed-0.12.1                             kubefed                              0.12.1        management   3d2h
+kubetunnel-0.2.0                           kubetunnel                           0.2.0         management   3d2h
+logging-operator-6.7.0                     logging-operator                     6.7.0         management   3d2h
+nkp-insights-1.9.7                         nkp-insights                         1.9.7         management   3d2h
+nkp-insights-management-1.9.7              nkp-insights-management              1.9.7         management   3d2h
+nvidia-gpu-operator-26.3.3                 nvidia-gpu-operator                  26.3.3        management   3d2h
+nvidia-network-operator-26.4.1             nvidia-network-operator              26.4.1        management   3d2h
+opencost-2.5.28                            opencost                             2.5.28        management   3d2h
+project-grafana-logging-11.3.3             project-grafana-logging              11.3.3        management   3d2h
+project-grafana-loki-v3-3.6.7              project-grafana-loki-v3              3.6.7         management   3d2h
+project-logging-1.1.0                      project-logging                      1.1.0         management   3d2h
+prometheus-adapter-5.3.0                   prometheus-adapter                   5.3.0         management   3d2h
+prometheus-thanos-traefik-0.0.5            prometheus-thanos-traefik            0.0.5         management   3d2h
+reloader-2.2.14                            reloader                             2.2.14        management   3d2h
+rook-ceph-1.19.5                           rook-ceph                            1.19.5        management   3d2h
+rook-ceph-cluster-1.19.5                   rook-ceph-cluster                    1.19.5        management   3d2h
+thanos-17.3.2                              thanos                               17.3.2        management   3d2h
+traefik-39.0.7                             traefik                              39.0.7        management   3d2h
+traefik-forward-auth-0.3.18                traefik-forward-auth                 0.3.18        management   3d2h
+traefik-forward-auth-mgmt-0.3.18           traefik-forward-auth-mgmt            0.3.18        management   3d2h
+velero-12.0.0                              velero                               12.0.0        management   3d2h
+vgpu-token-operator-1.0.8                  vgpu-token-operator                  1.0.8         management   3d2h
+
+=== apps -A ===
+No resources found
+
+=== appdeployments -A ===
+kommander-default-workspace	cert-manager	cert-manager-1.20.3	ClusterApp
+kommander-default-workspace	external-secrets	external-secrets-2.7.0	ClusterApp
+kommander-default-workspace	gatekeeper	gatekeeper-3.23.0	ClusterApp
+kommander-default-workspace	gateway-api-crds	gateway-api-crds-1.11.2	ClusterApp
+kommander-default-workspace	kommander-flux	kommander-flux-2.8.5	ClusterApp
+kommander-default-workspace	reloader	reloader-2.2.14	ClusterApp
+kommander-default-workspace	traefik	traefik-39.0.7	ClusterApp
+kommander	dex	dex-2.14.5	ClusterApp
+kommander	dex-k8s-authenticator	dex-k8s-authenticator-1.4.9	ClusterApp
+kommander	external-secrets	external-secrets-2.7.0	ClusterApp
+kommander	gatekeeper	gatekeeper-3.23.0	ClusterApp
+kommander	gateway-api-crds	gateway-api-crds-1.11.2	ClusterApp
+kommander	git-operator	git-operator-0.13.24	ClusterApp
+kommander	kommander	kommander-0.19.0	ClusterApp
+kommander	kommander-appmanagement	kommander-appmanagement-0.19.0	ClusterApp
+kommander	kommander-flux	kommander-flux-2.8.5	ClusterApp
+kommander	kommander-ui	kommander-ui-17.313.79	ClusterApp
+kommander	kube-oidc-proxy	kube-oidc-proxy-0.3.8	ClusterApp
+kommander	kubefed	kubefed-0.12.1	ClusterApp
+kommander	reloader	reloader-2.2.14	ClusterApp
+kommander	traefik	traefik-39.0.7	ClusterApp
+kommander	traefik-forward-auth-mgmt	traefik-forward-auth-mgmt-0.3.18	ClusterApp
+
+=== helmreleases -A ===
+NAMESPACE                     NAME                          AGE    READY   STATUS
+kommander-default-workspace   karma-traefik-certs           3d2h   True    Helm install succeeded for release kommander-default-workspace/karma-traefik-certs.v1 with chart kommander-cert-federation@0.0.13
+kommander-default-workspace   prometheus-traefik-certs      3d2h   True    Helm install succeeded for release kommander-default-workspace/prometheus-traefik-certs.v1 with chart kommander-cert-federation@0.0.13
+kommander                     cert-manager                  3d2h   True    Helm install succeeded for release cert-manager/cert-manager.v1 with chart cert-manager@v1.20.3
+kommander                     cert-manager-crds             3d2h   True    Helm install succeeded for release cert-manager/cert-manager-crds.v1 with chart cert-manager-crds@v1.20.3
+kommander                     cluster-api-operator          3d2h   True    Helm install succeeded for release capi-operator-system/cluster-api-operator.v1 with chart cluster-api-operator@0.26.0
+kommander                     cluster-api-stack-operator    3d2h   True    Helm install succeeded for release capi-stack-operator/cluster-api-stack-operator.v1 with chart cluster-api-stack-operator@0.6.29
+kommander                     cluster-observer-3995310324   3d2h   True    Helm install succeeded for release kommander/cluster-observer-3995310324.v1 with chart cluster-observer@1.6.0
+kommander                     dex                           3d2h   True    Helm upgrade succeeded for release kommander/dex.v3 with chart dex@2.14.2
+kommander                     dex-k8s-authenticator         3d2h   True    Helm upgrade succeeded for release kommander/dex-k8s-authenticator.v2 with chart dex-k8s-authenticator@1.4.3
+kommander                     external-secrets              3d2h   True    Helm install succeeded for release external-secrets/external-secrets.v1 with chart external-secrets@2.7.0
+kommander                     gatekeeper                    3d2h   True    Helm install succeeded for release kommander/kommander-gatekeeper.v1 with chart gatekeeper@3.23.0
+kommander                     gatekeeper-proxy-mutations    3d2h   True    Helm install succeeded for release kommander/gatekeeper-proxy-mutations.v1 with chart gatekeeper-proxy-mutations@v0.3.0
+kommander                     gateway-api-crds              3d2h   True    Helm upgrade succeeded for release kommander/gateway-api-crds.v2 with chart traefik-crds@1.11.1
+kommander                     karma-traefik-certs           3d2h   True    Helm install succeeded for release kommander/karma-traefik-certs.v1 with chart kommander-cert-federation@0.0.13
+kommander                     kommander                     3d2h   True    Helm install succeeded for release kommander/kommander.v1 with chart kommander-chart@v2.19.0
+kommander                     kommander-appmanagement       3d2h   True    Helm install succeeded for release kommander/kommander-appmanagement.v1 with chart kommander-appmanagement-chart@v2.19.0
+kommander                     kommander-flux                3d2h   True    Helm upgrade succeeded for release kommander-flux/kommander-flux.v2 with chart flux2@2.18.3
+kommander                     kommander-operator            3d2h   True    Helm install succeeded for release kommander/kommander-operator.v1 with chart kommander-operator-chart@0.5.0
+kommander                     kommander-ui                  3d2h   True    Helm install succeeded for release kommander/kommander-kommander-ui.v1 with chart kommander-ui@17.313.79
+kommander                     kube-oidc-proxy               3d2h   True    Helm install succeeded for release kommander/kube-oidc-proxy.v1 with chart kube-oidc-proxy@0.3.4
+kommander                     kubefed                       3d2h   True    Helm install succeeded for release kube-federation-system/kubefed.v1 with chart kubefed@0.12.1
+kommander                     prometheus-traefik-certs      3d2h   True    Helm install succeeded for release kommander/prometheus-traefik-certs.v1 with chart kommander-cert-federation@0.0.13
+kommander                     reloader                      3d2h   True    Helm upgrade succeeded for release kommander/kommander-reloader.v2 with chart reloader@2.2.14
+kommander                     traefik                       3d2h   True    Helm install succeeded for release kommander/kommander-traefik.v1 with chart traefik@39.0.7
+kommander                     traefik-crds                  3d2h   True    Helm install succeeded for release kommander/traefik-crds.v1 with chart traefik-crds@1.11.1
+kommander                     traefik-forward-auth-mgmt     3d2h   True    Helm install succeeded for release kommander/traefik-forward-auth-mgmt.v1 with chart traefik-forward-auth@0.3.10
+
+=== helmchartproxies -A ===
+NAMESPACE   NAME                                                          READY   REASON
+kommander   ca-<uuid>                       True    InfoReported
+kommander   cilium-<uuid>                   True    InfoReported
+kommander   cosi-controller-<uuid>          True    InfoReported
+kommander   konnector-agent-<uuid>          True    InfoReported
+kommander   metallb-<uuid>                  True    InfoReported
+kommander   multus-<uuid>                   True    InfoReported
+kommander   node-feature-discovery-<uuid>   True    InfoReported
+kommander   nutanix-ccm-<uuid>              True    InfoReported
+kommander   nutanix-csi-<uuid>              True    InfoReported
+kommander   snapshot-controller-<uuid>      True    InfoReported
+
+=== clusterresourcesets -A ===
+No resources found

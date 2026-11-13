@@ -1,0 +1,18 @@
+
+--- page 1006 ---
+Troubleshooting
+If any pod is not in Running or Completed status, you need to investigate further.
+If something has not been deployed properly or thoroughly, run the nkp diagnose command. This collects
+information from pods and infrastructure.
+For more information, see Generate a Support Bundle on page 1049.
+GPU for Konvoy
+In this version of Nutanix Kubernetes Platform (NKP), the nodes with NVIDIA GPUs are configured with
+nvidia-gpu-operator (Overview — NVIDIA Cloud Native Technologies documentation) and NVIDIA drivers
+to support the container runtime.
+This page will link you to all the necessary GPU pages.
+•
+Nutanix GPU Passthrough
+•
+Updating Cluster Nodepools
+The remainder of GPU information is found in Cluster Management Operations section of the
+documentation.

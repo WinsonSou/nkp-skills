@@ -1,0 +1,1698 @@
+
+--- page 510 ---
+Nutanix Kubernetes® Platform Backup and Restore Management
+Perform routine backup and restore operations for your NKP cluster and applications to maintain data
+integrity and reduce the risk of data loss.
+For production clusters, Nutanix recommends performing routine backups during regular maintenance to
+ensure data integrity and reduce the risk of data loss from unexpected events. Backups capture the cluster
+state, application state, and the running configurations of stateless and stateful applications in the cluster.
+Nutanix Kubernetes® Platform (NKP) stores all data as CRDs in the Kubernetes API, which you can back
+up and restore.
+Velero Configuration
+For default installations, NKP deploys Velero integrated with Rook Ceph in the same cluster.
+For more information about the components and recommended configurations, see the following
+resources:
+•
+For more information on Velero, see Velero.
+•
+For more information on Rook Ceph, see Rook.
+•
+For production use cases, Nutanix advises providing an external storage class to use with Rook Ceph.
+For more information, see Rook Ceph in NKP on page 646.
+Velero Configuration
+Nutanix Kubernetes® Platform (NKP) provides flexible Velero configuration options for backup and restore
+operations, supporting both integrated Rook Ceph and external S3 compatible object storage solutions.
+NKP offers two primary approaches for configuring Velero backup storage:
+•
+Integrated Rook Ceph: For default installations, NKP deploys Velero integrated with Rook Ceph,
+operating within the same cluster.
+•
+External Object Storage: You can configure Velero to use external S3 compatible object storage
+solutions, such as Nutanix Objects or cloud provider storage.
+For production use cases, use an S3-compatible object store that resides outside the Kubernetes cluster
+as the backup storage location for Velero. Nutanix Objects and AWS S3 provide reliable external storage
+options.
+For more information about Velero, see Velero.
+For more information about Rook Ceph, see Rook.
+Use Velero with Nutanix Objects Buckets
+Configure Velero to use Nutanix Objects buckets as storage for backup and restore operations in Nutanix
+Kubernetes® Platform (NKP).
+To use Nutanix Objects buckets for Velero backup operations, you configure Velero with the Nutanix
+Objects storage plug-in, create backup locations, and set up credentials. Velero can then back up and
+restore cluster resources such as persistent volumes, namespaces, and workloads using the Nutanix
+Objects storage plug-in.
+For information about configuring Velero with Nutanix Objects buckets when Rook Ceph is deployed, see
+Configuring Velero to use Nutanix Objects Bucket as Default BSL on page 512.
+For information about configuring Velero with Nutanix Objects buckets without Rook Ceph components,
+see Configuring Velero to use Nutanix Objects Bucket without Rook Ceph on page 515.
+Nutanix Kubernetes Platform | Cluster Operations Management | 510
+
+--- page 511 ---
+Preparing Velero to Work with Nutanix Objects
+Set up environment variables and credentials to configure Velero with Nutanix Objects buckets for backup
+storage.
+Before you begin
+Ensure that your environment meets the following requirements:
+•
+Velero is installed (included in the default Nutanix Kubernetes® Platform (NKP) installation).
+•
+Velero CLI is installed. For more information, see Velero Installation Using CLI on page 532.
+•
+You have created an S3 bucket with Nutanix Objects and configured access. For more information, see
+Creating and Configuring Buckets.
+Note:  This is an S3-compliant bucket, and many configuration parameters use the S3 style.
+•
+When using the fully qualified domain name (FQDN) for the Nutanix Objects endpoint, ensure
+it resolves from within the cluster. If the FQDN resolution fails, update the cluster DNS (such as
+CoreDNS) so that the pods can resolve the endpoint.
+•
+For NKP management clusters, disable rook-ceph, rook-ceph-cluster, and velero immediately after
+applying the Ultimate License because the license automatically deploys these components. If these
+components are already deployed, you must disable or delete them before proceeding.
+About this task
+Before configuring Velero to work with Nutanix Objects buckets, you must prepare the environment
+by setting required variables and creating credentials. This process involves configuring environment
+variables for connectivity and authentication, then creating the necessary Kubernetes secrets for Velero to
+access your Nutanix Objects buckets.
+Procedure
+1. Set the core environment variables for Nutanix Objects connectivity:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+export S3_REGION=us-east-1
+export NUTANIX_OBJECTS_HOST=<nutanix_objects_host_or_ip>
+export NUTANIX_OBJECTS_PORT=<nutanix_objects_port>
+export NUTANIX_OBJECTS_ACCESS_KEY_ID=<nutanix_objects_key_id>
+export NUTANIX_OBJECTS_SECRET_ACCESS_KEY=<nutanix_objects_key_secret>
+export AWS_PROFILE=<bucket_name>
+export REMOTE_STORE_SECRET=<bucket_name>
+export BUCKET=<bucket_name>
+export BSL_NAME=<bucket_name>
+export CLUSTER_NAME=<target_cluster>
+Note:  For simplicity and consistency, use the same name for AWS_PROFILE, REMOTE_STORE_SECRET,
+BUCKET, and BSL_NAME. Match these names to your bucket name.
+Example:
+export WORKSPACE_NAMESPACE=kommander
+export S3_REGION=us-east-1
+export NUTANIX_OBJECTS_HOST=x.x.x.100
+export NUTANIX_OBJECTS_PORT=443
+export NUTANIX_OBJECTS_ACCESS_KEY_ID=Ef9Am0cq_LxQIE04wVcaGAP1pyaNpSmU
+export NUTANIX_OBJECTS_SECRET_ACCESS_KEY=PiwiY2oMORzI7WIfBqJzMDj274QFjALi
+export AWS_PROFILE=velerobucket1
+export REMOTE_STORE_SECRET=velerobucket1
+Nutanix Kubernetes Platform | Cluster Operations Management | 511
+
+--- page 512 ---
+export BUCKET=velerobucket1
+export BSL_NAME=velerobucket1
+export CLUSTER_NAME=my-target-cluster
+•
+WORKSPACE_NAMESPACE: The workspace namespace such as kommander for the management cluster
+or any workspace namespace for attached or managed clusters. To list the namespace of a cluster:
+kubectl get nkpcluster -A | grep "NAMESPACE|${CLUSTER_NAME}"
+•
+CLUSTER_NAME: The name of the target cluster where you set up Velero.
+•
+BUCKET: The name of the Nutanix Objects bucket that you want to use as a backup storage.
+2. Prepare your Nutanix Objects bucket credentials.
+To integrate Velero with Nutanix Objects, you need an access key and a secret key.
+Note:  Each cluster must have its own bucket. If you use different credentials to access the
+BackupStorageLocation (BSL), you can create multiple secrets that support the creation of more than
+one BSL. The AWS_PROFILE field maps each secret to its BSL.
+For more information about generating access keys, see Generating Access Key for API Users.
+3. Create the Velero secret on the cluster.
+Export your credentials as environment variables and create the Kubernetes secret. You must create
+this secret on the cluster where you deploy Velero such as management, managed, or attached.
+Important:  If you are an NKP Pro license user with multiple workload clusters attached to a workspace,
+create this secret in each cluster before updating the AppDeployment overrides. For more information,
+see Configuring Velero to use Nutanix Objects Bucket as Default BSL on page 512.
+In this example, the name of the secret is velero-nutanix-credentials, and the name of the profile
+is ntnx-object-nkp.
+Use the same name for AWS_PROFILE, BUCKET, and BSL_NAME in the next step.
+Example:
+export NUTANIX_OBJECTS_SECRET=velero-nutanix-credentials
+export AWS_PROFILE=ntnx-object-nkp
+export NUTANIX_OBJECTS_ACCESS_KEY_ID=<nutanix-objects-access-key>
+export NUTANIX_OBJECTS_SECRET_ACCESS_KEY=<nutanix-objects-secret-key>
+kubectl --kubeconfig=${CLUSTER_NAME}.conf apply -f - <<EOF 
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${NUTANIX_OBJECTS_SECRET}
+  namespace: ${WORKSPACE_NAMESPACE}  
+type: Opaque
+stringData:
+  aws: |
+    [${AWS_PROFILE}]
+    aws_access_key_id = ${NUTANIX_OBJECTS_ACCESS_KEY_ID}
+    aws_secret_access_key = ${NUTANIX_OBJECTS_SECRET_ACCESS_KEY}
+EOF
+Configuring Velero to use Nutanix Objects Bucket as Default BSL
+Configure Velero to use Nutanix Objects as the default backup location by overriding the default
+BackupStorageLocation (BSL) setting with a specified connection details of Nutanix Objects bucket.
+Nutanix Kubernetes Platform | Cluster Operations Management | 512
+
+--- page 513 ---
+Before you begin
+Complete the environment preparation steps described in Preparing Velero to Work with Nutanix Objects
+on page 511.
+About this task
+This procedure overrides the default BackupStorageLocation (BSL) to use the specified Nutanix Objects
+bucket.
+If overriding the default BSL is not your intended outcome, see Adding Backup Storage Locations on
+page 517 or modify the backupStorageLocation configuration to retain the existing default BSL
+configured with Ceph Object store as the backend.
+Procedure
+1. Create a ConfigMap to configure Velero with Nutanix Objects bucket settings.
+The ConfigMap directs Velero to use the Nutanix Objects bucket as the backup storage location. The
+configuration includes environment variables that provide connection details for the Nutanix Objects
+bucket, and references the access key secret created in the preparation steps.
+The following examples use a bucket named ntnx-object-nkp in the BSL configuration:
+•
+Configuration with certificate validation:
+export BUCKET=ntnx-object-nkp
+export BSL_NAME=ntnx-object-nkp
+export NUTANIX_OBJECTS_HOST=<nutanix-objects-hostname-or-ip>
+export NUTANIX_OBJECTS_PORT=443
+export NUTANIX_OBJECTS_SECRET=velero-nutanix-credentials
+export AWS_PROFILE=ntnx-object-nkp
+kubectl --kubeconfig ${CLUSTER_NAME}.conf apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: velero-overrides
+data:
+  values.yaml: |
+    credentials:
+      extraSecretRef: ""
+    configuration:
+      features: EnableCSI
+      backupStorageLocation:
+        - name: ${BSL_NAME}
+          bucket: ${BUCKET}
+          provider: "aws" 
+          default: true
+          caCert:
+ LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURmekNDQW1lZ0F3SUJBZ0lRRS9OMWcydktjaU5nZVBBd3R5bzNq
+          config:
+            region: us-east-1
+            s3ForcePathStyle: "true"
+            insecureSkipTLSVerify: "false"
+            s3Url: "https://${NUTANIX_OBJECTS_HOST}"
+            # profile should be set to the AWS profile name mentioned in the
+ secret
+            profile: ${AWS_PROFILE}
+          credential:
+            key: aws
+            name: ${NUTANIX_OBJECTS_SECRET}
+Nutanix Kubernetes Platform | Cluster Operations Management | 513
+
+--- page 514 ---
+    deployNodeAgent: true
+    nodeAgent:
+      podVolumePath: /var/lib/kubelet/pods
+      tolerations:
+        - operator: Exists
+EOF
+•
+Configuration without certificate validation:
+export BUCKET=ntnx-object-nkp
+export BSL_NAME=ntnx-object-nkp
+export NUTANIX_OBJECTS_HOST=<nutanix-objects-hostname-or-ip>
+export NUTANIX_OBJECTS_PORT=443
+export NUTANIX_OBJECTS_SECRET=velero-nutanix-credentials
+export AWS_PROFILE=ntnx-object-nkp
+kubectl --kubeconfig ${CLUSTER_NAME}.conf apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: velero-overrides
+data:
+  values.yaml: |
+    credentials:
+      extraSecretRef: ""
+    configuration:
+      features: EnableCSI
+      backupStorageLocation:
+        - name: ${BSL_NAME}
+          bucket: ${BUCKET}
+          provider: "aws" 
+          default: true
+          config:
+            region: us-east-1
+            s3ForcePathStyle: "true"
+            insecureSkipTLSVerify: "true"
+            s3Url: "https://${NUTANIX_OBJECTS_HOST}"
+            # profile should be set to the AWS profile name mentioned in the
+ secret
+            profile: ${AWS_PROFILE}
+          credential:
+            key: aws
+            name: ${NUTANIX_OBJECTS_SECRET}
+    deployNodeAgent: true
+    nodeAgent:
+      podVolumePath: /var/lib/kubelet/pods
+      tolerations:
+        - operator: Exists
+EOF
+Note:  The BackupStorageLocation field supports multiple BSL configurations. You can also add
+additional BSLs later by connecting directly to the cluster, as described in Adding Backup Storage
+Locations on page 517.
+2. Update the Velero AppDeployment to reference the ConfigMap.
+The AppDeployment must reference the ConfigMap that contains the override settings.
+The following configuration updates Velero across all clusters in a workspace:
+kubectl --kubeconfig=${CLUSTER_NAME}.conf -n ${WORKSPACE_NAMESPACE} patch
+ appdeployment velero --type="merge" --patch-file=/dev/stdin <<EOF
+Nutanix Kubernetes Platform | Cluster Operations Management | 514
+
+--- page 515 ---
+spec:
+  configOverrides:
+    name: velero-overrides
+EOF
+When the workspace contains multiple clusters, use clusterConfigOverrides and create multiple
+override ConfigMaps because each cluster requires its own Nutanix Objects bucket. For more
+information, see Customizing an Application Per Cluster on page 323.
+3. Verify the ConfigMap reference in the HelmRelease object.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get hr -n kommander velero -o
+ jsonpath='{.spec.valuesFrom[?(@.name=="velero-overrides")]}'
+After a successful deployment, the following output appears:
+{"kind":"ConfigMap","name":"velero-overrides"}
+4. Verify that the Velero pod is running.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get pods -A | grep velero
+5. Verify the BSL status.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get bsl -n ${WORKSPACE_NAMESPACE} default
+Note:  Ensure that the phase displays as Available.
+Configuring Velero to use Nutanix Objects Bucket without Rook Ceph
+Deploy Velero using Nutanix Objects or another S3-compatible store without enabling Rook Ceph in the
+cluster.
+Before you begin
+Complete the environment preparation steps described in Preparing Velero to Work with Nutanix Objects
+on page 511.
+Note:  The following section creates the secret for the BSL connection to Nutanix Objects. You can skip the
+secret creation step in the preparation phase. To create the secret directly in the cluster instead, follow the
+preparation steps and omit the secretContents section in the configuration.
+About this task
+This procedure configures Velero to use Nutanix Objects buckets as a backup storage location without
+deploying Rook Ceph components. This approach is suitable for environments that use external object
+storage instead of the integrated Rook Ceph solution.
+Important:
+•
+For Nutanix Kubernetes® Platform (NKP) Management Clusters, disable rook-ceph, rook-
+ceph-cluster, and velero immediately after applying the Ultimate License because the
+license automatically deploys these components. If NKP deploys these components, you must
+disable or delete them before proceeding.
+•
+In the following example the AppDeployent override is set using NKP GUI. However, you
+can set the AppDeployent override using the NKP CLI as shown in Configuring Velero to use
+Nutanix Objects Bucket as Default BSL on page 512.
+Nutanix Kubernetes Platform | Cluster Operations Management | 515
+
+--- page 516 ---
+Procedure
+1. Generate the ApplicationDeployment overrides configuration:
+cat <<EOF >/dev/stdout
+credentials:
+  extraSecretRef: ""
+  name: ${REMOTE_STORE_SECRET}
+  secretContents:
+    aws: |
+      [${AWS_PROFILE}]
+      aws_access_key_id = ${NUTANIX_OBJECTS_ACCESS_KEY_ID}
+      aws_secret_access_key = ${NUTANIX_OBJECTS_SECRET_ACCESS_KEY}
+configuration:
+  features: EnableCSI
+  backupStorageLocation:
+    - name: ${BSL_NAME}
+      bucket: ${BUCKET}
+      provider: "aws" 
+      default: true
+      config:
+        region: us-east-1
+        s3ForcePathStyle: "true"
+        insecureSkipTLSVerify: "true"
+        s3Url: https://${NUTANIX_OBJECTS_HOST}:${NUTANIX_OBJECTS_PORT}
+        profile: ${AWS_PROFILE}
+      credential:
+        key: ${AWS_PROFILE}
+        name: ${REMOTE_STORE_SECRET}
+deployNodeAgent: true
+nodeAgent:
+  podVolumePath: /var/lib/kubelet/pods
+  tolerations:
+    - operator: Exists
+EOF
+Copy the output for use in the NKP UI.
+2. Configure Velero using the NKP UI.
+a. Log in to the NKP UI.
+b. Navigate to the Applications tab for the workspace where you are configuring Velero.
+c. Search for Velero and click Enable.
+d. In the configuration panel, paste the output from the previous command and click Enable.
+Note:  If there are multiple clusters in the workspace, each cluster requires its own configuration
+because the bucket and Nutanix Objects keys are different for each cluster. In this case, set the
+override values in each cluster's configuration instead of the global configuration.
+Ignore the warning about rook-ceph-cluster dependency not being met. This is expected when
+deploying Velero without Rook Ceph.
+3. (Optional) If the velero-pre-install job blocks Velero installation for an hour and rook-ceph-
+cluster is not deployed, delete the original job and create a new one that completes successfully.
+Run the following command from a Linux/Mac terminal that has access to the target cluster and has
+kubectl installed:
+kubectl delete job -n ${WORKSPACE_NAMESPACE} velero-pre-install 
+kubectl apply -f - << EOF
+apiVersion: batch/v1
+Nutanix Kubernetes Platform | Cluster Operations Management | 516
+
+--- page 517 ---
+kind: Job
+metadata:
+  labels:
+    kustomize.toolkit.fluxcd.io/name: velero-pre-install
+    kustomize.toolkit.fluxcd.io/namespace: ${WORKSPACE_NAMESPACE}
+  name: velero-pre-install
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  template:
+    spec:
+      containers:
+      - name: pre-install  
+        command:
+        - sh
+        - -c
+        - "sleep 1"
+        image: ${IMAGE}
+      restartPolicy: OnFailure
+EOF
+4. Verify the Velero installation.
+a. Verify that the Velero pod is running:
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get pods -A | grep velero
+b. Verify the BackupStorageLocation (BSL):
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get bsl -n ${WORKSPACE_NAMESPACE}
+ default
+Note:  Ensure that the phase is displayed as Available.
+Velero is now configured to use Nutanix Objects bucket as the backup storage location without requiring
+Rook Ceph components. You can now create backups and restore operations using the external object
+storage.
+Adding Backup Storage Locations
+Create multiple BackupStorageLocation (BSL) resources that reference different Nutanix Objects buckets.
+Before you begin
+Complete the environment preparation steps described in Preparing Velero to Work with Nutanix Objects
+on page 511.
+About this task
+You can create multiple BackupStorageLocation (BSL) resources to reference different Nutanix Objects
+buckets. This configuration supports scenarios where different applications or clusters require separate
+backup destinations.
+To create multiple BSL resources that reference different Nutanix Objects buckets, follow these steps:
+Procedure
+1. (Optional) Create a secret for buckets that use different credentials or key pairs:
+export NUTANIX_OBJECTS_SECRET=velero-nutanix-two
+export AWS_PROFILE=ntnx-objects-two
+export NUTANIX_OBJECTS_ACCESS_KEY_ID=<nutanix-objects-access-key>
+Nutanix Kubernetes Platform | Cluster Operations Management | 517
+
+--- page 518 ---
+export NUTANIX_OBJECTS_SECRET_ACCESS_KEY=<nutanix-objects-secret-key>
+export BUCKET=ntnx-obj-two
+export BSL_NAME=ntnx-obj-two
+export NUTANIX_OBJECTS_HOST=<nutanix-objects-hostname-or-ip>
+export NUTANIX_OBJECTS_PORT=443
+kubectl --kubeconfig=${CLUSTER_NAME}.conf apply -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${NUTANIX_OBJECTS_SECRET}
+  namespace: ${WORKSPACE_NAMESPACE}
+type: Opaque
+stringData:
+  aws: |
+    [${AWS_PROFILE}]
+    aws_access_key_id = ${NUTANIX_OBJECTS_ACCESS_KEY_ID}
+    aws_secret_access_key = ${NUTANIX_OBJECTS_SECRET_ACCESS_KEY}
+EOF
+Note:  You can create multiple secrets to support more than one BackupStorageLocation (BSL) when
+different credentials are required for bucket access. The AWS_PROFILE field references the secret, and
+the BSL configuration links them together.
+2. Create a backup storage location:
+a. Create a backup location that references an existing Nutanix Objects bucket:
+velero --kubeconfig=${CLUSTER_NAME}.conf backup-location create
+ ${BSL_NAME} -n ${WORKSPACE_NAMESPACE} --provider aws --bucket ${BUCKET}
+ --credential ${NUTANIX_OBJECTS_SECRET}=aws --config region=us-
+east-1,insecureSkipTLSVerify="true",s3ForcePathStyle="true",profile=
+${AWS_PROFILE},s3Url=https://${NUTANIX_OBJECTS_HOST}:${NUTANIX_OBJECTS_PORT}
+b. Verify that the backup storage location is Available and references the correct Nutanix Objects
+bucket:
+kubectl get backupstoragelocations -n ${WORKSPACE_NAMESPACE} -oyaml
+Note:  If the BackupStorageLocation is not Available, you can view any error events: kubectl
+describe backupstoragelocations -n ${WORKSPACE_NAMESPACE}
+3. Create a test backup:
+a. Create a test backup:
+velero backup create nutanix-velero-testbackup -n ${WORKSPACE_NAMESPACE} --
+kubeconfig=${CLUSTER_NAME}.conf --storage-location <aws-backup-location-name> --
+snapshot-volumes=false
+b. View the backup details:
+velero backup describe nutanix-velero-testbackup
+Usage of Velero with AWS S3 Buckets
+Configure Velero to use AWS S3 buckets for storing backup data. To set this up, you prepare your
+environment, customize Velero settings, and define a backup location.
+You can configure Velero for non-default backup location or modify the kommander.yaml file for
+management or Pro clusters based on your infrastructure needs. By setting up a backup location, you
+ensure reliable and scalable data protection using AWS S3 buckets.
+Nutanix Kubernetes Platform | Cluster Operations Management | 518
+
+--- page 519 ---
+Velero with AWS: Preparing your Environment
+Before you begin
+•
+Ensure you have installed Velero (included in the default NKP installation).
+•
+Ensure you have installed the Velero CLI. For more information, see Velero Installation Using CLI on
+page 532.
+•
+Ensure that you have created an S3 bucket with AWS. For more information, https://
+docs.aws.amazon.com/AmazonS3/latest/userguide/creating-bucket.html.
+Procedure
+1. Set the environment variables.
+a. Set the BUCKET environment variable to the name of the S3 bucket you want to use as backup
+storage.
+export BUCKET=<aws-bucket-name>
+b. Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace.
+Replace <workspace_namespace> with the name of the target workspace.
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+This can be the kommander namespace for the Management cluster or any other additional
+workspace namespace for attached or managed clusters. To list all available workspace
+namespaces, use the kubectl get nkpcluster -A command.
+c. Set the CLUSTER_NAME environment variable. Replace <target_cluster> with the name of the
+cluster where you want to set up Velero.
+export CLUSTER_NAME=<target_cluster>
+2. Prepare your AWS credentials.
+For details on how to use IAM roles instead of static credentials, see https://github.com/vmware-tanzu/
+velero-plugin-for-aws.
+a. Create a file containing your static AWS credentials.
+In this example, the file’s name is aws-credentials.
+cat << EOF > aws-credentials
+[default]
+aws_access_key_id=<REDACTED>
+aws_secret_access_key=<REDACTED>
+EOF 
+b. Create a secret on the cluster where you are installing and configuring Velero by referencing the file
+created in the previous step. This can be the Management, a Managed, or an Attached cluster.
+In this example, the secret’s name is velero-aws-credentials.
+kubectl create secret generic -n ${WORKSPACE_NAMESPACE} velero-aws-credentials --
+from-file=aws=aws-credentials --kubeconfig=${CLUSTER_NAME}.conf
+Velero with AWS: Configuring Velero
+Customize Velero to allow the configuration of a non-default backup location.
+Nutanix Kubernetes Platform | Cluster Operations Management | 519
+
+--- page 520 ---
+Procedure
+1. Create a ConfigMap to enable Velero to use AWS S3 buckets as backup storage location.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: velero-overrides
+data:
+  values.yaml: |
+    credentials:
+      extraSecretRef: ""
+    configuration:
+      backupStorageLocation:
+      - bucket: ${BUCKET}
+        name: <YOUR-NEW-BACKUP-STORAGE-LOCATION-NAME> # If you don't specify a unique
+ name, it will use "default" as the name of the bakcupstoragelocation
+        provider: "aws"
+        config:
+          region: <your-aws-region> # such as us-west-2
+          s3ForcePathStyle: "false"
+          insecureSkipTLSVerify: "false"
+          s3Url: ""
+          profile: <your-aws-profile> # profile should be set to the AWS profile name
+ mentioned in the secret
+        credential:
+          name: velero-aws-credentials
+          key: aws
+EOF
+2. Patch the Velero AppDeployment to reference the created ConfigMap with the Velero overrides.
+a. To update Velero in all clusters in a workspace:
+cat << EOF | kubectl -n ${WORKSPACE_NAMESPACE} patch appdeployment velero --
+type="merge" --patch-file=/dev/stdin
+spec:
+  configOverrides:
+    name: velero-overrides
+EOF
+To update Velero for a specific cluster in a workspace and customize an application per cluster, see
+Customizing an Application Per Cluster on page 323.
+3. Check the ConfigMap on the HelmRelease object.
+kubectl get hr -n kommander velero -o jsonpath='{.spec.valuesFrom[?(@.name=="velero-
+overrides")]}'
+The output looks like this if the deployment is successful:
+{"kind":"ConfigMap","name":"velero-overrides"}
+4. Verify that the Velero pod is running.
+kubectl get pods -A --kubeconfig=${CLUSTER_NAME}.conf |grep velero
+Nutanix Kubernetes Platform | Cluster Operations Management | 520
+
+--- page 521 ---
+Velero with AWS: Configuring Velero By Editing the kommander.yaml File
+This is an alternative configuration path for management or Pro clusters. You can also configure Velero
+by editing the kommander.yaml and rerunning the installation. To follow this alternative configuration path,
+expand the following section:
+About this task
+Configure Velero on the Management Cluster:
+Procedure
+1. Refresh the kommander.yaml to add the customization of Velero.
+Warning:  Before running this command, ensure the kommander.yaml is the configuration file you are
+currently using for your environment. Otherwise, your previous configuration will be lost.
+nkp install kommander -o yaml --init > kommander.yaml
+2. Configure NKP to load the plugins and to include the secret in the apps.velero section.
+This process has been tested to work with plugins for AWS v1.1.0 and Azure v1.5.1. More recent
+versions of these plugins can be used, but have not been tested by Nutanix.
+...
+  velero:
+    values: |
+      configuration:
+      backupStorageLocation:
+        bucket: ${BUCKET}
+        config:
+          region: <AWS_REGION> # such as us-west-2
+          s3ForcePathStyle: "false"
+          insecureSkipTLSVerify: "false"
+          s3Url: ""
+          # profile should be set to the AWS profile name mentioned in the secret
+          profile: default
+      credentials:
+        # With the proper IAM permissions with access to the S3 bucket,
+        # you can attach the EC2 instances using the IAM Role, OR fill in
+ "existingSecret" OR "secretContents" below.
+        #
+        # Name of a pre-existing secret (if any) in the Velero namespace
+        # that should be used to get IAM account credentials.
+        existingSecret: velero-aws-credentials
+        # The key must be named "cloud", and the value corresponds to the entire
+ content of your IAM credentials file.
+        # For more information, consult the documentation for the velero plugin for
+ AWS at:
+        # [AWS] https://github.com/vmware-tanzu/velero-plugin-for-aws/blob/main/
+README.md
+        secretContents: 
+          # cloud: |
+          #   [default]
+          #   aws_access_key_id=<REDACTED>
+          #   aws_secret_access_key=<REDACTED>
+...
+Nutanix Kubernetes Platform | Cluster Operations Management | 521
+
+--- page 522 ---
+3. Use the modified kommander.yaml configuration to install this Velero configuration.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+4. Check the ConfigMap on the HelmRelease object.
+kubectl get hr -n kommander velero -o jsonpath='{.spec.valuesFrom[?(@.name=="velero-
+overrides")]}'
+The output looks like this if the deployment is successful:
+{"kind":"ConfigMap","name":"velero-overrides"}
+5. Verify that the Velero pod is running.
+kubectl get pods -A --kubeconfig=${CLUSTER_NAME}.conf |grep velero
+Configuring an AWS S3 Bucket as a Backup Storage Location
+Configure an AWS S3 bucket as a backup storage location for Velero.
+Before you begin
+Complete the environment preparation steps described in Velero with AWS: Preparing your Environment
+on page 519.
+About this task
+To configure an AWS S3 bucket as a backup storage location for Velero, follow these steps:
+Procedure
+1. Create and verify the backup storage location:
+a. Create a new backup storage location by specifying a unique name in the velero-overrides
+ConfigMap.
+To create the velero-overrides ConfigMap, see Velero with AWS: Configuring Velero on
+page 519.
+b. Verify that the backup storage location is Available and references the correct S3 bucket:
+kubectl get backupstoragelocations -n ${WORKSPACE_NAMESPACE} -oyaml
+Note:  If the backup storage location is not Available, view any error events: kubectl describe
+backupstoragelocations -n ${WORKSPACE_NAMESPACE}
+2. Test the backup storage location:
+a. Create a test backup:
+velero backup create aws-velero-testbackup -n ${WORKSPACE_NAMESPACE} --kubeconfig=
+${CLUSTER_NAME}.conf --storage-location <aws-backup-location-name> --snapshot-
+volumes=false
+b. View the backup details:
+velero backup describe aws-velero-testbackup
+Nutanix Kubernetes Platform | Cluster Operations Management | 522
+
+--- page 523 ---
+Usage of Velero with Azure Blob Containers
+Configure Velero to use Azure Blob container as storage for backup and restore operations in Nutanix
+Kubernetes® Platform (NKP).
+First, you must create an Azure storage account, generate access credentials, and set up the required
+container. Then, you install Velero with the Azure plug-in, configure environment variables, and validate
+the setup to back up and restore the cluster resources, such as persistent volumes, namespaces, and
+workloads, using Azure Blob Containers.
+Velero with Azure: Preparing your Environment
+Before you begin
+•
+Ensure you have installed Velero (included in the default NKP installation).
+•
+Ensure you have installed the Velero CLI.
+For more information, see Velero Installation Using CLI on page 532.
+•
+Ensure you have installed the Azure CLI.
+For more information, see https://learn.microsoft.com/en-us/cli/azure/install-azure-cli?view=azure-cli-
+latest.
+•
+Ensure you have sufficient access rights to the Azure storage environment and blob container you want
+to use for backup.
+For more information on data authorization and Azure blob storage, see https://learn.microsoft.com/
+en-us/azure/storage/common/authorize-data-access?toc=%2Fazure%2Fstorage%2Fblobs
+%2Ftoc.json&bc=%2Fazure%2Fstorage%2Fblobs%2Fbreadcrumb%2Ftoc.json&tabs=blobs.
+Procedure
+1. Prepare your Environment.
+a. Create a container in Azure blob storage.
+For more information, see https://learn.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-
+blobs-portal#create-a-container.
+b. Set the BLOB_CONTAINER environment variable to the name of the blob container you created to use
+as backup storage.
+export BLOB_CONTAINER=<Azure-blob-container-name>
+c. Set up a storage account and resource group.
+For more information, see https://learn.microsoft.com/en-us/azure/storage/common/storage-account-
+create?tabs=azure-cli#create-a-storage-account-1.
+d. Set the AZURE_BACKUP_RESOURCE_GROUP variable to the name of the resource group you created.
+AZURE_BACKUP_RESOURCE_GROUP=<azure-resource-group-name>
+e. Set the AZURE_STORAGE_ACCOUNT_ID variable to the unique identifier of the storage account you
+want to use for the backup.
+To obtain the ID, get the resource ID for a storage account. For more information, see https://
+learn.microsoft.com/en-us/azure/storage/common/storage-account-get-info?toc=%2Fazure
+%2Fstorage%2Fblobs%2Ftoc.json&bc=%2Fazure%2Fstorage%2Fblobs%2Fbreadcrumb
+%2Ftoc.json&tabs=azure-cli#get-the-resource-id-for-a-storage-account. The output shows the entire
+Nutanix Kubernetes Platform | Cluster Operations Management | 523
+
+--- page 524 ---
+location path of the storage account. You only need the last part, or storage account name, to set the
+variable.
+AZURE_STORAGE_ACCOUNT_ID=<storage-account-name>
+f.
+Set the AZURE_BACKUP_SUBSCRIPTION_ID variable to the unique identifier of the subscription you
+want to use for the backup.
+To obtain the ID and Azure account list , see https://learn.microsoft.com/en-us/cli/azure/account?
+view=azure-cli-latest#az-account-list.
+AZURE_BACKUP_SUBSCRIPTION_ID=<azure-subscription-id>
+g. Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace.
+Replace <workspace_namespace> with the name of the target workspace:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+This can be the kommander namespace for the Management cluster or any other additional
+workspace namespace for Attached or Managed clusters. To list all available workspace
+namespaces, use the kubectl get nkpcluster -A command.
+h. Set the CLUSTER_NAME environment variable. Replace <target_cluster> with the name of the
+cluster where you want to set up Velero.
+export CLUSTER_NAME=<target_cluster>
+2. Prepare your Azure credentials.
+For more details on authorization, choose how to authorize access to blob data in the Azure
+portalhttps://learn.microsoft.com/en-us/azure/storage/blobs/authorize-data-operations-portal.
+a. Create a credentials-velero file with the information required to create a secret. Use the same
+credentials that you employed when creating the cluster.
+These credentials should not be Base64 encoded because Velero will not read them properly.
+Replace the variables in <...> with your environment's information. See your Microsoft Azure
+account to look up the values.
+cat << EOF > ./credentials-velero
+AZURE_SUBSCRIPTION_ID=${AZURE_BACKUP_SUBSCRIPTION_ID}
+AZURE_TENANT_ID=<AZURE_TENANT_ID>
+AZURE_CLIENT_ID=<AZURE_CLIENT_ID>
+AZURE_CLIENT_SECRET=<AZURE_CLIENT_SECRET>
+AZURE_BACKUP_RESOURCE_GROUP=${AZURE_BACKUP_RESOURCE_GROUP}
+AZURE_CLOUD_NAME=AzurePublicCloud
+EOF
+b. Use the credentials-velero file to create the secret.
+kubectl create secret generic -n ${WORKSPACE_NAMESPACE} velero-azure-credentials
+ --from-file=azure=credentials-velero --kubeconfig=${CLUSTER_NAME}.conf
+Velero with Azure: Configuring Velero
+Customize Velero to allow the configuration of a non-default backup location.
+Procedure
+1. Create a ConfigMap to enable Velero to use Azure blob containers as backup storage location.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+Nutanix Kubernetes Platform | Cluster Operations Management | 524
+
+--- page 525 ---
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: velero-overrides
+data:
+  values.yaml: |
+    initContainers:
+      - name: velero-plugin-for-microsoft-azure
+        image: velero/velero-plugin-for-microsoft-azure:v1.5.1
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - mountPath: /target
+            name: plugins
+    credentials:
+      extraSecretRef: velero-azure-credentials
+EOF
+2. Patch the Velero AppDeployment to reference the created ConfigMap with the Velero overrides.
+a. To update Velero in all clusters in a workspace:
+cat << EOF | kubectl -n ${WORKSPACE_NAMESPACE} patch appdeployment velero --
+type="merge" --patch-file=/dev/stdin
+spec:
+  configOverrides:
+    name: velero-overrides
+EOF
+To update Velero for a specific cluster in a workspace and customize an application per cluster, see
+Customizing an Application Per Cluster on page 323.
+3. Check the ConfigMap on the HelmRelease object.
+kubectl get hr -n kommander velero -o jsonpath='{.spec.valuesFrom[?(@.name=="velero-
+overrides")]}'
+The output looks like this if the deployment is successful:
+{"kind":"ConfigMap","name":"velero-overrides"}
+4. Verify that the Velero pod is running.
+kubectl get pods -A --kubeconfig=${CLUSTER_NAME}.conf |grep velero
+Velero with Azure: Configuring Velero By Editing the kommander.yaml File
+This is an alternative configuration path for management or Pro clusters. You can also configure Velero
+by editing the kommander.yaml and rerunning the installation. To follow this alternative configuration path,
+expand the following section:
+About this task
+Configure Velero on the Management Cluster:
+Nutanix Kubernetes Platform | Cluster Operations Management | 525
+
+--- page 526 ---
+Procedure
+1. Refresh the kommander.yaml to add the customization of Velero.
+Warning:  Before running this command, ensure the kommander.yaml is the configuration file you are
+currently using for your environment. Otherwise, your previous configuration will be lost.
+nkp install kommander -o yaml --init > kommander.yaml
+2. Configure NKP to load the plugins and to include the secret in the apps.velero section.
+This process has been tested to work with plugin Azure v1.5.1. More recent versions of these plugins
+can be used, but Nutanix has not tested them.
+...
+  velero:
+    values: |
+      initContainers:
+        - name: velero-plugin-for-microsoft-azure
+          image: velero/velero-plugin-for-microsoft-azure:v1.5.1
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /target
+              name: plugins
+      credentials:
+        extraSecretRef: velero-azure-credentials
+...
+3. Use the modified kommander.yaml configuration to install this Velero configuration.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+4. Check the ConfigMap on the HelmRelease object.
+kubectl get hr -n kommander velero -o jsonpath='{.spec.valuesFrom[?(@.name=="velero-
+overrides")]}'
+The output looks like this if the deployment is successful:
+{"kind":"ConfigMap","name":"velero-overrides"}
+5. Verify that the Velero pod is running.
+kubectl get pods -A --kubeconfig=${CLUSTER_NAME}.conf |grep velero
+Configuring an Azure Blob Container as a Backup Storage Location
+Configure an Azure Blob container as a backup storage location for Velero.
+Before you begin
+Complete the environment preparation steps described in Velero with Azure: Preparing your Environment
+on page 523.
+About this task
+To configure an Azure Blob container as a backup storage location for Velero, follow these steps:
+Nutanix Kubernetes Platform | Cluster Operations Management | 526
+
+--- page 527 ---
+Procedure
+1. Create and verify the backup storage location:
+a. Create a location for the backup that references an existing Azure Blob container:
+velero backup-location create <azure-backup-location-name> -n
+ ${WORKSPACE_NAMESPACE} \
+--provider azure \
+--bucket ${BLOB_CONTAINER} \
+--config resourceGroup=${AZURE_BACKUP_RESOURCE_GROUP},storageAccount=
+${AZURE_STORAGE_ACCOUNT_ID},subscriptionId=${AZURE_BACKUP_SUBSCRIPTION_ID} \
+--credential=velero-azure-credentials=azure --kubeconfig=${CLUSTER_NAME}.conf
+Replace <azure-backup-location-name> with a name for the backup location.
+b. Verify that the backup storage location is Available and references the correct Azure Blob
+container:
+kubectl get backupstoragelocations -n ${WORKSPACE_NAMESPACE} -oyaml
+Note:  If the backup storage location is not Available, view any error events: kubectl describe
+backupstoragelocations -n ${WORKSPACE_NAMESPACE}
+2. Test the backup storage location:
+a. Create a test backup:
+velero backup create azure-velero-testbackup -n ${WORKSPACE_NAMESPACE} \
+--kubeconfig=${CLUSTER_NAME}.conf \
+--storage-location <azure-backup-location-name> \
+--snapshot-volumes=false
+b. View the backup details:
+velero backup describe azure-velero-testbackup
+Note:  If the backup was not created, Velero likely failed to install the plugin. To troubleshoot, do the
+following:
+•
+If the plugin is not installed, run the following command:
+velero plugin add velero/velero-plugin-for-microsoft-azure:v1.5.1 -n
+ ${WORKSPACE_NAMESPACE}
+•
+Verify that the backupstoragelocation is configured correctly:
+kubectl get backupstoragelocations -n ${WORKSPACE_NAMESPACE}
+The output resembles the following:
+NAME                            PHASE       LAST VALIDATED   AGE   DEFAULT
+<azure-backup-location-name>    Available   38s              60m
+If the backup storage location is Available, retry the test backup.
+Usage of Velero with Google Cloud Storage Platform
+Configure Velero to use Google Cloud Storage Platform as storage for its backup operations.
+Follow these procedures to set up Velero with Google Cloud Storage Platform:
+Nutanix Kubernetes Platform | Cluster Operations Management | 527
+
+--- page 528 ---
+Velero with GCP: Preparing your Environment
+Before you begin
+•
+Ensure you have installed Velero (included in the default NKP installation).
+•
+Ensure you have installed the Velero CLI.
+For more information, see Velero Installation Using CLI on page 532.
+•
+You have installed the gcloud CLI.
+For more information, see https://cloud.google.com/sdk/docs/install.
+•
+(Optional) You can install the gsutil CLI or opt to create buckets through the GCS Console.
+For more information, see https://cloud.google.com/storage/docs/gsutil_install.
+•
+Ensure you have created a GCS bucket.
+For more information, see https://cloud.google.com/storage/docs/creating-buckets.
+•
+Ensure you have sufficient access rights to the bucket you want to use for backup.
+For more information on GCP-related access control, see https://cloud.google.com/storage/docs/
+access-control.
+Procedure
+1. Set the environment variables.
+a. Set the BUCKET environment variable to the name of the GCS container you want to use as backup
+storage.
+export BUCKET=<GCS-bucket-name>
+b. Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace.
+Replace <workspace_namespace> with the name of the target workspace:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+This can be the kommander namespace for the Management cluster or any other additional
+workspace namespace for Attached or Managed clusters. To list all available workspace
+namespaces, use the kubectl get nkpcluster -A command.
+c. Set the CLUSTER_NAME environment variable.
+Replace <target_cluster> with the name of the cluster where you want to set up Velero:
+export CLUSTER_NAME=<target_cluster>
+2. Prepare your Google Cloud Platform credentials.
+You can store your backups in Google Cloud Platform/GCS buckets. For more information on setting up
+access to your bucket, see https://cloud.google.com/storage/docs/creating-buckets#required-roles.
+a. Create a credentials-velero file with the information required to create a secret. Use the same
+credentials that you employed
+Replace <service-account-email> with the email address you used to grant permissions
+to your bucket. The address usually follows the format <service-account-user>@<gcp-
+project>.iam.gserviceaccount.com.
+gcloud iam service-accounts keys create credentials-velero \
+Nutanix Kubernetes Platform | Cluster Operations Management | 528
+
+--- page 529 ---
+    --iam-account <service-account-email>
+b. Use the credentials-velero file to create the secret.
+kubectl create secret generic -n ${WORKSPACE_NAMESPACE} velero-gcp-credentials --
+from-file=gcp=credentials-velero --kubeconfig=${CLUSTER_NAME}.conf
+Velero with GCP: Configuring Velero
+Customize Velero to allow the configuration of a non-default backup location.
+Procedure
+1. Create a ConfigMap to enable Velero to use GCS buckets as backup storage location.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: velero-overrides
+data:
+  values.yaml: |
+    initContainers:
+      - name: velero-plugin-for-gcp
+        image: velero/velero-plugin-for-gcp:v1.5.0
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+          - mountPath: /target
+            name: plugins
+    credentials:
+      extraSecretRef: velero-gcp-credentials
+EOF    
+2. Patch the Velero AppDeployment to reference the created ConfigMap with the Velero overrides.
+a. To update Velero in all clusters in a workspace:
+cat << EOF | kubectl -n ${WORKSPACE_NAMESPACE} patch appdeployment velero --
+type="merge" --patch-file=/dev/stdin
+spec:
+  configOverrides:
+    name: velero-overrides
+EOF
+To update Velero for a specific cluster in a workspace and customize an application per cluster, see
+Customizing an Application Per Cluster on page 323.
+3. Check the ConfigMap on the HelmRelease object.
+kubectl get hr -n kommander velero -o jsonpath='{.spec.valuesFrom[?(@.name=="velero-
+overrides")]}'
+The output looks like this if the deployment is successful:
+{"kind":"ConfigMap","name":"velero-overrides"}
+4. Verify that the Velero pod is running.
+kubectl get pods -A --kubeconfig=${CLUSTER_NAME}.conf |grep velero
+Nutanix Kubernetes Platform | Cluster Operations Management | 529
+
+--- page 530 ---
+Velero with GCP: Configuring Velero By Editing the kommander.yaml File
+This is an alternative configuration path for management or Pro clusters. You can also configure Velero by
+editing the kommander.yaml and rerunning the installation.
+About this task
+Configure Velero on the Management Cluster:
+Procedure
+1. Refresh the kommander.yaml to add the customization of Velero.
+Warning:  Before running this command, ensure the kommander.yaml is the configuration file you are
+currently using for your environment. Otherwise, your previous configuration will be lost.
+nkp install kommander -o yaml --init > kommander.yaml
+2. Configure NKP to load the plugins and to include the secret in the apps.velero section.
+This process has been tested to work with plugin GCP v1.5.0. More recent versions of these plugins
+can be used, but Nutanix has not tested them.
+...
+  velero:
+    values: |
+      initContainers:
+        - name: velero-plugin-for-gcp
+          image: velero/velero-plugin-for-gcp:v1.5.0
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - mountPath: /target
+              name: plugins
+      credentials:
+        extraSecretRef: velero-gcp-credentials
+...
+3. Use the modified kommander.yaml configuration to install this Velero configuration.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+4. Check the ConfigMap on the HelmRelease object.
+kubectl get hr -n kommander velero -o jsonpath='{.spec.valuesFrom[?(@.name=="velero-
+overrides")]}'
+The output looks like this if the deployment is successful:
+{"kind":"ConfigMap","name":"velero-overrides"}
+5. Verify that the Velero pod is running.
+kubectl get pods -A --kubeconfig=${CLUSTER_NAME}.conf |grep velero
+Configuring a Google Cloud Storage Bucket as a Backup Storage Location
+Configure a Google Cloud Storage (GCS) bucket as a backup storage location for Velero.
+Nutanix Kubernetes Platform | Cluster Operations Management | 530
+
+--- page 531 ---
+Before you begin
+Complete the environment preparation steps described in Velero with GCP: Preparing your Environment
+on page 528.
+About this task
+To configure a Google Cloud Storage (GCS) bucket as a backup storage location for Velero, follow these
+steps:
+Procedure
+1. Create and verify the backup storage location:
+a. Create a location for the backup that references an existing GCS bucket:
+velero backup-location create <gcp-backup-location-name> -n ${WORKSPACE_NAMESPACE}
+ \
+--provider gcp \
+--bucket $BUCKET \
+--credential=velero-gcp-credentials=gcp
+Replace <gcp-backup-location-name> with a name for the backup location.
+b. Verify that the backup storage location is Available and references the correct GCS bucket:
+kubectl get backupstoragelocations -n ${WORKSPACE_NAMESPACE} -oyaml
+Note:  If the backup storage location is not Available, view any error events: kubectl describe
+backupstoragelocations -n ${WORKSPACE_NAMESPACE}
+2. Test the backup storage location:
+a. Create a test backup:
+velero backup create gcp-velero-testbackup -n ${WORKSPACE_NAMESPACE} \
+--kubeconfig=${CLUSTER_NAME}.conf \
+--storage-location <gcp-backup-location-name> \
+--snapshot-volumes=false
+b. View the backup details:
+velero backup describe gcp-velero-testbackup
+Note:  If the backup was not created, Velero likely failed to install the plugin. To troubleshoot, do the
+following:
+•
+If the plugin is not installed, run the following command:
+velero plugin add velero/velero-plugin-for-gcp:v1.5.0 -n ${WORKSPACE_NAMESPACE}
+•
+Verify that the backupstoragelocation is configured correctly:
+kubectl get backupstoragelocations -n ${WORKSPACE_NAMESPACE}
+The output resembles the following:
+NAME                            PHASE       LAST VALIDATED   AGE   DEFAULT
+<gcp-backup-location-name>      Available   38s              60m
+If the backup storage location is Available, retry the test backup.
+Nutanix Kubernetes Platform | Cluster Operations Management | 531
+
+--- page 532 ---
+Velero Backup
+If you do not want to use Rook Ceph to store Velero backups, you can configure Velero to use the default
+cloud provider storage.
+NKP provides Velero (https://velero.io/) by default, to support backup and restore operations for your
+Kubernetes clusters and persistent volumes.
+Velero Installation Using CLI
+Although installing the Velero command-line interface is optional and independent of deploying the NKP
+cluster, having access to it provides several benefits. For example, you can use it up or, restore a cluster
+on demand or modify certain settings without changing the Velero configuration.
+•
+By default, NKP sets up Velero to use Rook Ceph over TLS using a self-signed certificate.
+•
+As a result, when using certain commands, you might be asked to use the --insecure-skip-tls-
+verify flag.
+Again, the default setup is not suitable for production use cases.
+Install the Velero command-line interface. For more information, see https://velero.io/docs/v1.5/basic-
+install/#install-the-cli.
+In NKP, the Velero platform application is installed in the kommander namespace instead of velero.
+Thus, after installing the CLI, we recommend that you set the Velero CLI namespace config option so that
+subsequent Velero CLI invocations will use the correct namespace:
+velero client config set namespace=kommander
+Backup and Restore Operations in Nutanix Kubernetes® Platform
+Use Velero to back up and restore Kubernetes clusters and persistent volumes in NKP.
+NKP includes Velero by default to support backup and restore operations for your Kubernetes clusters and
+persistent volumes. Velero provides administrative functions to create, schedule, and restore backups of
+production clusters.
+A NKP backup captures the cluster state, application state, and running configurations of stateless and
+stateful workloads, including namespaces, custom resources, and persistent volume data. By default, NKP
+stores backups on Rook Ceph in the same cluster. You can also configure Velero to use an external object
+store such as AWS S3, Azure Blob containers, Google Cloud Storage (GCS) buckets, or Nutanix Objects.
+To protect a cluster, first install and configure Velero for your environment, then create backup schedules or
+run on-demand backups. Use the same Velero installation to restore a cluster from any completed backup.
+Related Topics
+•
+To back up a cluster during a platform expansion from an NKP Pro cluster to an NKP Ultimate Managed
+cluster, see Platform Expansion: Conversion of an NKP Pro Cluster to an NKP Ultimate Managed
+Cluster on page 472.
+•
+To configure a custom backup storage location on a cloud provider, see Configuring an AWS S3 Bucket
+as a Backup Storage Location on page 522, Configuring an Azure Blob Container as a Backup
+Storage Location on page 526, or Configuring a Google Cloud Storage Bucket as a Backup Storage
+Location on page 530.
+Preparing for Backup Operations
+Set environment variables that identify the workspace namespace and target cluster before you modify a
+backup schedule or create an on-demand backup.
+Nutanix Kubernetes Platform | Cluster Operations Management | 532
+
+--- page 533 ---
+About this task
+Before you modify a schedule or create an on-demand backup, set the environment variables that identify
+the workspace namespace and target cluster.
+To set the environment variables for backup operations, follow these steps:
+Procedure
+1. Set the workspace namespace of the cluster to configure for backup:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+Replace <workspace_namespace> with the name of the target workspace. The workspace namespace
+is kommander for the management cluster or any workspace namespace for attached or managed
+clusters.
+2. Set the target cluster for the backup:
+export CLUSTER_NAME=<target_cluster_name>
+Replace <target_cluster_name> with the name of the cluster where you configure the backup.
+Setting a Backup Schedule
+About this task
+By default, NKP configures a regular, automatic backup of the cluster’s state in Velero. The default settings
+do the following:
+Procedure
+1. Create daily backups.
+2. Save the data from all namespaces.
+Warning:  NKP default backups do not support the creation of Volume Snapshots.
+These default settings take effect after the cluster is created. If you install NKP with the default platform
+services deployed, the initial backup starts after the cluster is successfully provisioned and ready for
+use.
+Creating Backup Schedules
+Use the Velero CLI to create an alternate backup schedule.
+Before you begin
+Complete the environment preparation steps described in Preparing for Backup Operations on page 532.
+About this task
+The Velero CLI provides a way to create alternate backup schedules.
+To create an alternate backup schedule, do the following:
+Procedure
+Create a backup schedule that runs at your preferred interval:
+velero create schedule <backup-schedule-name> -n ${WORKSPACE_NAMESPACE} \
+--kubeconfig=${CLUSTER_NAME}.conf \
+Nutanix Kubernetes Platform | Cluster Operations Management | 533
+
+--- page 534 ---
+--snapshot-volumes=false \
+--schedule="@every 8h"
+Replace <backup-schedule-name> with a name for the schedule.
+Changing the Default Backup Service Settings
+Replace the default Velero backup schedule with a custom schedule that matches your operational
+requirements.
+Before you begin
+Complete the environment preparation steps described in Preparing for Backup Operations on page 532.
+About this task
+To customize the default backup schedule, follow these steps.
+Procedure
+1. Verify the currently configured backup schedules for the cluster:
+velero get schedules -n ${WORKSPACE_NAMESPACE} --kubeconfig=${CLUSTER_NAME}.conf
+2. Delete the velero-default schedule:
+velero delete schedule velero-default -n ${WORKSPACE_NAMESPACE} --kubeconfig=
+${CLUSTER_NAME}.conf
+3. Replace the default schedule with your custom settings:
+velero create schedule velero-default -n ${WORKSPACE_NAMESPACE} \
+--kubeconfig=${CLUSTER_NAME}.conf \
+--snapshot-volumes=false \
+--schedule="@every 24h"
+Creating a Backup Schedule for a Specific Namespace
+Create a Velero backup schedule that targets one or more specific namespaces.
+Before you begin
+Complete the environment preparation steps described in Preparing for Backup Operations on page 532.
+About this task
+Creating a backup schedule for specific namespaces is useful for clusters that run multiple apps operated
+by multiple teams.
+To create a backup schedule that targets one or more specific namespaces, do the following:
+Procedure
+Create a backup schedule that includes the target namespaces:
+velero create schedule <backup-schedule-name> -n ${WORKSPACE_NAMESPACE} \
+--kubeconfig=${CLUSTER_NAME}.conf \
+--include-namespaces=kube-system,kube-public,kommander \
+--snapshot-volumes=false \
+--schedule="@every 24h"
+Replace <backup-schedule-name> with a name for the schedule.
+Nutanix Kubernetes Platform | Cluster Operations Management | 534
+
+--- page 535 ---
+The Velero CLI provides many more options worth exploring. For more information about disaster recovery,
+see Disaster recovery. For more information about cluster migration, see Cluster migration.
+Backing Up Schedule on Demand
+About this task
+In some cases, you might find it necessary to create a backup outside the regularly scheduled interval. For
+example, if you are preparing to upgrade any components or modify your cluster configuration, perform a
+backup before taking that action.
+Procedure
+Create a backup by running the following command.
+velero backup create <backup-name> -n ${WORKSPACE_NAMESPACE} \
+--kubeconfig=${CLUSTER_NAME}.conf \
+--snapshot-volumes=false
+Restoring a Cluster from Backup
+Restore the management cluster state from a Velero backup, adjusting the configuration to avoid restore
+errors.
+Before you begin
+Before you restore the cluster state using the Velero command-line interface, verify that the following
+requirements are met:
+•
+The backend storage (Rook Ceph Cluster) is operational.
+•
+The Velero platform service in the cluster is operational.
+•
+The Velero platform service is set to restore-only-mode to prevent backups from running while the
+restore is in progress.
+About this task
+When you restore a backup to the management cluster, adjust the configuration to avoid restore errors.
+Note:  When you restore a backup to a cluster, ensure that the backup was created from the same NKP
+version and from the same cluster. Restoring a backup from an older version or from another cluster results
+in an inoperable cluster.
+To restore a cluster from a backup, follow these steps:
+Procedure
+1. Ensure that the ResourceQuota named one-kommandercluster-per-kommander-workspace is not
+configured on your cluster:
+kubectl -n kommander delete resourcequota one-kommandercluster-per-kommander-
+workspace
+Note:  ResourceQuota is automatically restored from the backup.
+2. If the kommander-validating validation webhook is present, turn it off to ensure that workspaces with
+preconfigured namespaces are restored:
+kubectl patch validatingwebhookconfigurations kommander-validating \
+--type json \
+--patch '[
+Nutanix Kubernetes Platform | Cluster Operations Management | 535
+
+--- page 536 ---
+  {
+    "op": "remove",
+    "path": "/webhooks/0/rules/3/operations/0"
+  }
+]'
+3. (Optional) List the available backups:
+velero backup get
+4. (Optional) Verify successful deployment of Velero:
+helm get values -n kommander velero
+5. Restore the cluster from the selected backup:
+velero restore create --from-backup <backup-name>
+Important:  If you use read-only backup storage, this command restores cluster data on demand from
+the selected snapshot.
+When you use the default Velero setup (without an external object store), describing the restore or
+viewing restore logs might return an error. This error is a known issue when restoring from an object
+store that is not accessible from outside your cluster. You can review the success of the backup restore
+by confirming the phase is Completed and by viewing the logs with the following command:
+kubectl logs -l name=velero -n kommander --tail -1
+6. Verify that the ResourceQuota named one-kommandercluster-per-kommander-workspace is
+restored:
+kubectl -n kommander get resourcequota one-kommandercluster-per-kommander-workspace
+7. Add the CREATE webhook rule operation:
+kubectl patch validatingwebhookconfigurations kommander-validating \
+--type json \
+--patch '[
+  {
+    "op": "add",
+    "path": "/webhooks/0/rules/3/operations/0",
+    "value": "CREATE"
+  }
+]'
+Backup Service Diagnostics
+You can check whether the Velero service is currently running on your cluster through the Kubernetes
+dashboard (accessible through the NKP UI on the Management Cluster), or by running the following
+kubectl command:
+kubectl get all -A | grep velero
+If the Velero platform service application is currently running, you can generate diagnostic information
+about Velero backup and restore operations. For example, you can run the following commands to retrieve,
+back up, and restore information that you can use to assess the overall health of Velero in your cluster:
+velero get schedules
+velero get backups
+velero get restores
+velero get backup-locations
+velero get snapshot-locations
+Nutanix Kubernetes Platform | Cluster Operations Management | 536
+
+--- page 537 ---
+Prism Central Backup and Recovery (PCBR) for NKP
+Prism Central Backup and Recovery (PCBR) protects NKP management dependencies by restoring Prism
+Central entities, configurations, and cluster associations after a disaster recovery event.
+Prism Central Backup and Recovery (PCBR) is a localized recovery solution that ensures the availability of
+your management plane by replicating Prism Central (PC) data to a recovery site, or another cluster in the
+same site. When your NKP environment is managed by a Prism Central instance protected by PCBR, the
+disaster recovery (DR) process restores the PC entity, its configurations, and the underlying associations
+with managed AOS clusters. As NKP relies on Prism Central for infrastructure orchestration, the stability
+of these connections is critical during a failover. While basic NKP functionality remains intact after a PCBR
+event, you must perform certain steps to re-establish NKP OS image visibility and ensure consistent
+cluster metadata. If the recovery is with the same IP address, the NKP cluster is able to re-establish the
+connection to the PC once it recovers, but image and identity checks are still required. If the recovery is
+with a new IP address, the NKP cluster must be updated to connect with the new PC IP address.
+Nutanix recommends you to adopt a strategy that begins with Continuous Backup, and integrates Point-in-
+Time Backup for comprehensive protection.
+For more information on PCBR, see Prism Central Backup, Restore, and Migration.
+Before you begin
+•
+You must have a Prism Central instance that manages at least one AOS cluster, with PCBR enabled.
+•
+Ensure valid NKP OS images are uploaded and available on the Prism Central or AOS cluster before
+enabling Prism Central backups for the NKP-hosting environment.
+•
+Ensure the Prism Central credentials used by NKP remain valid and have the same permissions after
+recovery.
+Note:
+If the admin credentials are used, it will be factory reset during the recovery and you must change
+it to match the previous password to ensure the NKP Cluster can re-establish the connection with
+the PC. If a custom user credentials are used, the recovery process will restore the custom user’s
+credentials. We recommend you to use custom credentials, rather than admin credentials.
+Prism Central Backup and Recovery - with the Same IP Address
+After Prism Central is restored with its original IP address, validate NKP image visibility, restore Prism
+Central identity, and confirm credential continuity.
+About this task
+In this scenario, the PC instance is restored using its original IP and administrative credentials, after
+a PCBR event. While the connection endpoints for NKP remain technically valid, you must ensure the
+credentials match the pre-recovery state and re-import all NKP OS images to the restored PC, if not
+present already. Additionally, the Prism Central Cluster name must be manually corrected to prevent
+inconsistent region labeling on new Kubernetes nodes.
+Follow these steps, post restoration of the PC instance:
+Nutanix Kubernetes Platform | Cluster Operations Management | 537
+
+--- page 538 ---
+Procedure
+1. Re-import NKP OS images in Prism Central.
+1. Log in to the Prism Central UI.
+2. Go to Images and select Import Image.
+3. Import all required Rocky out-of-the-box and custom NKP images.
+For custom images, use the same image names that were used before the recovery event. It is
+recommended to store the images externally in order to protect them and utilize it in such scenarios.
+2. (Optional) Restore the Prism Central instance name to the pre-disaster value.
+After recovery, the Prism Central cluster name can revert to an unnamed or default value. Restoring the
+original name ensures that new Kubernetes nodes receive the expected region labels.
+3. Verify credentials used by NKP integrations.
+If the admin account is used, set the password to the exact pre-recovery value so existing CAPX, CCM,
+and CSI secrets remain valid.
+Prism Central Backup and Recovery - with a Different IP Address
+When Prism Central is restored with a new IP address, update NKP infrastructure and service endpoint
+references so management and workload clusters can continue to communicate with Prism Central.
+About this task
+If the PC instance is recreated with a new IP Address and the NKP cluster is managed by a different local
+super-admin user, additional reconfiguration is mandatory. Beyond re-importing images and renaming
+the PC instance, you must manually update the PC endpoint IP across all NKP infrastructure providers,
+cluster resources, CCM, and CSI configurations. This ensures that the management and workload clusters
+continue to communicate with the new Prism Central endpoint after recovery.
+Procedure
+1. Re-import NKP OS images in Prism Central.
+1. Log in to the Prism Central UI.
+2. Go to Images and select Import Image.
+3. Import all required NKP images.
+2. Update the management cluster configuration with the new Prism Central IP address.
+Update the Cluster resource details with the new IP address in the management cluster to ensure
+CAPX can manage node lifecycle operations with the new endpoint.
+3. Update CCM and CSI secrets with the new Prism Central endpoint information.
+Cloud Controller Manager (CCM) and Container Storage Interface (CSI) rely on stored endpoint and
+credential data for networking and storage operations. Update these secrets with the new IP address so
+workload and management clusters can continue normal operation.
+NKP Management Cluster Backup and Restore
+Back up and recover an NKP Management Cluster to preserve management-plane resources and restore
+services after a disaster.
+NKP Management Cluster Backup and Disaster Recovery (DR) provides a streamlined, platform-
+independent solution for safeguarding your core Kubernetes infrastructure. By leveraging the out-of-the-
+box (OOTB) Velero, Ceph and Nutanix Object, bundled within the Nutanix Kubernetes Platform (NKP),
+efficiently back up and restore critical cluster states. This feature supports recovery of the Management
+Nutanix Kubernetes Platform | Cluster Operations Management | 538
+
+--- page 539 ---
+Cluster to ensure the continuity of Cluster Lifecycle and Workload Management for all associated Managed
+Clusters.
+You can use one of the following backup storage patterns:
+•
+Internal backup storage location: A secondary licensed NKP Management Cluster runs in standby
+mode and stores backups in its internal rook-ceph object store. The standby cluster must be reachable
+from the primary cluster.
+•
+External backup storage location: The primary NKP Management Cluster stores backups in an
+external S3-compatible object store, such as Nutanix Objects or Amazon S3. In this model, a standby
+secondary cluster is not required when you create backups.
+Important:  Management Cluster backup does not include application volume backups. Use a separate
+workload backup procedure for stateful application data.
+Backing Up an NKP Management Cluster
+Create a Velero backup of the primary NKP Management Cluster by using either an internal standby
+backup storage location or an external S3-compatible backup storage location.
+Before you begin
+Ensure that you have access to the primary NKP Management Cluster kubeconfig and a backup
+storage location. For internal backup storage, you must also have a reachable standby secondary NKP
+Management Cluster.
+About this task
+In a shell session with cluster access tools installed, follow these steps to create a Management Cluster
+backup:
+Procedure
+1. (Optional) This step is to be performed only if you are relying on internal Rook-Ceph for object store
+needs, or you have not Configured Velero with Nutanix Objects or another S3 compatible external
+object store to store the Velero backup.)
+Use one of the following options:
+•
+Use an internal Backup Storage Location (BSL) that points to the standby cluster bucket.
+•
+Create an external backup storage location for Nutanix Objects or another S3-compatible store.
+»
+Option 1: Use NKP Internal BSL
+Create an External BackupStorageLocation (BSL) in the primary (source) NKP Management Cluster
+that points to the dkp-velero bucket in the secondary (target) NKP Management Cluster:
+Set the necessary environment variables:
+export SOURCE_KUBECONFIG=<path-to-source/primary-cluster-kubeconfig>
+export TARGET_KUBECONFIG=<path-to-target/secondary-cluster-kubeconfig>
+export CEPH_BUCKET=dkp-velero 
+export AWS_HOST=$(k get --kubeconfig ${TARGET_KUBECONFIG} svc -n kommander
+ kommander-traefik -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+export AWS_PORT=8085
+export S3_REGION=dkp-object-store
+export AWS_PROFILE=target-ceph
+export BUCKET_NAME=$(kubectl --kubeconfig ${TARGET_KUBECONFIG} -n kommander get cm
+ ${CEPH_BUCKET} -o jsonpath='{.data.BUCKET_NAME}')
+Nutanix Kubernetes Platform | Cluster Operations Management | 539
+
+--- page 540 ---
+export BACKUP_STORAGE_LOCATION=target-ceph
+export REMOTE_STORE_SECRET=target-ceph-credentials
+Extract credentials from the secondary (target) cluster and apply them as a remote Secret on the
+primary (source) cluster:
+kubectl --kubeconfig ${SOURCE_KUBECONFIG} apply -f - <<EOF 
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${REMOTE_STORE_SECRET}
+  namespace: kommander  
+type: Opaque
+stringData:
+  aws: |
+    [${AWS_PROFILE}]
+    aws_access_key_id=$(kubectl --kubeconfig ${TARGET_KUBECONFIG} -n kommander get
+ secret ${CEPH_BUCKET} -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
+    aws_secret_access_key=$(kubectl --kubeconfig ${TARGET_KUBECONFIG} -n kommander
+ get secret ${CEPH_BUCKET} -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --
+decode)
+Apply the BSL resource on the primary cluster:
+kubectl --kubeconfig ${SOURCE_KUBECONFIG} apply -f - <<EOF 
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: ${BACKUP_STORAGE_LOCATION}
+  namespace: kommander
+spec:
+  accessMode: ReadWrite
+  config:
+    insecureSkipTLSVerify: "true"
+    region: ${S3_REGION}
+    s3ForcePathStyle: "true"
+    s3Url: https://${AWS_HOST}:${AWS_PORT}
+    profile: ${AWS_PROFILE}
+  default: false
+  objectStorage:
+    bucket: ${CEPH_BUCKET}
+  credential:
+    key: aws
+    name: target-ceph-credentials
+  provider: aws
+»
+Option 2: Create External BSL if one does not already exit
+The BackupStorageLocation manifest defined above is identical to creating an external BSL. If one
+does not exist and you wish to use it for storing the backup of the primary NKP Management Cluster.
+Simply swap the environment variables with the connection details of an external S3 compatible
+object store like Nutanix Objects or AWS S3. The following example is using Nutanix Objects, you
+must change it to AWS connection details if you are using AWS S3. The parameters remain the
+same.
+export WORKSPACE_NAMESPACE=kommander
+export S3_REGION=us-east-1
+export NUTANIX_OBJECTS_PUBLIC_IP=<nutanix-objects-public-ip-or-hostname>
+export NUTANIX_OBJECTS_ACCESS_KEY_ID=<nutanix-objects-access-key-id>
+export NUTANIX_OBJECTS_SECRET_ACCESS_KEY=<nutanix-objects-access-key-secret>
+export AWS_PROFILE=<aws-profile>
+export REMOTE_STORE_SECRET=<k8s-secret-to-store-keys>
+Nutanix Kubernetes Platform | Cluster Operations Management | 540
+
+--- page 541 ---
+export BUCKET=<existing-bucket-in-nutanix-objects>
+export BACKUP_STORAGE_LOCATION=<bsl-to-create>
+kubectl apply -f - << EOF
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${REMOTE_STORE_SECRET}
+  namespace: ${WORKSPACE_NAMESPACE}
+type: Opaque
+stringData:
+  aws: |
+    [${AWS_PROFILE}]
+    aws_access_key_id = ${NUTANIX_OBJECTS_ACCESS_KEY_ID}
+    aws_secret_access_key = ${NUTANIX_OBJECTS_SECRET_ACCESS_KEY}
+---
+apiVersion: velero.io/v1
+kind: BackupStorageLocation
+metadata:
+  name: ${BACKUP_STORAGE_LOCATION}
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  accessMode: ReadWrite
+  config:
+    checksumAlgorithm: ""
+    insecureSkipTLSVerify: "true" # set to false if using caCert
+    region: us-east-1
+    s3ForcePathStyle: "true"
+    s3Url: https://${NUTANIX_OBJECTS_PUBLIC_IP}
+    profile: ${AWS_PROFILE}
+  objectStorage:
+    bucket: ${BUCKET}
+    #caCert: <base64 encoded SSL certificate> # Optional. The base64 encoded PEM
+ certificate
+  provider: aws
+  credential:
+    key: aws
+    name: ${REMOTE_STORE_SECRET}
+EOF
+2. Backup the primary cluster
+To ensure consistent state, all managed clusters must be paused before initiating the backup.
+Note:  Ensure SOURCE_KUBECONFIG environment variable is set to the primary cluster’s kubeconfig
+even if Step 1 was skipped.
+for NS in $(kubectl --kubeconfig ${SOURCE_KUBECONFIG} get clusters -A -o custom-
+columns='Namespace:.metadata.namespace' --no-headers)
+do
+  for CLUSTER in $(kubectl --kubeconfig ${SOURCE_KUBECONFIG} get clusters -n ${NS} -o
+ name)
+  do
+    kubectl --kubeconfig ${SOURCE_KUBECONFIG} patch -n ${NS} ${CLUSTER} --type merge
+ -p '{"spec":{"paused": true}}'
+  done
+done
+3. Execute the backup
+export BACKUP_NAME=<backup-name>
+Nutanix Kubernetes Platform | Cluster Operations Management | 541
+
+--- page 542 ---
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup create ${BACKUP_NAME} \
+  -n kommander \
+  --storage-location ${BACKUP_STORAGE_LOCATION} \
+  --snapshot-volumes=false -w
+The BACKUP_STORAGE_LOCATION will point to the BSL configured in step 1, or an existing external BSL.
+Note:  The Management Cluster backup procedure does not include volume backups. You must not rely
+on this procedure for application-level backups.
+4. Run the following command to verify the backup:
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup get -n kommander ${BACKUP_NAME}
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup describe -n kommander ${BACKUP_NAME}
+ --insecure-skip-tls-verify
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup logs -n kommander ${BACKUP_NAME} --
+insecure-skip-tls-verify
+5. Resume clusters in all namespaces:
+for NS in $(kubectl --kubeconfig ${SOURCE_KUBECONFIG} get clusters -A -o custom-
+columns='Namespace:.metadata.namespace' --no-headers); do
+  for CLUSTER in $(kubectl --kubeconfig ${SOURCE_KUBECONFIG} get clusters -n ${NS} -o
+ name)
+  do
+    kubectl --kubeconfig ${SOURCE_KUBECONFIG} patch -n ${NS} ${CLUSTER} --type merge
+ -p '{"spec":{"paused": false}}'
+  done
+done
+Recovering an NKP Management Cluster After a Disaster
+Restore Management Cluster resources to a target NKP Management Cluster in the required order after a
+disaster in the primary cluster.
+Before you begin
+Ensure that you have a backup created from the primary cluster and access to the target NKP
+Management Cluster kubeconfig. For more information, see Backing Up an NKP Management Cluster on
+page 539.
+About this task
+Simulate a disaster scenario by shutting down the primary cluster that was backed up. Restore the
+secondary cluster in the order listed below to ensure the desired outcome is achieved.
+Note:  If you do not already have a standby secondary Management Cluster and backups are in an external
+S3-compatible store, deploy the target Management Cluster before you restore.
+Procedure
+1.
+Restore workspaces on the target cluster:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-ws \
+  --include-resources workspaces \
+  --from-backup ${BACKUP_NAME} -w
+Note:  If a workspace uses a dynamically generated namespace, create the workspace manually with
+the original spec.namespaceName value from the source cluster to avoid a mismatch.
+Nutanix Kubernetes Platform | Cluster Operations Management | 542
+
+--- page 543 ---
+2.
+Restore projects on the target cluster:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-pr \
+  --include-resources workspaces,projects \
+  --from-backup ${BACKUP_NAME} -w
+3.
+Restore custom application deployment config maps:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-cm \
+  --include-resources configmaps \
+  --from-backup ${BACKUP_NAME} \
+  -l kommander.d2iq.io/managed-by-kind=AppDeployment -w
+4.
+Restore RBAC and additional Management Cluster resources:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-misc \
+  --include-resources
+ appdeployments,kommanderprojectroles,kommanderworkspaceroles,projectroles,virtualgroups,virtua
+ \
+  --from-backup ${BACKUP_NAME} -w
+5.
+Restore KommanderCluster resources:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-kc \
+  --include-resources kommanderclusters \
+  --from-backup ${BACKUP_NAME} -w
+6.
+Restore CAPI secrets that use the cluster-name label, such as kubeadmconfig:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-secrets \
+  --include-resources secrets \
+  --exclude-namespaces default \
+  --from-backup ${BACKUP_NAME} \
+  -l cluster.x-k8s.io/cluster-name -w
+7.
+Restore CAPI provider secrets that use the provider label, such as PC-credentials:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-provider-secrets \
+  --include-resources secrets \
+  --exclude-namespaces default \
+  --from-backup ${BACKUP_NAME} \
+  -l cluster.x-k8s.io/provider -w
+8.
+Restore provider connection, such as the provider connection:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-cap-secrets \
+  --include-resources secrets \
+  --include-namespaces $(kubectl --kubeconfig ${TARGET_KUBECONFIG} get ns | grep
+ cap | awk '{print $1}' | tr "\n" ",") \
+  --from-backup ${BACKUP_NAME} -w
+9.
+Restore CAPI resources:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander
+ ${BACKUP_NAME}-capi \
+Nutanix Kubernetes Platform | Cluster Operations Management | 543
+
+--- page 544 ---
+  --include-resources $(kubectl --kubeconfig ${TARGET_KUBECONFIG} get crd
+ | grep cluster.x | awk '{print $1}' | tr '\n' ',')$(kubectl --kubeconfig
+ ${TARGET_KUBECONFIG} get crd | grep preprovisioned | awk '{print $1}' | tr '\n'
+ ',') \
+  --exclude-namespaces default \
+  --from-backup ${BACKUP_NAME} -w
+Note:  URL redirections and pointers to the disaster recovery Management Cluster become available
+only after this process completes.
+10. Resume paused managed clusters in all namespaces on the target cluster.
+for NS in $(kubectl --kubeconfig ${TARGET_KUBECONFIG} get clusters -A -o custom-
+columns='Namespace:.metadata.namespace' --no-headers)
+do
+  for CLUSTER in $(kubectl --kubeconfig ${TARGET_KUBECONFIG} get clusters -n ${NS}
+ -o name)
+  do
+    kubectl --kubeconfig ${TARGET_KUBECONFIG} patch -n ${NS} ${CLUSTER} --type
+ merge -p '{"spec":{"paused": false}}'
+  done
+done
+What to do next
+To validate recovery, sign in to the target NKP dashboard and verify workspaces, projects, applications,
+RBAC policies, and nodes in the Kubernetes / Compute Resources / Node (Pods) dashboard.
+Backing Up and Restoring a Prometheus Stateful Workload
+Use Velero with Restic to back up and restore Prometheus persistent data between NKP clusters.
+Before you begin
+Ensure that Velero with Restic integration is deployed on both source and target clusters. If it is not
+enabled, add deployNodeAgent: true to your Velero deployment overrides.
+About this task
+Efficiently back up and restore stateful workloads, such as Prometheus, across NKP clusters. This
+procedure configures Velero to leverage the Restic backend on a secondary (target) cluster, ensuring the
+secure storage and recovery of critical persistent volume data.
+Follow these steps to back up and restore Prometheus data:
+Procedure
+1. Set environment variables for source and target kubeconfig files and for the Ceph bucket:
+export SOURCE_KUBECONFIG=path-to-source-cluster-kubeconfig
+export TARGET_KUBECONFIG=path-to-target-cluster-kubeconfig
+export CEPH_BUCKET=name-of-your-ceph-bucket
+2. Update the Velero secret with source and target object store credentials:
+Note:  Ensure the profile name matches the profile set in the backup storage location. Use default for
+the local profile.
+kubectl --kubeconfig ${SOURCE_KUBECONFIG} apply -f - <<EOF 
+apiVersion: v1
+kind: Secret
+metadata:
+Nutanix Kubernetes Platform | Cluster Operations Management | 544
+
+--- page 545 ---
+  name: velero
+  namespace: kommander  
+type: Opaque
+stringData:
+  cloud: |
+    [default]
+    aws_access_key_id = $(kubectl --kubeconfig ${SOURCE_KUBECONFIG} -n kommander get
+ secret ${CEPH_BUCKET} -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
+    aws_secret_access_key = $(kubectl --kubeconfig ${SOURCE_KUBECONFIG} -n kommander
+ get secret ${CEPH_BUCKET} -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --
+decode)
+    [target-ceph]
+    aws_access_key_id = $(kubectl --kubeconfig ${TARGET_KUBECONFIG} -n kommander get
+ secret ${CEPH_BUCKET} -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 --decode)
+    aws_secret_access_key = $(kubectl --kubeconfig ${TARGET_KUBECONFIG} -n kommander
+ get secret ${CEPH_BUCKET} -o jsonpath='{.data.AWS_SECRET_ACCESS_KEY}' | base64 --
+decode)
+EOF
+3. Remove static envFrom references from Velero and node-agent workloads:
+kubectl patch deploy velero -n kommander --type=json -p='[{"op": "remove", "path": "/
+spec/template/spec/containers/0/envFrom"}]'
+ 
+kubectl patch ds node-agent -n kommander --type=json -p='[{"op": "remove", "path": "/
+spec/template/spec/containers/0/envFrom"}]'
+4. Annotate the Prometheus pod with the volume name that Velero must back up:
+Note:  Use the pod volume name, for example db, and not the persistent volume claim (PVC) name.
+kubectl --kubeconfig ${SOURCE_KUBECONFIG} annotate pod -n kommander prometheus-kube-
+prometheus-stack-prometheus-0 backup.velero.io/backup-volumes=db
+5. Create the Prometheus backup in the remote backup storage location:
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup create restic-prometheus \
+  --include-namespaces=kommander \
+  --snapshot-volumes=false \
+  --namespace kommander \
+  --selector=app.kubernetes.io/name=prometheus \
+  --storage-location target-ceph -w
+To verify that the backup is available before you start restore actions, run:
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup describe restic-prometheus -n
+ kommander --details
+velero --kubeconfig ${SOURCE_KUBECONFIG} backup logs restic-prometheus -n kommander
+Nutanix Kubernetes Platform | Cluster Operations Management | 545

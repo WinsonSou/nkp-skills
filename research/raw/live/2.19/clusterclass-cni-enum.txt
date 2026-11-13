@@ -1,0 +1,5 @@
+# kubectl get clusterclass <name> -n kommander -o json -> addons.cni.provider enum (parent re-check, read-only)
+nkp-nutanix-v2.19.0     ['Calico', 'Cilium', 'Flow']   desc: NutanixCNI defines CNI configuration for Nutanix clusters, which additionally support Flow.
+nkp-eks-v2.19.0         ['Calico', 'Cilium']           desc: CNI defines CNI provider configuration.
+nkp-aws-v2.19.0         ['Calico', 'Cilium']           desc: CNI defines CNI provider configuration.
+nkp-host-agent-v2.19.0  ['Calico', 'Cilium']           desc: CNI defines CNI provider configuration.

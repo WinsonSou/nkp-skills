@@ -1,0 +1,1527 @@
+
+--- page 871 ---
+example                            5                     5                  
+ v<kubernetes-version>                          
+eks-example-md-0                   4                     4                  
+ v<kubernetes-version>
+EKS: Deleting EKS Node Pools
+Task for deleting node pools in a cluster.
+About this task
+Deleting a node pool deletes the Kubernetes nodes and the underlying infrastructure. All nodes are drained
+before deletion, and the pods running on those nodes are rescheduled.
+Procedure
+1. To delete a node pool from a managed cluster using the command.
+nkp delete nodepool ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME}
+The expected output will be similar to the following example, indicating the node pool is being deleted.
+# Deleting default/example nodepool resources
+2. Deleting an invalid node pool results in output similar to this example.
+nkp delete nodepool ${CLUSTER_NAME}-md-invalid --cluster-name=${CLUSTER_NAME}
+MachineDeployments or MachinePools.infrastructure.cluster.x-k8s.io "no
+ MachineDeployments
+ or MachinePools found for cluster eks-example" not found
+Azure Infrastructure
+Configuration types for installing NKP on Azure Infrastructure.
+For an environment on the Azure Infrastructure, install options based on those environment variables are
+provided for you in this location.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+Otherwise, proceed to the Azure Prerequisites and Permissions topic to begin your custom installation.
+Azure Prerequisites
+Before beginning a Nutanix Kubernetes Platform (NKP) installation, verify that you have the following:
+Prepare your machine and environment to run NKP.
+NKP Prerequisites
+Before you begin using NKP you must have:
+•
+An x86_64-based Linux or macOS machine with a supported operating system version.
+•
+Download the NKP binary for Linux or macOS. To check which version of NKP you installed for
+compatibility reasons, run the NKP version -h command.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 871
+
+--- page 872 ---
+•
+A Container engine/runtime installed is required to install NKP and bootstrap:
+•
+Docker container engine version 27.4.0 installed for Linux or MacOS. For more information, see
+https://docs.docker.com/get-docker/.
+•
+Podman Version 4.0 or later for Linux. For more information, see https://podman.io/getting-
+started/installation. For host requirements, see https://kind.sigs.k8s.io/docs/user/rootless/#host-
+requirements.
+•
+kubectl for interacting with the running cluster.
+•
+Install the Azure CLI
+•
+A valid Azure account with credentials configured.
+•
+Create a custom Azure image using Nutanix Image Builder on page 55.
+Note:  On macOS, Docker runs in a virtual machine. Configure this virtual machine with at least 8GB of
+memory.
+Control Plane Nodes
+You must have at least three control plane nodes. Each control plane node needs to have at least the
+following:
+•
+4 cores
+•
+16 GiB memory
+•
+Approximately 80 GiB of free space for the volume used for /var/lib/kubelet and /var/lib/
+containerd.
+•
+Disk usage must be below 85% on the root volume.
+NKP on Azure defaults to deploying an Standard_D4s_v3 virtual machine with a 128 GiB volume for the
+OS and an 80GiB volume for etcd storage, which meets the above requirements.
+Worker Nodes
+You must have at least four worker nodes. The specific number of worker nodes required for your
+environment can vary depending on the cluster workload and size of the nodes. Each worker node needs
+to have at least the following:
+•
+8 cores
+•
+32 GiB memory
+•
+Around 80 GiB of free space for the volume used for /var/lib/kubelet and /var/lib/containerd.
+•
+Disk usage must be below 85% on the root volume.
+NKP on Azure defaults to deploying a Standard_D4s_v3 instance with an 80GiB root volume for the OS,
+which meets the above requirements.
+Azure Prerequisites
+In Azure, application registration, application objects, and service principals in Azure Active Directory
+(Azure AD) are used for access. An application must be registered with an Azure AD tenant to delegate
+identity and access management functions to Azure AD. An Azure AD application is defined by its only
+application object, which resides in the Azure AD. To access resources secured by an Azure AD tenant,
+a security principal must represent the entity that requires access. This requirement is true for both users
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 872
+
+--- page 873 ---
+(user principal) and applications (service principal). Therefore, a service principal is a prerequisite, and the
+next step explains it.
+Azure: Creating a Service Principal
+An Azure service principal is an identity created for use with applications, hosted services, and other
+automated tools to access Azure resources.
+About this task
+Service principals provide access to Azure resources with your subscription level. The access is restricted
+by the roles assigned to the service principal. For more information, see https://learn.microsoft.com/
+en-us/azure/active-directory/develop/app-objects-and-service-principals?tabs=browser and https://
+learn.microsoft.com/en-us/azure/databricks/security/auth-authz/access-control/service-principal-acl.
+Note:  If you have already set a service principal, then the environment variables needed by KIB
+([AZURE_CLIENT_SECRET, AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID] ) are
+set and do not need repeated if you are still working in the same window.
+They are listed below if you have not executed the Azure Service Principal steps.
+Procedure
+1. Sign in to Azure.
+az login
+Output
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "id": "b1234567-abcd-11a1-a0a0-1234a5678b90",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "Mesosphere Developer Subscription",
+    "state": "Enabled",
+    "tenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "user": {
+      "name": "user@azuremesosphere.onmicrosoft.com",
+      "type": "user"
+    }
+  }
+]
+2. Create an Azure Service Principal (SP).
+This command will rotate the password if an SP with the name exists.
+az ad sp create-for-rbac --role contributor --name "$(whoami)-konvoy" --scopes=/
+subscriptions/$(az account show --query id -o tsv) --query "{ client_id: appId,
+ client_secret: password, tenant_id: tenant }"
+{
+  "client_id": "7654321a-1a23-567b-b789-0987b6543a21",
+  "client_secret": "Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C",
+  "tenant_id": "a1234567-b132-1234-1a11-1234a5678b90"
+}
+3. Set the AZURE_CLIENT_SECRET environment variable.
+export AZURE_CLIENT_SECRET="<azure_client_secret>" #
+ Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 873
+
+--- page 874 ---
+export AZURE_CLIENT_ID="<client_id>"               # 7654321a-1a23-567b-
+b789-0987b6543a21
+export AZURE_TENANT_ID="<tenant_id>"               # a1234567-
+b132-1234-1a11-1234a5678b90
+export AZURE_SUBSCRIPTION_ID="<subscription_id>"   # b1234567-abcd-11a1-
+a0a0-1234a5678b90
+4. Ensure you have an override file to configure specific attributes of your Azure image. Otherwise, edit the
+YAML file for your OS directly. For more information, see https://github.com/mesosphere/konvoy-image-
+builder/tree/7447074a6d910e71ad2e61fc4a12820d073ae5ae/images/azure.
+Azure: Using Nutanix Image Builder
+Learn how to build a custom image with NKP.
+About this task
+Note:  The default Azure image is not recommended for use in production. We suggest using NIB for Azure
+to build the image to take advantage of enhanced cluster operations.
+For more information regarding using the image in creating clusters, see Azure: Creating a
+Cluster on page 884.
+Procedure
+For detailed steps, see Building a Custom Image with Azure on page 65.
+Azure Cluster Creation Customization Choices
+Below are two methods to customize your cluster during creation. If none of these choices apply, proceed
+to the next section.
+•
+Azure: Non-air-gapped Install on page 881
+Azure Section Topics
+When creating clusters, many options are available such as those listed in this section of the
+documentation. Familiarize yourself with the flags required to apply these customizations during cluster
+creation.
+•
+Azure Customizing CAPI Clusters: Familiarize yourself with Cluster API before editing the cluster
+objects because edits can prevent the cluster from deploying successfully. For more information, see
+CAPI Concepts and Terms on page 23.
+•
+Azure Registry Mirrors: Configure your cluster to use an existing local registry when attempting to
+pull images by adding the flag(s) to the nkp create cluster command to pull images from your local
+registry. For more information, see Using a Registry Mirror on page 992.
+•
+Azure Load the Registry: Because air-gapped environments do not have direct access to the Internet,
+you must download, extract and load several required images to your local container registry, before
+installing NKP.
+•
+Azure HTTP Proxy: When creating a NKP cluster in environments that use an HTTP/HTTPS proxy,
+you must provide proxy details. The proxy values are strings that list a set of proxy servers, URLs, or
+wildcard addresses that is specific to your environment.
+•
+Azure Output Directory YAML: You can create individual files with different smaller manifests for ease
+in editing using the --output-directory flag used with --output=json|yaml. You create the directory
+of where to output resources to files.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 874
+
+--- page 875 ---
+•
+Azure Custom DNS: To use a custom Domain Name Servers (DNS) on Azure, you need a DNS name
+in your control. Once the resource group has been created, you can create your hosted zone with the
+command below:
+•
+Azure Marketplace: To allow NKP to create a cluster with Marketplace based images such as for
+Rocky Linux, you must specify them with flags.
+•
+Azure: Customizing CAPI Clusters
+Familiarize yourself with Cluster API before editing the cluster objects because edits can prevent the
+cluster from deploying successfully.
+The result of this command will allow such edits:
+dkp create cluster azure \
+    --cluster-name=${CLUSTER_NAME} \
+    --dry-run \
+    --output=yaml \
+  > ${CLUSTER_NAME}.yaml
+To edit the YAML, you need to understand the CAPI components to avoid breaking the cluster.
+Azure: Registry Mirrors
+Configure your cluster to use an existing local registry (Registry Mirror Tools on page 990) when
+attempting to pull images by adding the flag(s) to the nkp create cluster command to pull images from
+your local registry.
+Kubernetes does not natively provide a registry for hosting the container images you will use to run the
+applications you want to deploy on Kubernetes. Instead, Kubernetes requires you to use an external
+solution to store and share container images. A variety of Kubernetes-compatible registry options are
+compatible with NKP.
+How the Registry Mirror Works
+The first time you request an image from your local registry mirror, it pulls the image from the public registry
+(such as Docker) and stores it locally before handing it back to you. On subsequent requests, the local
+registry mirror can serve the image from its storage.
+Air-gapped vs. Non-air-gapped Environments
+In a non-air-gapped environment, you can access the Internet. You retrieve artifacts from specialized
+repositories dedicated to them, such as Docker images contained in DockerHub and Helm Charts that
+come from a dedicated Helm Chart repository. You can also create your local repository to hold the
+downloaded container images needed or any custom images you’ve created with the Nutanix Image
+Builder on page 55 tool.
+In an air-gapped environment, you need a local repository to store Helm charts, Docker images, and
+other artifacts. Private registries provide security and privacy in enterprise container image storage,
+whether hosted remotely or on-premises locally in an air-gapped environment. NKP in an air-gapped
+environment requires a local container registry of trusted images to enable production-level Kubernetes
+cluster management. However, a local registry is also an option in a non-air-gapped environment for speed
+and security.
+If you want to use images from this local registry to deploy applications inside your Kubernetes cluster,
+you’ll need to set up a secret for a private registry. The secret contains your login data, which Kubernetes
+needs to connect to your private repository.
+Set the environment variable with your registry information.
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 875
+
+--- page 876 ---
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+export REGISTRY_CA=<path to the cacert file on the bastion>
+REGISTRY_URL: the address of an existing local registry accessible in the VPC that the new cluster nodes
+will be configured to use a mirror registry when pulling images.
+Other local registries might use the options below.
+•
+JFrog - REGISTRY_CA: (optional) the path on the Creating a Bastion Host on page 679 to the registry
+CA. This value is only needed if the registry uses a self-signed certificate and the AMIs are not already
+configured to trust this CA.
+•
+REGISTRY_USERNAME: optional, set to a user with pull access to this registry.
+•
+REGISTRY_PASSWORD: optional if username is not set.
+•
+Important:  To increase Docker Hub's rate limit, use your Docker Hub credentials when creating the
+cluster by setting the following flag on the nkp create cluster command.
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME} 
+--registry-mirror-password=${REGISTRY_PASSWORD}
+•
+Use the flag now during nkp create cluster: --registry-mirror-url
+More information and detail can be found:
+•
+Registry Mirror Tools on page 990
+•
+Using a Registry Mirror on page 992
+Azure: Loading the Registry
+About this task
+Because air-gapped environments do not have direct access to the Internet, you must download, extract
+and load several required images to your local container registry, before installing NKP.
+If desired, environments that are non-air-gapped can also perform the follow steps to use a local registry
+for speed and security reasons.
+Load Images into your Registry
+Because air-gapped environments do not have direct access to the Internet, you must download, extract
+and load several required images to your local container registry, before installing NKP.
+Before you begin
+Download all Images for Air-gapped Deployments
+If you are operating in an air-gapped environment, a local container registry Local Registry Tools containing
+all the necessary installation images, including the Kommander images, is required. See below for
+prerequisites to download and then how to push the necessary images to this registry.
+1. Download the Complete NKP Air-gapped Bundle for this release (i.e. nkp-air-gapped-
+bundle_v2.8.1_linux_amd64.tar.gz) to load registry images as explained below.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 876
+
+--- page 877 ---
+2. Connectivity with clusters attaching to the management cluster is required:
+•
+Both management and attached clusters must be able to connect to the local registry.
+•
+The management cluster must be able to connect to all attached cluster’s API servers.
+•
+The management cluster must be able to connect to any load balancers created for platform
+services on the management cluster.
+Extract Air-gapped Images and Set Variables
+Follow these steps to extract the air-gapped image bundles into your private registry using these examples
+for ECR:
+Procedure
+1. If not already done in prerequisites, download the air-gapped bundle nkp-air-gapped-bundle_nkp-
+version_linux_amd64.tar.gz, and extract the tar file to a local directory.
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+2. The directory structure after extraction can be accessed in subsequent steps using commands to
+access files from different directories. EX: For the bootstrap cluster, change your directory to the nkp-
+<version> directory, similar to the example below, depending on your current location
+cd nkp-nkp-version
+3. Set an environment variable with your registry address for ECR.
+To use ECR:
+export REGISTRY_URL=<ecr-registry-URI>
+Registries other than ECR
+•
+REGISTRY_URL: the address of an existing local registry accessible in the VPC that the new cluster
+nodes will be configured to use a mirror registry when pulling images
+•
+Other local registries may use the options below:
+•
+JFrog - CONTAINER_REGISTRY_CA: (optional) the path on the bastion machine to the registry CA.
+This value is only needed if the registry is using a self-signed certificate and the AMIs are not
+already configured to trust this CA.
+•
+CONTAINER_REGISTRY_USERNAME: optional, set to a user that has pull access to this registry.
+•
+CONTAINER_REGISTRY_PASSWORD: optional if username is not set.
+•
+The environment where you are running the nkp push command must be authenticated with AWS to
+load your images into ECR.
+•
+Registries other than ECR: Other registry variables:
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+export REGISTRY_CA=<path to the cacert file on the bastion>
+Before creating or upgrading a Kubernetes cluster, you must load the required images in a local registry
+if operating in an air-gapped environment.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 877
+
+--- page 878 ---
+4. Execute the following command to load the air-gapped image bundle into your private registry using any
+relevant flags to apply the above variables.
+Load Images to your Private Registry - Konvoy
+Before creating or upgrading a Kubernetes cluster, you need to load the required images in a local
+registry if operating in an air-gapped environment. This registry must be accessible from both the
+bastion machine and either the AWS EC2 instances or other machines that will be created for the
+Kubernetes cluster.
+Warning:  If you do not already have a local registry set up, refer to Local Registry Tools page for more
+information.
+Execute the following command to load the air-gapped image bundle into your private registry:
+nkp push bundle --bundle ./container-images/konvoy-image-bundle-nkp-version.tar --to-
+registry=${REGISTRY_URL}
+Note:  It may take some time to push all the images to your image registry, depending on the
+performance of the network between the machine you are running the script on and the registry.
+For specific push flags, refer to the nkp push bundle section of CLI commands.
+Additional Flags for Registry push:
+The push command will be different depending on username and password requirements:
+If not ECR as shown in the example code below, use the other relevant flags: --to-registry=
+${REGISTRY_URL} --to-registry-username=${REGISTRY_USERNAME} --to-registry-password=
+${REGISTRY_PASSWORD}
+nkp push bundle --bundle ./container-images/konvoy-image-bundle-nkp-version.tar --to-
+registry=${REGISTRY_URL} --to-registry-username=${REGISTRY_USERNAME} --to-registry-
+password=${REGISTRY_PASSWORD}
+Important:  To increase Docker Hub's rate limit, use your Docker Hub credentials when creating the
+cluster by setting the following flag on the nkp create cluster command.
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME} 
+--registry-mirror-password=${REGISTRY_PASSWORD}
+5. Load the Kommander component images to your private registry using the command.
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar
+ --to-registry=${REGISTRY_URL} --to-registry-username=${REGISTRY_USERNAME} --to-
+registry-password=${REGISTRY_PASSWORD}
+Additional Flags for Registry push:
+If not using ECR, the push command will be different depending on username and password
+requirements:
+The push command will be different depending on username and password requirements:
+nkp push bundle --bundle ./container-images/konvoy-image-bundle-nkp-version.tar --to-
+registry=${REGISTRY_URL} --to-registry-username=${REGISTRY_USERNAME} --to-registry-
+password=${REGISTRY_PASSWORD}
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 878
+
+--- page 879 ---
+6. On the Bastion, load the Konvoy bootstrap image, using either the Docker or Podman command.
+Docker example:
+docker load -i konvoy-bootstrap-image-nkp-version.tar
+Podman example:
+podman load -i konvoy-bootstrap-image-nkp-version.tar
+podman image tag konvoy-bootstrap:vnkp-version docker.io/mesosphere/konvoy-
+bootstrap:vnkp-version 
+Note:  Replace v nkp-version with the version number. For example, here it is v2.15.0.
+Azure: HTTP Proxy
+When creating a NKP cluster in environments that use an HTTP/HTTPS proxy, you must provide proxy
+details. The proxy values are strings that list a set of proxy servers, URLs, or wildcard addresses that is
+specific to your environment.
+•
+--http-proxy
+•
+--https-proxy
+•
+--no-proxy
+To create a proxied environment, you need to include flags at various action item points:
+•
+Bootstrap cluster
+•
+CAPI components
+•
+Cluster creation
+•
+NKP Kommander component
+Create the bootstrap cluster and CAPI components using the appropriate commands, nkp create
+bootstrap and nkp create capi-components respectively, combined with the command line flags to
+include your HTTP/S proxy information.
+You can also specify HTTP/S proxy information in an override file when using Nutanix Image Builder on
+page 55.
+Without these values provided as part of the relevant nkp create command, DKP cannot create the
+requisite parts of your new cluster correctly. This is true of both management and managed clusters alike.
+For full HTTP Proxy configuration, you need to specify proxy settings using all the details in the Cluster
+Creation with HTTP or HTTPS Proxy on page 668 section of the documentation for:
+•
+Creating a Bootstrap Cluster with HTTP Proxy Settings on page 666
+•
+Creating CAPI Components with HTTP or HTTPS Proxy Settings on page 667
+•
+Cluster Creation with HTTP or HTTPS Proxy on page 668
+•
+HTTP or HTTPS Proxy Configuration for the NKP Kommander Component on page 669
+HTTP Proxy Example
+nkp create cluster azure \
+  --cluster-name ${CLUSTER_NAME} \
+  --control-plane-http-proxy="${CONTROL_PLANE_HTTP_PROXY}" \
+  --control-plane-https-proxy="${CONTROL_PLANE_HTTPS_PROXY}" \
+  --control-plane-no-proxy="${CONTROL_PLANE_NO_PROXY}" \
+  --worker-http-proxy="${WORKER_HTTP_PROXY}" \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 879
+
+--- page 880 ---
+  --worker-https-proxy="${WORKER_HTTPS_PROXY}" \
+  --worker-no-proxy="${WORKER_NO_PROXY}"
+Azure: Output Directory YAML
+You can create individual files with different smaller manifests for ease in editing using the --output-
+directory flag used with --output=json|yaml. You create the directory of where to output resources to
+files.
+Using this flag will create multiple files in the specified directory which must already exist:
+nkp create cluster azure 
+    --cluster-name=${CLUSTER_NAME} \ 
+    --dry-run \ 
+    --output=yaml \ 
+    --output-directory=<existing-directory>
+For more information regarding this flag or others, please refer to the CLI section of the documentation for
+the nkp create cluster command and select your provider.
+Azure: Custom DNS
+To use a custom Domain Name Server (DNS) on Azure, you need a DNS name in your control. Once the
+resource group has been created, you can create your hosted zone with the command below:
+az network dns zone create --resource-group "d2iq-professional-services" --name
+You no longer need to create a cluster issuer. Several documents explain custom DNS in the
+Kommander component. For more information from the Azure site, refer to their DNS Overview at https://
+learn.microsoft.com/en-us/azure/dns/dns-overview.
+Azure: Marketplace
+To allow Nutanix Kubernetes Platform (NKP) to create a cluster with Rocky Linux or RHEL 9.x
+Marketplace-based images, you must specify them with flags.
+If these fields were specified in the override file during image creation image creation, the flags must be
+used in cluster creation:
+•
+--plan-offer, --plan-publisher and --plan-sku
+--plan-offer rockylinux-OS-version
+--plan-publisher erockyenterprisesoftwarefoundationinc1653071250513
+--plan-sku rockylinux-OS-version
+For more information about the supported Operating System, see Supported Infrastructure Operating
+Systems on page 13.
+Warning:  If you see a similar error to "Creating a virtual machine from Marketplace image or a custom
+image sourced from a Marketplace image requires Plan information in the request." when creating a cluster,
+you must also set the following flags --plan-offer, --plan-publisher, --plan-sku. For example,
+when creating a cluster with Rocky Linux VMs, add the following flags to your nkp create cluster
+azure command: --plan-offer, --plan-publisher and --plan-sku
+Conversely, if you do not use these fields when you create a machine image with NIB, you do not need to
+set these flags when you create your cluster with NKP.
+---
+download_images: true
+packer:
+  distribution: "rockylinux-OS-version"                # Offer
+  distribution_version: "rockylinux-OS-version"  # SKU
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 880
+
+--- page 881 ---
+  # Azure Rocky linux official image: https://portal.azure.com/
+#view/Microsoft_Azure_Marketplace/GalleryItemDetailsBladeNopdl/id/
+erockyenterprisesoftwarefoundationinc1653071250513.rockylinux-OS-version
+  image_publisher: "erockyenterprisesoftwarefoundationinc1653071250513"
+  image_version: "latest"
+  ssh_username: "azureuser"
+  plan_image_sku: "rockylinux-OS-version" # SKU
+  plan_image_offer: "rockylinux-OS-version" # offer
+  plan_image_publisher: "erockyenterprisesoftwarefoundationinc1653071250513" #
+ publisher
+build_name: "rocky-OS-version-az"
+packer_builder_type: "azure"
+python_path: ""
+In order to create a cluster with Marketplace-based images using the supported RHEL v9.6 Operating
+System, you must specify them in the cluster create command:
+nkp create cluster azure \
+--plan-publisher redhat \
+--plan-offer "rh-rhel" \
+--plan-sku "rh-rhel9" ... 
+See the following for images:
+•
+Azure Marketplace
+•
+Rocky Linux
+Azure: Non-air-gapped Install
+This installation provides instructions on how to install Nutanix Kubernetes Platform (NKP) in an Azure
+non-air-gapped environment.
+Remember, there are always more options for custom YAML in the Custom Installation and Additional
+Infrastructure Tools section, but this will get you operating with basic features.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+Azure Prerequisites
+Before you begin using Konvoy with Azure, you must meet all the Azure Prerequisites on page 871.
+To deploy a cluster with a custom image in a region where CAPI images are not provided, you need to use
+Nutanix Image Builder on page 55 to create your own image for the region.
+1. Sign in to Azure:
+az login
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "id": "b1234567-abcd-11a1-a0a0-1234a5678b90",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "Nutanix Developer Subscription",
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 881
+
+--- page 882 ---
+    "state": "Enabled",
+    "tenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "user": {
+      "name": "user@azuremesosphere.onmicrosoft.com",
+      "type": "user"
+    }
+  }
+]
+2. Create an Azure Service Principal (SP) by running the following commands:
+1. If you have more than one Azure account, run this command to identify your account:
+echo $(az account show --query id -o tsv)
+2. Run this command to ensure you are pointing to the correct Azure subscription ID:
+az account set --subscription "Nutanix Developer Subscription"
+3. If an SP with the name exists, this command rotates the password:
+az ad sp create-for-rbac --role contributor --name "$(whoami)-konvoy" --scopes=/
+subscriptions/$(az account show --query id -o tsv) --query "{ client_id: appId,
+ client_secret: password, tenant_id: tenant }"
+Output:
+{
+  "client_id": "7654321a-1a23-567b-b789-0987b6543a21",
+  "client_secret": "Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C",
+  "tenant_id": "a1234567-b132-1234-1a11-1234a5678b90"
+}
+3. Set the AZURE_CLIENT_SECRET environment variable:
+export AZURE_CLIENT_SECRET="<azure_client_secret>" #
+ Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C
+export AZURE_CLIENT_ID="<client_id>"               # 7654321a-1a23-567b-
+b789-0987b6543a21
+export AZURE_TENANT_ID="<tenant_id>"               # a1234567-
+b132-1234-1a11-1234a5678b90
+export AZURE_SUBSCRIPTION_ID="<subscription_id>"   # b1234567-abcd-11a1-
+a0a0-1234a5678b90
+4. Ensure you have an override file to configure specific attributes of your Azure image.
+Azure: Bootstrapping Azure
+To create Kubernetes clusters, NKP uses Cluster API (CAPI) controllers. These controllers run on a
+Kubernetes cluster.
+About this task
+To get started, you need a bootstrap cluster. By default, Nutanix Kubernetes Platform (NKP) creates a
+bootstrap cluster for you in a Docker container using the Kubernetes-in-Docker (KIND) tool.
+Before you begin
+Procedure
+1. Complete the Nutanix Infrastructure Prerequisites. For more information, see Nutanix Infrastructure
+Requirements on page 692.
+2. Ensure the nkp binary can be found in your $PATH.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 882
+
+--- page 883 ---
+Bootstrap Cluster Life Cycle Services
+Procedure
+1. Review Universal Configurations for all Infrastructure Providers regarding settings, flags, and other
+choices and then begin bootstrapping.
+2. Create a bootstrap cluster using the command.
+nkp create bootstrap --kubeconfig $HOME/.kube/config
+Example output:
+ # Creating a bootstrap cluster
+ # Initializing new CAPI components
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+To create a bootstrap cluster in a proxied environment (Bootstrap Cluster HTTP Proxy Settings on
+page 666), in addition to any other flags you need, run the following command.
+  --http-proxy <string> \
+  --https-proxy <string> \
+  --no-proxy <string>
+3. NKP creates a bootstrap cluster using KIND as a library.
+For more information, see https://github.com/kubernetes-sigs/kind.
+4. NKP then deploys the following Cluster API providers on the cluster.
+•
+Core Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/
+•
+AWS Infrastructure Provider: https://github.com/kubernetes-sigs/cluster-api-provider-aws
+•
+Kubeadm Bootstrap Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/bootstrap/
+kubeadm
+•
+Kubeadm ControlPlane Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/
+controlplane/kubeadm
+For more information on Cluster APIs, see https://cluster-api.sigs.k8s.io/.
+5. NKP waits until these providers' controller-manager and webhook deployments are ready. List these
+deployments using the command.
+kubectl get --all-namespaces deployments -l=clusterctl.cluster.x-k8s.io
+Output example:
+NAMESPACE                           NAME                                           
+ READY   UP-TO-DATE   AVAILABLE   AGE
+capa-system                         capa-controller-manager                        
+ 1/1     1            1           1h
+capg-system                         capg-controller-manager                        
+ 1/1     1            1           1h
+capi-kubeadm-bootstrap-system       capi-kubeadm-bootstrap-controller-manager      
+ 1/1     1            1           1h
+capi-kubeadm-control-plane-system   capi-kubeadm-control-plane-controller-manager  
+ 1/1     1            1           1h
+capi-system                         capi-controller-manager                        
+ 1/1     1            1           1h
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 883
+
+--- page 884 ---
+cappp-system                        cappp-controller-manager                       
+ 1/1     1            1           1h
+capv-system                         capv-controller-manager                        
+ 1/1     1            1           1h
+capz-system                         capz-controller-manager                        
+ 1/1     1            1           1h
+cert-manager                        cert-manager                                   
+ 1/1     1            1           1h
+cert-manager                        cert-manager-cainjector                        
+ 1/1     1            1           1h
+cert-manager                        cert-manager-webhook                           
+ 1/1     1            1           1h
+(Optional) Create Identity Secret for Azure
+If your bootstrap cluster resides on a Virtual machine inside Azure, create an identity secret that uses
+the cappz-controller:
+export AZURE_CLUSTER_IDENTITY_SECRET_NAME="cluster-identity-secret"
+export CLUSTER_IDENTITY_NAME="cluster-identity"
+export AZURE_CLUSTER_IDENTITY_SECRET_NAMESPACE="default"
+kubectl create secret generic ${AZURE_CLUSTER_IDENTITY_SECRET_NAME} --from-
+literal=clientSecret=${AZURE_CLIENT_SECRET}
+Azure: Creating a Cluster
+Create an Azure cluster in a non-air-gapped environment.
+About this task
+Use this procedure to create a Kubernetes cluster with NKP. A self-managed cluster is one in which the
+CAPI resources and controllers that describe and manage it run on the same cluster they are managing.
+First, you must name your cluster.
+Before you begin
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+2. Set the environment variable using the command export CLUSTER_NAME=<azure-example>.
+a. To create a cluster name that is unique, use the following command. This creates a unique name
+every time you run it, so use it with forethought:
+export CLUSTER_NAME=azure-example-$(LC_CTYPE=C tr -dc 'a-z0-9' </dev/urandom |
+ fold -w 5 | head -n1)
+echo $CLUSTER_NAME
+azure-example-pf4a3
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 884
+
+--- page 885 ---
+Encode your Azure Credential Variables
+Procedure
+Base64 encodes the Azure environment variables set in the Azure install prerequisites step.
+export AZURE_SUBSCRIPTION_ID_B64="$(echo -n "${AZURE_SUBSCRIPTION_ID}" | base64 | tr -d
+ '\n')"
+export AZURE_TENANT_ID_B64="$(echo -n "${AZURE_TENANT_ID}" | base64 | tr -d '\n')"
+export AZURE_CLIENT_ID_B64="$(echo -n "${AZURE_CLIENT_ID}" | base64 | tr -d '\n')"
+export AZURE_CLIENT_SECRET_B64="$(echo -n "${AZURE_CLIENT_SECRET}" | base64 | tr -d
+ '\n')"
+Creating an Azure Kubernetes Cluster
+About this task
+If you use these instructions to create a cluster on Azure using the NKP default settings without any edits
+to configuration files or additional flags, your cluster is deployed with three control plane nodes, and four
+worker nodes.
+NKP uses Azure CSI as the default storage provider. You can use a Kubernetes CSI compatible storage
+solution suitable for production. For more information, see the Kubernetes documentation called Changing
+the Default Storage Class.
+Procedure
+1.
+Create an Azure Image using NIB and use the flag --compute-gallery-id to identify the image.
+...
+--compute-gallery-id "<Managed Image Shared Image Gallery Id>"
+Note:  The --compute-gallery-id image format is as follows:
+--compute-gallery-id /subscriptions/<subscription id>/resourceGroups/
+<resource group
+      name>/providers/Microsoft.Compute/galleries/<gallery name>/images/
+<image definition
+      name>/versions/<version id>
+Note:  If you use a base image from the Azure Marketplace to build your Azure Image, you must also
+provide the plan information for that base image using the flags --plan-offer, --plan-publisher,
+and --plan-sku.
+2.
+Ensure your subnets do not overlap with your host subnet because they cannot be changed after
+cluster creation. If you need to change the Kubernetes subnets, you must do this at cluster creation.
+The default subnets used in NKP are.
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 10.96.0.0/12
+»
+Additional Options for your environment; otherwise, proceed to the next step to create your cluster.
+(Optional) Modify Control Plane Audit logs - Users can modify the KubeadmControlplane cluster-
+API object to configure different kubelet options. See the following guide if you wish to configure
+your control plane beyond the existing options available from flags.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 885
+
+--- page 886 ---
+3.
+Availability zones (AZs), which are isolated locations within datacenter regions from which public
+cloud services originate and operate. Because all the nodes in a node pool are deployed in a single
+Availability Zone, you may wish to create additional node pools to ensure your cluster has nodes
+deployed in multiple Availability Zones.
+Note:  By default, the control-plane Nodes will be created in 3 different zones. However, the default
+worker Nodes will reside in a single Availability Zone. You may create additional node pools in other
+Availability Zones with the dkp create nodepool command. See Microsoft’s documentation for
+more information on Availability Options for Azure VM.
+4.
+Default Storage Provisioning: The below cluster creation directions instead describes how to create
+a cluster using Azure as the infrastructure provider provisioning clusters, which uses Azure Disks
+Container Storage Interface as the default StorageClass.
+Warning:  If you are using Azure as a Pre-provisioned environment: NKP uses
+localvolumeprovisioner as the default storage provider if creating a pre-provisioned Azure
+cluster. However, localvolumeprovisioner is not suitable for production use. You should use a
+Kubernetes CSI compatible storage that is suitable for production.
+You can choose from any of the storage options available for Kubernetes. To disable the
+default that Konvoy deploys, set the default StorageClass localvolumeprovisioner as
+non-default. Then set your newly created StorageClass to be the default by following the
+commands in the Kubernetes documentation called Changing the Default Storage Class.
+5.
+Generate the Kubernetes cluster objects. See nkp create cluster azure reference for the full list of
+cluster creation options.
+6.
+(Optional) Use a registry mirror. Configure your cluster to use an existing local registry as a mirror
+when attempting to pull images previously pushed to your registry.
+Export Registry Variables and Flags for Cluster Creation:: If you have a local registry, you must
+provide additional arguments when creating the cluster. These tell the cluster where to locate the
+local registry to use by defining the URL. Set the needed environment variable(s) with your registry
+information:
+export REGISTRY_URL=<https/http>://<registry-address>:<registry-port>
+export REGISTRY_CA=<path to the CA on the bastion>
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+•
+REGISTRY_URL: the address of an existing registry accessible in the VPC that the new cluster
+nodes will be configured to use a mirror registry when pulling images.
+•
+REGISTRY_CA: (optional) the path on the bastion machine to the registry CA. Konvoy will configure
+the cluster nodes to trust this CA. This value is only needed if the registry is using a self-signed
+certificate and the AMIs are not already configured to trust this CA.
+•
+REGISTRY_USERNAME: optional, set to a user that has pull access to this registry.
+•
+REGISTRY_PASSWORD: optional if username is not set.
+When creating the cluster, apply the variables you defined above during the dkp create cluster
+command with the flags needed for your environment:
+--registry-mirror-url=${REGISTRY_URL} \
+--registry-mirror-cacert=${REGISTRY_CA} \
+--registry-mirror-username=${REGISTRY_USERNAME} \
+--registry-mirror-password=${REGISTRY_PASSWORD}
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 886
+
+--- page 887 ---
+7.
+Create a cluster. Run this command to create your Kubernetes cluster using any relevant flags.
+nkp create cluster azure \
+--cluster-name=${CLUSTER_NAME} \
+--dry-run \
+--output=yaml \
+> ${CLUSTER_NAME}.yaml
+Output:
+Generating cluster resources
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+•
+FIPS Requirements on page 682
+•
+Configuring an HTTP or HTTPS Proxy on page 665
+•
+Azure: Custom DNS on page 880
+•
+Using Custom Image:
+When creating your cluster, you will add this flag during the create process for your custom image:
+--compute-gallery-id "<Managed Image Shared Image Gallery Id>". See the Prerequisites
+section Azure Using Nutanix Image Builder for specific consumption of image commands.
+The SKU and Image Name will default to the values found in the image YAML.
+•
+Azure: Marketplace on page 880
+•
+Individual manifests using the Output Directory flag: You can create individual manifest files
+with different smaller manifests for ease in editing using the --output-directory flag. For more
+information, see Output Directory Flag on page 682.
+Refer to the Azure Cluster Creation Customization Choices on page 874 section for more
+information on how to use optional flags such as the --output-directory flag.
+For more information regarding this flag or others, please refer to the CLI for the nkp create
+cluster section of the documentation and select your provider.
+8.
+Inspect or edit the cluster objects. Familiarize yourself with the Cluster API before editing the cluster
+objects, as edits can prevent the cluster from deploying successfully.
+See Azure: Customizing CAPI Clusters on page 875.
+9.
+(Optional) Modify Control Plane Audit logs - Users can make modifications to the
+KubeadmControlplane cluster-api object to configure different kubelet options. See Control Plane
+Configuration on page 997 if you wish to configure your control plane beyond the existing options
+that are available from flags.
+10. Create the cluster from the objects generated from the dry run. A warning will appear in the console
+if the resource already exists, requiring you to remove the resource or update your YAML.
+kubectl create -f ${CLUSTER_NAME}.yaml
+Note:  If you used the --output-directory flag in your nkp create .. --dry-run step above,
+create the cluster from the objects you created by specifying the directory:
+kubectl create -f <existing-directory>/.  
+Output:
+cluster.cluster.x-k8s.io/azure-example created
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 887
+
+--- page 888 ---
+azurecluster.infrastructure.cluster.x-k8s.io/azure-example created
+kubeadmcontrolplane.controlplane.cluster.x-k8s.io/azure-example-control-plane
+ created
+azuremachinetemplate.infrastructure.cluster.x-k8s.io/azure-example-control-plane
+ created
+secret/azure-example-etcd-encryption-config created
+machinedeployment.cluster.x-k8s.io/azure-example-md-0 created
+azuremachinetemplate.infrastructure.cluster.x-k8s.io/azure-example-md-0 created
+kubeadmconfigtemplate.bootstrap.cluster.x-k8s.io/azure-example-md-0 created
+clusterresourceset.addons.cluster.x-k8s.io/calico-cni-installation-azure-example
+ created
+configmap/calico-cni-installation-azure-example created
+configmap/tigera-operator-azure-example created
+clusterresourceset.addons.cluster.x-k8s.io/azure-disk-csi-azure-example created
+configmap/azure-disk-csi-azure-example created
+clusterresourceset.addons.cluster.x-k8s.io/cluster-autoscaler-azure-example created
+configmap/cluster-autoscaler-azure-example created
+clusterresourceset.addons.cluster.x-k8s.io/node-feature-discovery-azure-example
+ created
+configmap/node-feature-discovery-azure-example created
+clusterresourceset.addons.cluster.x-k8s.io/nvidia-feature-discovery-azure-example
+ created
+configmap/nvidia-feature-discovery-azure-example created
+11. Wait for the cluster control plan to be ready.
+kubectl wait --for=condition=Available=True "clusters/${CLUSTER_NAME}" --
+timeout=20m
+Output:
+cluster.cluster.x-k8s.io/azure-example condition met
+12. After the objects are created on the API server, the Cluster API controllers reconcile them. They
+create infrastructure and machines. As they progress, they update the Status of each object. Konvoy
+provides a command to describe the current status of the cluster.
+nkp describe cluster -c ${CLUSTER_NAME}
+Output:
+NAME                                                              READY  SEVERITY 
+ REASON  SINCE  MESSAGE
+Cluster/azure-example                                             True             
+        3m4s
+##ClusterInfrastructure - AzureCluster/azure-example              True             
+        8m26s
+##ControlPlane - KubeadmControlPlane/azure-example-control-plane  True             
+        3m4s
+# ##Machine/azure-example-control-plane-l8j9r                     True             
+        3m9s
+# ##Machine/azure-example-control-plane-slprd                     True             
+        7m17s
+# ##Machine/azure-example-control-plane-xhxxg                     True             
+        5m9s
+##Workers
+  ##MachineDeployment/azure-example-md-0                          True             
+        4m31s
+    ##Machine/azure-example-md-0-d67567c8b-2674r                  True             
+        5m19s
+    ##Machine/azure-example-md-0-d67567c8b-mbmhk                  True             
+        5m17s
+    ##Machine/azure-example-md-0-d67567c8b-pzg8k                  True             
+        5m17s
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 888
+
+--- page 889 ---
+    ##Machine/azure-example-md-0-d67567c8b-z8km9                  True             
+        5m17s
+13. As they progress, the controllers also create Events, which you can list using the command
+kubectl get events | grep ${CLUSTER_NAME}
+For brevity, this example uses grep. You can also use separate commands to get
+Events for specific objects, such as kubectl get events --field-selector
+involvedObject.kind="VSphereCluster" and kubectl get events --field-selector
+involvedObject.kind="VSphereMachine".
+Output:
+15m         Normal    AzureClusterObjectNotFound                  azurecluster    
+                                      AzureCluster object default/azure-example not
+ found
+15m         Normal    AzureManagedControlPlaneObjectNotFound     
+ azuremanagedcontrolplane                              AzureManagedControlPlane
+ object default/azure-example not found
+15m         Normal    AzureClusterObjectNotFound                  azurecluster    
+                                      AzureCluster.infrastructure.cluster.x-k8s.io
+ "azure-example" not found
+8m22s       Normal    SuccessfulSetNodeRef                        machine/azure-
+example-control-plane-bmc9b          azure-example-control-plane-fdvnm
+10m         Normal    Machine controller dependency not yet met   azuremachine/
+azure-example-control-plane-fdvnm     Machine Controller has not yet set OwnerRef
+12m         Normal    SuccessfulSetNodeRef                        machine/azure-
+example-control-plane-msftd          azure-example-control-plane-z9q45
+10m         Normal    SuccessfulSetNodeRef                        machine/azure-
+example-control-plane-nrvff          azure-example-control-plane-vmqwx
+12m         Normal    Machine controller dependency not yet met   azuremachine/
+azure-example-control-plane-vmqwx     Machine Controller has not yet set OwnerRef
+14m         Normal    Machine controller dependency not yet met   azuremachine/
+azure-example-control-plane-z9q45     Machine Controller has not yet set OwnerRef
+14m         Warning   VMIdentityNone                             
+ azuremachinetemplate/azure-example-control-plane   You are using Service Principal
+ authentication for Cloud Provider Azure which is less secure than Managed
+ Identity. Your Service Principal credentials will be written to a file on the
+ disk of each VM in order to be accessible by Cloud Provider. To learn more, see
+ https://capz.sigs.k8s.io/topics/identities-use-cases.html#azure-host-identity
+12m         Warning   ControlPlaneUnhealthy                      
+ kubeadmcontrolplane/azure-example-control-plane    Waiting for control plane to
+ pass preflight checks to continue reconciliation: [machine azure-example-control-
+plane-msftd does not have APIServerPodHealthy condition, machine azure-example-
+control-plane-msftd does not have ControllerManagerPodHealthy condition, machine
+ azure-example-control-plane-msftd does not have SchedulerPodHealthy condition,
+ machine azure-example-control-plane-msftd does not have EtcdPodHealthy condition,
+ machine azure-example-control-plane-msftd does not have EtcdMemberHealthy
+ condition]
+11m         Warning   ControlPlaneUnhealthy                      
+ kubeadmcontrolplane/azure-example-control-plane    Waiting for control plane to
+ pass preflight checks to continue reconciliation: [machine azure-example-control-
+plane-nrvff does not have APIServerPodHealthy condition, machine azure-example-
+control-plane-nrvff does not have ControllerManagerPodHealthy condition, machine
+ azure-example-control-plane-nrvff does not have SchedulerPodHealthy condition,
+ machine azure-example-control-plane-nrvff does not have EtcdPodHealthy condition,
+ machine azure-example-control-plane-nrvff does not have EtcdMemberHealthy
+ condition]
+9m52s       Normal    SuccessfulSetNodeRef                        machine/azure-
+example-md-0-84bd8b5f5b-b8cnq        azure-example-md-0-bsc82
+9m53s       Normal    SuccessfulSetNodeRef                        machine/azure-
+example-md-0-84bd8b5f5b-j8ldg        azure-example-md-0-mjcbn
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 889
+
+--- page 890 ---
+9m52s       Normal    SuccessfulSetNodeRef                        machine/azure-
+example-md-0-84bd8b5f5b-lx89f        azure-example-md-0-pmq8f
+10m         Normal    SuccessfulSetNodeRef                        machine/azure-
+example-md-0-84bd8b5f5b-pcv7q        azure-example-md-0-vzprf
+15m         Normal    SuccessfulCreate                            machineset/azure-
+example-md-0-84bd8b5f5b           Created machine "azure-example-md-0-84bd8b5f5b-
+j8ldg"
+15m         Normal    SuccessfulCreate                            machineset/azure-
+example-md-0-84bd8b5f5b           Created machine "azure-example-md-0-84bd8b5f5b-
+lx89f"
+15m         Normal    SuccessfulCreate                            machineset/azure-
+example-md-0-84bd8b5f5b           Created machine "azure-example-md-0-84bd8b5f5b-
+pcv7q"
+15m         Normal    SuccessfulCreate                            machineset/azure-
+example-md-0-84bd8b5f5b           Created machine "azure-example-md-0-84bd8b5f5b-
+b8cnq"
+15m         Normal    Machine controller dependency not yet met   azuremachine/
+azure-example-md-0-bsc82              Machine Controller has not yet set OwnerRef
+15m         Normal    Machine controller dependency not yet met   azuremachine/
+azure-example-md-0-mjcbn              Machine Controller has not yet set OwnerRef
+15m         Normal    Machine controller dependency not yet met   azuremachine/
+azure-example-md-0-pmq8f              Machine Controller has not yet set OwnerRef
+Note:  If changing the Pre-provisioned: Modifying the Calico Installation on page 783, Nutanix
+recommends changing it after cluster creation, but before production.
+Note:  NKP uses the Azure CSI driver as the default storage provider. Use a Kubernetes CSI
+compatible storage that is suitable for production. For more information, see the Kubernetes
+documentation called Changing the Default Storage Class at https://kubernetes.io/docs/concepts/
+storage/volumes/#volume-types. If you’re not using the default, you cannot deploy an alternate
+provider until after the is finished. However,nkp create cluster must be determined before the
+Kommander installation.
+Known Limitations
+Note:  Be aware of these limitations in the current release of NKP Konvoy.
+•
+•
+The NKP Konvoy version used to create a bootstrap cluster must match the NKP Konvoy
+version used to create a managed cluster.
+•
+NKP Konvoy supports deploying one managed cluster.
+•
+NKP Konvoy generates a set of objects for one Node Pool.
+•
+NKP Konvoy does not validate edits to cluster objects.
+Azure: Making the Cluster Self-Managed
+How to make a Kubernetes cluster manage itself.
+About this task
+Nutanix Kubernetes Platform (NKP) deploys all cluster life cycle services to a bootstrap cluster, which then
+deploys a managed cluster. When the managed cluster is ready, move the cluster life cycle services to the
+workload cluster, which makes the managed cluster self-managed.
+Before you begin
+Before starting, ensure you can create a managed cluster as described in the topic: Create a New Azure
+Cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 890
+
+--- page 891 ---
+This page contains instructions on how to make your cluster self-managed. This is necessary if there is
+only one cluster in your environment or if this cluster becomes the Management cluster in a multi-cluster
+environment.
+Note:  If you already have a self-managed or Management cluster in your environment, skip this page.
+Make the New Kubernetes Cluster Manage Itself
+Follow these steps to turn your new cluster into a Management Cluster for an Ultimate license
+environment (or a free-standing Pro Cluster):
+Procedure
+1. Deploy cluster life cycle services on the managed cluster.
+nkp create capi-components --kubeconfig ${CLUSTER_NAME}.conf
+Output:
+# Initializing new CAPI components
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+2. The cluster life cycle services on the managed cluster are ready, but the managed cluster configuration
+is on the bootstrap cluster. The move command moves the configuration, which takes the form of
+Cluster API Custom Resource objects, from the bootstrap to the managed cluster. This process
+is called a Pivot. For more information, see https://cluster-api.sigs.k8s.io/reference/glossary.html?
+highlight=pivot#pivot.
+Move the Cluster API objects from the bootstrap to the workload cluster:
+nkp move capi-resources --to-kubeconfig ${CLUSTER_NAME}.conf
+Output:
+# Moving cluster resources
+You can now view resources in the moved cluster by using the --kubeconfig flag with
+ kubectl. For example: kubectl --kubeconfig=gcp-example.conf get nodes
+Note:  To ensure only one set of cluster life cycle services manages the managed cluster, NKP first
+pauses the reconciliation of the objects on the bootstrap cluster, then creates the objects on the managed
+cluster. As NKP copies the objects, the cluster life cycle services on the managed cluster reconcile the
+objects. The managed cluster becomes self-managed after NKP creates all the objects. If it fails, the
+move command can be safely retried.
+3. Wait for the cluster control plan to be ready.
+kubectl --kubeconfig ${CLUSTER_NAME}.conf wait --for=condition=Available=True
+ "clusters/${CLUSTER_NAME}" --timeout=20m
+Output:
+cluster.cluster.x-k8s.io/gcp-example condition met
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 891
+
+--- page 892 ---
+4. Use the cluster life cycle services on the managed cluster to check the managed cluster status. After
+moving the cluster life cycle services to the managed cluster, remember to use NKP with the managed
+cluster kubeconfig.
+nkp describe cluster --kubeconfig ${CLUSTER_NAME}.conf -c ${CLUSTER_NAME}
+Output:
+NAME                                                              READY  SEVERITY 
+ REASON  SINCE  MESSAGE
+Cluster/azure-example                                             True               
+      55s           
+##ClusterInfrastructure - AzureCluster/azure-example              True               
+      67s           
+##ControlPlane - KubeadmControlPlane/azure-example-control-plane  True               
+      55s           
+# ##Machine/azure-example-control-plane-67f47                     True               
+      58s           
+# ##Machine/azure-example-control-plane-7pllh                     True               
+      65s           
+# ##Machine/azure-example-control-plane-jtfgv                     True               
+      65s           
+##Workers                                                                            
+                     
+  ##MachineDeployment/azure-example-md-0                          True               
+      67s           
+    ##Machine/azure-example-md-0-f9cb9c79b-6nsb9                  True               
+      59s           
+    ##Machine/azure-example-md-0-f9cb9c79b-jxwl6                  True               
+      58s           
+    ##Machine/azure-example-md-0-f9cb9c79b-ktg7z                  True               
+      59s           
+    ##Machine/azure-example-md-0-f9cb9c79b-nxcm2                  True               
+      66s           
+5. Remove the bootstrap cluster because the managed cluster is now self-managed.
+nkp delete bootstrap --kubeconfig $HOME/.kube/config
+Output:
+# Deleting bootstrap cluster
+Known Limitations
+Procedure
+•
+NKP only supports moving all namespaces in the cluster; NKP does not support migration of individual
+namespaces.
+•
+Konvoy supports moving only one set of cluster objects from the bootstrap cluster to the managed
+cluster or vice-versa.
+Azure: Exploring the Azure Cluster
+This guide explains how to use the command line to interact with your newly deployed Kubernetes cluster.
+About this task
+Before starting, create a managed cluster, as described in Create a New Azure Cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 892
+
+--- page 893 ---
+Procedure
+1. Get a kubeconfig file for the managed cluster.
+When the managed cluster is created, the cluster life cycle services generate a kubeconfig file for the
+managed cluster and write it to a Secret. The kubeconfig file is scoped to the cluster administrator.
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+2. Verify the API server is up by listing the nodes.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get nodes
+Note:  The Status may take a few minutes to move to Ready while the Pod network is deployed. The
+node status will change to Ready soon after the calico-node DaemonSet Pods are Ready.
+Example output:
+NAME                                STATUS   ROLES                  AGE     VERSION
+azure-example-control-plane-7ffnl   Ready    control-plane,master   6m18s  
+ v<kubernetes-version>
+azure-example-control-plane-l4bv8   Ready    control-plane,master   14m    
+ v<kubernetes-version>
+azure-example-control-plane-n4g4l   Ready    control-plane,master   18m    
+ v<kubernetes-version>
+azure-example-md-0-mpctb            Ready    <none>                 15m    
+ v<kubernetes-version>
+azure-example-md-0-qglp9            Ready    <none>                 15m    
+ v<kubernetes-version>
+azure-example-md-0-sgrd6            Ready    <none>                 16m    
+ v<kubernetes-version>
+azure-example-md-0-wzbkl            Ready    <none>                 16m    
+ v<kubernetes-version>
+3. List the Pods with the command.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get --all-namespaces pods
+Verify the output:
+NAMESPACE                           NAME                                             
+                READY   STATUS    RESTARTS      AGE
+calico-system                       calico-kube-controllers-57fbd7bd59-v4tss         
+                1/1     Running   0             19m
+calico-system                       calico-node-59llv                                
+                1/1     Running   0             17m
+calico-system                       calico-node-7t7wj                                
+                1/1     Running   0             16m
+calico-system                       calico-node-pf8q8                                
+                1/1     Running   0             17m
+calico-system                       calico-node-sh2b7                                
+                1/1     Running   0             8m17s
+calico-system                       calico-node-tmxl5                                
+                1/1     Running   0             19m
+calico-system                       calico-node-vt5fh                                
+                1/1     Running   0             18m
+calico-system                       calico-node-whfs8                                
+                1/1     Running   0             18m
+calico-system                       calico-typha-797c9666d5-5w99r                    
+                1/1     Running   0             19m
+calico-system                       calico-typha-797c9666d5-hj6mj                    
+                1/1     Running   0             18m
+calico-system                       calico-typha-797c9666d5-s7rc6                    
+                1/1     Running   0             17m
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 893
+
+--- page 894 ---
+capa-system                         capa-controller-manager-74fffb5676-ch6xd         
+                1/1     Running   0             11m
+capi-kubeadm-bootstrap-system       capi-kubeadm-bootstrap-controller-
+manager-867759cc67-vg4lh       1/1     Running   0             15m
+capi-kubeadm-control-plane-system   capi-kubeadm-control-plane-controller-
+manager-5df55579c4-pc8x9   1/1     Running   1 (11m ago)   15m
+capi-system                         capi-controller-manager-79cc58bf5f-xsp9t         
+                1/1     Running   0             15m
+cappp-system                        cappp-controller-manager-85b5c77497-8ss8r        
+                1/1     Running   0             14m
+capv-system                         capv-controller-manager-7bf4d8b66-6x2mx          
+                1/1     Running   0             14m
+capz-system                         capz-controller-manager-5d4c6468bf-wfhcc         
+                1/1     Running   0             14m
+capz-system                         capz-nmi-2cbrg                                   
+                1/1     Running   0             14m
+capz-system                         capz-nmi-8dllm                                   
+                1/1     Running   0             14m
+capz-system                         capz-nmi-95dfk                                   
+                1/1     Running   0             14m
+capz-system                         capz-nmi-rtnd4                                   
+                1/1     Running   0             14m
+cert-manager                        cert-manager-848f547974-gjc5p                    
+                1/1     Running   1 (10m ago)   15m
+cert-manager                        cert-manager-cainjector-54f4cc6b5-rnh4f          
+                1/1     Running   0             15m
+cert-manager                        cert-manager-webhook-7c9588c76-rn2sd             
+                1/1     Running   0             15m
+kube-system                         cluster-autoscaler-68c759fbf6-6vg5r              
+                1/1     Running   1 (11m ago)   20m
+kube-system                         coredns-78fcd69978-6gx44                         
+                1/1     Running   0             20m
+kube-system                         coredns-78fcd69978-gr5q7                         
+                1/1     Running   0             20m
+kube-system                         csi-azuredisk-controller-c8fb44c8b-jhmfz         
+                6/6     Running   5 (11m ago)   20m
+kube-system                         csi-azuredisk-controller-c8fb44c8b-lpbbs         
+                6/6     Running   0             20m
+kube-system                         csi-azuredisk-node-2g7vw                         
+                3/3     Running   0             8m17s
+kube-system                         csi-azuredisk-node-6rdqc                         
+                3/3     Running   0             18m
+kube-system                         csi-azuredisk-node-99c6q                         
+                3/3     Running   0             17m
+kube-system                         csi-azuredisk-node-9b4ms                         
+                3/3     Running   0             17m
+kube-system                         csi-azuredisk-node-mz5pr                         
+                3/3     Running   0             18m
+kube-system                         csi-azuredisk-node-r2t99                         
+                3/3     Running   0             16m
+kube-system                         csi-azuredisk-node-t7gfs                         
+                3/3     Running   0             20m
+kube-system                         etcd-azure-example-control-plane-7ffnl           
+                1/1     Running   0             8m15s
+kube-system                         etcd-azure-example-control-plane-l4bv8           
+                1/1     Running   0             16m
+kube-system                         etcd-azure-example-control-plane-n4g4l           
+                1/1     Running   0             19m
+kube-system                         kube-apiserver-azure-example-control-plane-7ffnl 
+                1/1     Running   0             8m16s
+kube-system                         kube-apiserver-azure-example-control-plane-l4bv8 
+                1/1     Running   0             16m
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 894
+
+--- page 895 ---
+kube-system                         kube-apiserver-azure-example-control-plane-n4g4l 
+                1/1     Running   0             19m
+kube-system                         kube-controller-manager-azure-example-control-
+plane-7ffnl        1/1     Running   0             8m17s
+kube-system                         kube-controller-manager-azure-example-control-
+plane-l4bv8        1/1     Running   0             16m
+kube-system                         kube-controller-manager-azure-example-control-
+plane-n4g4l        1/1     Running   1 (17m ago)   19m
+kube-system                         kube-proxy-82zdl                                 
+                1/1     Running   0             8m17s
+kube-system                         kube-proxy-fd9f9                                 
+                1/1     Running   0             18m
+kube-system                         kube-proxy-l6lgc                                 
+                1/1     Running   0             17m
+kube-system                         kube-proxy-lzswh                                 
+                1/1     Running   0             16m
+kube-system                         kube-proxy-ndfmt                                 
+                1/1     Running   0             20m
+kube-system                         kube-proxy-nxlp9                                 
+                1/1     Running   0             18m
+kube-system                         kube-proxy-v9sxp                                 
+                1/1     Running   0             17m
+kube-system                         kube-scheduler-azure-example-control-plane-7ffnl 
+                1/1     Running   0             8m16s
+kube-system                         kube-scheduler-azure-example-control-plane-l4bv8 
+                1/1     Running   0             16m
+kube-system                         kube-scheduler-azure-example-control-plane-n4g4l 
+                1/1     Running   1 (17m ago)   19m
+node-feature-discovery              node-feature-discovery-master-84c67dcbb6-d2gm7   
+                1/1     Running   0             20m
+node-feature-discovery              node-feature-discovery-worker-drgf6              
+                1/1     Running   0             17m
+node-feature-discovery              node-feature-discovery-worker-hcz6k              
+                1/1     Running   0             17m
+node-feature-discovery              node-feature-discovery-worker-pgbcd              
+                1/1     Running   0             16m
+node-feature-discovery              node-feature-discovery-worker-vhj96              
+                1/1     Running   0             16m
+tigera-operator                     tigera-operator-d499f5c8f-jnj8b                  
+                1/1     Running   1 (18m ago)   19m
+Azure: Installing Kommander
+This section provides installation instructions for the Kommander component of NKP in a non-air-gapped
+Azure environment.
+About this task
+Once you have installed the Konvoy component of Nutanix Kubernetes Platform (NKP), you will continue
+installing the Kommander component that will bring up the UI dashboard.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the correct
+cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see Commands
+within a kubeconfig File on page 34.
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 895
+
+--- page 896 ---
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install command
+to retry.
+Prerequisites:
+•
+Ensure you have reviewed all Prerequisites for Install.
+•
+Ensure you have a default StorageClass. For more information, see Creating a Default StorageClass on
+page 427.
+•
+Note the name of the cluster where you want to install Kommander. If you do not know the cluster
+name, use kubectl get nkpclusters -A to display and find it.
+Create your Kommander Installation Configuration File
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} >> ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init > kommander.yaml 
+4. If required: Customize your kommander.yaml.
+See the Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, External Load Balancer, GPU utilization, Rook Ceph
+customization for Pre-provisioned environments, and so on.
+5. Only required if your cluster uses a custom AWS VPC and requires an internal load-balancer; set the
+traefik annotation to create an internal-facing ELB.
+apps:
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+6. Expand one of the following sets of instructions, depending on your license and application
+environments:
+»
+Pro License: Install Kommander in a Non-Air-Gapped Environment
+Pro License: Install Kommander
+Use the customized kommander.yaml to install NKP:
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Kommander Customizations
+You can configure the Kommander component of NKP during the initial installation, and also post-
+installation using the NKP CLI. If you are not sure of what you want to customize during install, then
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 896
+
+--- page 897 ---
+proceed to the next step. To read about Kommander component customization options, refer to this
+section of the documentation: Kommander Customizations on page 957
+Azure Management Tools
+After cluster creation and configuration, you can revisit clusters to update and change the variables. You
+can perform steps such as renew a certificate, replace a node, or delete an Azure cluster. Use these tools
+to perform the actions to manage your Azure cluster and NKP on Azure Infrastructure.
+Azure: Replacing a Node
+In certain situations, you may want to delete a worker node and have Cluster API replace it with a newly
+provisioned machine.
+Before you begin
+•
+Azure: Creating a Cluster on page 884
+•
+Azure: Making the Cluster Self-Managed on page 890
+Procedure
+1. Identify the name of the node to delete.
+List the nodes.
+kubectl --kubeconfig ${CLUSTER_NAME}.conf get nodes
+The output from this command resembles the following:
+NAME                                STATUS   ROLES                  AGE   VERSION
+azure-example-control-plane-ckwm4   Ready    control-plane,master   35m  
+ v<kubernetes-version>
+azure-example-control-plane-d4fdf   Ready    control-plane,master   31m  
+ v<kubernetes-version>
+azure-example-control-plane-qrvm9   Ready    control-plane,master   33m  
+ v<kubernetes-version>
+azure-example-md-0-4w7gq            Ready    <none>                 33m  
+ v<kubernetes-version>
+azure-example-md-0-6gb9k            Ready    <none>                 33m  
+ v<kubernetes-version>
+azure-example-md-0-p2n8c            Ready    <none>                 11m  
+ v<kubernetes-version>
+azure-example-md-0-s5zbh            Ready    <none>                 33m  
+ v<kubernetes-version>
+2. Export a variable with the node name for the next steps. This example uses the name
+ip-10-0-100-85.us-west-2.compute.internal.
+export NAME_NODE_TO_DELETE="<azure-example-control-plane-ckwm4>"
+3. Delete the Machine resource.
+export NAME_MACHINE_TO_DELETE=$(kubectl --kubeconfig ${CLUSTER_NAME}.conf get
+ machine -ojsonpath="{.items[?(@.status.nodeRef.name==\"$NAME_NODE_TO_DELETE
+\")].metadata.name}")
+kubectl --kubeconfig ${CLUSTER_NAME}.conf delete machine "$NAME_MACHINE_TO_DELETE"
+Output:
+machine.cluster.x-k8s.io "aws-example-1-md-0-cb9c9bbf7-t894m" deleted
+The command will not return immediately. It will return after the Machine resource has been deleted.
+The corresponding Node resource is also deleted a few minutes after the Machine resource is deleted.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 897
+
+--- page 898 ---
+4. Observe that the Machine resource is being replaced using this command.
+kubectl --kubeconfig ${CLUSTER_NAME}.conf get machinedeployment
+Output:
+NAME                 CLUSTER         REPLICAS   READY   UPDATED   UNAVAILABLE   PHASE
+       AGE     VERSION
+azure-example-md-0   azure-example   4          3       4         1            
+ ScalingUp   7m30s   v<kubernetes-version>
+long-running-md-0    long-running    4          4       4         0            
+ Running     7m28s   v<kubernetes-version>
+In this example, there are two replicas, but only 1 is ready. One replica is unavailable, and the
+ScalingUp phase means a new Machine is being created.
+5. Identify the replacement Machine using this command.
+export NAME_NEW_MACHINE=$(kubectl --kubeconfig ${CLUSTER_NAME}.conf get machines \
+    -l=cluster.x-k8s.io/deployment-name=${CLUSTER_NAME}-md-0 \
+    -ojsonpath='{.items[?(@.status.phase=="Running")].metadata.name}{"\n"}')
+echo "$NAME_NEW_MACHINE"
+Output:
+azure-example-md-0-d67567c8b-2674r azure-example-md-0-d67567c8b-n276j azure-example-
+md-0-d67567c8b-pzg8k azure-example-md-0-d67567c8b-z8km9
+If the output is empty, the new Machine has probably exited the Provisioning phase and entered the
+Running phase.
+6. Identify the replacement Node using this command.
+kubectl --kubeconfig ${CLUSTER_NAME}.conf get nodes 
+Output:
+NAME                                STATUS   ROLES                  AGE     VERSION
+azure-example-control-plane-d4fdf   Ready    control-plane,master   43m    
+ v<kubernetes-version>
+azure-example-control-plane-qrvm9   Ready    control-plane,master   45m    
+ v<kubernetes-version>
+azure-example-control-plane-tz56m   Ready    control-plane,master   8m22s  
+ v<kubernetes-version>
+azure-example-md-0-4w7gq            Ready    <none>                 45m    
+ v<kubernetes-version>
+azure-example-md-0-6gb9k            Ready    <none>                 45m    
+ v<kubernetes-version>
+azure-example-md-0-p2n8c            Ready    <none>                 22m    
+ v<kubernetes-version>
+azure-example-md-0-s5zbh            Ready    <none>                 45m    
+ v<kubernetes-version>
+If the output is empty, the Node resource is not yet available or does not yet have the expected
+annotation. Wait a few minutes, then repeat the command.
+Azure: Deleting an Azure Cluster
+Deleting an Azure cluster.
+About this task
+Note:  A self-managed managed cluster cannot delete itself. If your managed cluster is self-managed, you
+must first create a bootstrap cluster and move the cluster life cycle services to it before deleting the managed
+cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 898
+
+--- page 899 ---
+Procedure
+If you did not make your managed cluster self-managed, as described in Make New Cluster Self-Managed,
+proceed to the instructions for Delete the managed cluster.
+Create a Bootstrap Cluster and Nutanix Move CAPI Resources
+About this task
+Follow these steps to create a bootstrap cluster and move CAPI resources:
+Procedure
+1. Create a bootstrap cluster.
+The bootstrap cluster will host the Cluster API controllers that reconcile the cluster objects marked for
+deletion.
+Note:  To avoid using the wrong kubeconfig, the following steps use explicit kubeconfig paths and
+contexts.
+nkp create bootstrap --kubeconfig $HOME/.kube/config --with-aws-bootstrap-
+credentials=true
+Output:
+# Creating a bootstrap cluster
+# Initializing new CAPI components
+2. Move the Cluster API objects from the workload to the bootstrap cluster: The cluster life cycle services
+on the bootstrap cluster are ready, but the managed cluster configuration is on the managed cluster.
+The move command moves the configuration, which takes the form of Cluster API Custom Resource
+objects, from the workload to the bootstrap cluster. This process is also called a Pivot.
+nkp move capi-resources \
+ --from-kubeconfig ${CLUSTER_NAME}.conf \
+ --from-context ${CLUSTER_NAME}-admin@${CLUSTER_NAME} \
+ --to-kubeconfig $HOME/.kube/config \
+ --to-context kind-konvoy-capi-bootstrapper
+Output:
+# Moving cluster resources
+You can now view resources in the moved cluster by using the --kubeconfig flag with
+ kubectl. For example: kubectl --kubeconfig $HOME/.kube/config get nodes
+3. Use the cluster life cycle services on the managed cluster to check the managed cluster’s status.
+nkp describe cluster --kubeconfig $HOME/.kube/config -c ${CLUSTER_NAME}
+Output:
+NAME                                                              READY  SEVERITY 
+ REASON  SINCE  MESSAGE
+Cluster/azure-example                                             True               
+      15s
+##ClusterInfrastructure - AzureCluster/azure-example              True               
+      29s
+##ControlPlane - KubeadmControlPlane/azure-example-control-plane  True               
+      15s
+# ##Machine/azure-example-control-plane-gvj5d                     True               
+      22s
+# ##Machine/azure-example-control-plane-l8j9r                     True               
+      23s
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 899
+
+--- page 900 ---
+# ##Machine/azure-example-control-plane-xhxxg                     True               
+      23s
+##Workers
+  ##MachineDeployment/azure-example-md-0                          True               
+      35s
+ ##Machine/azure-example-md-0-d67567c8b-2674r                  True                  
+   24s
+ ##Machine/azure-example-md-0-d67567c8b-n276j                  True                  
+   25s
+ ##Machine/azure-example-md-0-d67567c8b-pzg8k                  True                  
+   23s
+ ##Machine/azure-example-md-0-d67567c8b-z8km9                  True                  
+   24s
+Note:  After moving the cluster lifecycle services to the managed cluster, remember to use dkp with the
+managed cluster kubeconfig.
+4. Wait for the cluster control plan to be ready.
+kubectl --kubeconfig $HOME/.kube/config wait --for=condition=controlplaneready
+ "clusters/${CLUSTER_NAME}" --timeout=20m
+Output:
+cluster.cluster.x-k8s.io/azure-example condition met
+Note:  Persistent Volumes (PVs) are not deleted automatically by design in order to preserve your data.
+However, they take up storage space if not deleted. You must delete PVs manually. Information for
+backup of a cluster and PVs is on the page in documentation called Back up your Cluster's Applications
+and Persistent Volumes .
+Deleting the Workload Cluster
+Procedure
+1. Make sure your Azure credentials are up to date. Refresh the credentials using this command.
+nkp update bootstrap credentials azure --kubeconfig $HOME/.kube/config
+2. To delete a cluster, Use nkp delete cluster and pass in the name of the cluster you are trying to
+delete with --cluster-name flag. Use kubectl get clusters to get those details (--cluster-name
+and --namespace) of the Kubernetes cluster to delete it.
+kubectl get clusters
+Note:  Before deleting the cluster, dkp deletes all Services of type LoadBalancer on the cluster. To skip
+this step, use the flag --delete-kubernetes-resources=false.
+3. Delete the Kubernetes cluster and wait a few minutes.
+Note:  Before deleting the cluster, Nutanix Kubernetes Platform (NKP) deletes all Services of
+type LoadBalancer on the cluster. To skip this step, use the flag --delete-kubernetes-
+resources=false.
+nkp delete cluster --cluster-name=${CLUSTER_NAME} --kubeconfig $HOME/.kube/config
+Output:
+# Deleting Services with type LoadBalancer for Cluster default/azure-example
+# Deleting ClusterResourceSets for Cluster default/azure-example
+# Deleting cluster resources
+# Waiting for cluster to be fully deleted
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 900

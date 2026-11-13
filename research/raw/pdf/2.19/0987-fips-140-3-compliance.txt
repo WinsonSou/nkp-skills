@@ -1,0 +1,143 @@
+
+--- page 987 ---
+10
+ADDITIONAL KONVOY CONFIGURATIONS
+When installing Nutanix Kubernetes Platform (NKP for a project, line-of-business, or enterprise, the first
+step is to determine the infrastructure on which you want to deploy. The infrastructure you select then
+determines the specific requirements for a successful installation.
+For basic recommended installations by infrastructure, see Basic Installations by Infrastructure on page 76.
+For custom or advanced installations by infrastructure, see Custom Installation and Infrastructure Tools on
+page 665.
+If you have decided to uninstall NKP, see the same infrastructure documentation you have selected in the
+Basic Installations by Infrastructure on page 76.
+FIPS 140-3 Compliance
+Understand FIPS-140 operating mode and requirements.
+Developed by a working group of government, industry operators, and vendors, the Federal Information
+Processing Standard (FIPS), FIPS-140 defines security requirements for cryptographic modules. FIPS
+defines what cryptographic cyphers can be used. Kubernetes uses encryption by default between various
+components, and FIPS support ensures that the ciphers used for those communications meet those
+standards. The standard provides a broad spectrum of data sensitivity, transaction values, and various
+application environment security situations. The standard specifies four security levels for each of the
+eleven requirement areas. Each successive level offers increased security.
+NIST introduced FIPS 140-3 validation by accredited third-party laboratories as a formal, rigorous process
+to protect sensitive digitally stored information not under Federal security classifications.
+FIPS Support in NKP
+Describes FIPS infrastructure support in NKP.
+Nutanix Kubernetes Platform (NKP) supports provisioning a FIPS-enabled Kubernetes control plane. Core
+Kubernetes components are compiled using a version of Go called goboring, which uses a FIPS-certified
+cryptographic module for all cryptographic functions. For more information, see https://csrc.nist.gov/CSRC/
+media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3702.pdf.
+Before provisioning NKP, follow your OS vendor’s instructions to ensure that your OS or OS images are
+prepared for operating in FIPS mode. To view an example for Red Hat Enterprise Linux (RHEL), see
+https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/security_guide/chap-
+federal_standards_and_regulations#sec-Enabling-FIPS-Mode.
+Additional helpful reading:
+•
+CSRC. See https://csrc.nist.gov/publications/fips
+•
+Federal Information Processing Standards Publication. See https://nvlpubs.nist.gov/nistpubs/FIPS/
+NIST.FIPS.140-3.pdf
+•
+For the steps to create a FIPS compliant image, see Building a Custom Image with Nutanix on page 57.
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 987
+
+--- page 988 ---
+Note:  You cannot apply FIPS mode to an existing cluster. You must create a new cluster with FIPS enabled.
+Similarly, a FIPS-mode cluster must remain a FIPS-mode cluster; you cannot change the FIPS status after
+creating it.
+Infrastructure Requirements for FIPS 140-3 Mode
+Describes FIPS 140-3 infrastructure requirements.
+Be sure that your environment meets the FIPS 140 Mode Performance Impact requirements. For more
+information, see FIPS 140 Mode Performance Impact.
+Supported Operating Systems
+Supported Operating Systems for FIPS mode are Red Hat Enterprise Linux and CentOS. For details on the
+tested and supported versions, see Supported Infrastructure Operating Systems.
+Deploying Clusters in FIPS Mode
+To create a cluster in FIPS mode, you must inform the bootstrap controllers about the appropriate image
+repository and version tags of Kubernetes's official Nutanix FIPS builds.
+Component
+Repository
+Version
+Kubernetes
+docker.io/mesosphere
+v<kubernetes-version>+fips.0
+For more information, see
+Supported Kubernetes Versions
+section in the NKP Release
+Notes.
+etcd
+docker.io/mesosphere
+etcd-version+fips.0
+For more information about the
+supported etcd version, see
+Supported Components section in
+the NKP Release Notes.
+AWS Example
+When creating a cluster, use the following command line options:
+•
+--ami <fips enabled AMI> (AWS only)
+•
+--kubernetes-version <version>+fips.<build>
+•
+--etcd-version <version>+fips.<build>
+•
+--kubernetes-image-repository docker.io/mesosphere
+•
+--etcd-image-repository docker.io/mesosphere
+nkp create cluster aws --cluster-name myFipsCluster \
+--ami=ami-03dcaa75d45aca36f \
+--kubernetes-version=v<kubernetes-version>+fips.0 \
+--kubernetes-image-repository=docker.io/mesosphere \
+--etcd-image-repository=docker.io/mesosphere \
+--etcd-version=etcd-version+fips.0
+vSphere Example
+nkp create cluster vsphere \
+  --cluster-name ${CLUSTER_NAME} \
+  --network <NETWORK_NAME> \
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 988
+
+--- page 989 ---
+  --control-plane-endpoint-host <xxx.yyy.zzz.000> \
+  --data-center <DATACENTER_NAME> \
+  --data-store <DATASTORE_NAME> \
+  --folder <FOLDER_NAME> \
+  --server <VCENTER_API_SERVER_URL> \
+  --ssh-public-key-file <SSH_PUBLIC_KEY_FILE> \
+  --resource-pool <RESOURE_POOL_NAME> \
+  --vm-template <TEMPLATE_NAME> \
+  --self-managed \
+  --kubernetes-version=v<kubernetes-version>+fips.0 \
+  --kubernetes-image-repository=docker.io/mesosphere \
+  --etcd-image-repository=docker.io/mesosphere --etcd-version=etcd-version+fips.0
+FIPS 140 Images: Non-Air-Gapped Environments
+Describes using FIPS-140 to create images in a non-air-gapped environment.
+Use the fips.yaml override file provided with the image bundles to produce images containing FIPS-140
+compliant binaries. For more information, see Nutanix Image Builder on page 55.
+FIPS 140 Images: Air-gapped Environment
+Describes using FIPS-140 to create images in an air-gapped environment.
+Use the fips.yaml override file provided with the image bundles to produce images containing FIPS-140
+compliant binaries. For more information, see Nutanix Image Builder on page 55.
+Creating FIPS Clusters in Pre-provisioned FIPS Infrastructure
+Steps to create a FIPS-compliant cluster in a Pre-provisioned FIPS Infrastructure.
+About this task
+If you are targeting Pre-provisioned Installation Options on page 76, you can create a FIPS-compliant
+cluster by doing the following:
+Procedure
+1. Create a Pre-provisioned: Bootstrap Cluster
+2. Create a secret on the bootstrap cluster with the contents from fips.yaml override file and any other
+user overrides you wish to provide.
+kubectl create secret generic $CLUSTER_NAME-fips-overrides --from-
+file=overrides.yaml=overrides.yaml
+kubectl label secret $CLUSTER_NAME-fips-overrides clusterctl.cluster.x-k8s.io/move=
+Validate FIPS 140 in Cluster
+Describes using the FIPS tool for validating FIPS compliance in a cluster.
+You can use the FIPS validation tool to verify that specific components and services are FIPS-compliant.
+The tool checks the components by comparing their file signatures against those stored in a signed
+signature file and by checking that services use the certified algorithms.
+Run FIPS Validation
+To verify the FIPS compliant cluster, run nkp check cluster fips. This command reads from the
+signature files embedded in the nkp executable to validate that specific components and services are
+FIPS-compliant. Run the command:
+The full command usage and flags include:
+nkp check cluster fips
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 989

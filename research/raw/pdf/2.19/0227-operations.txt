@@ -1,0 +1,2344 @@
+
+--- page 227 ---
+7
+CLUSTER OPERATIONS MANAGEMENT
+Manage your NKP environment using the Cluster Operations Management features.
+The Cluster Operations Management section allows you to manage cluster operations and their application
+workloads to optimize your organization’s productivity.
+•
+Operations on page 227
+•
+Applications on page 271
+•
+Workspaces on page 317
+•
+Projects on page 369
+•
+Cluster Management on page 408
+•
+Nutanix Kubernetes® Platform Backup and Restore Management on page 510
+•
+Logging on page 546
+•
+Security on page 575
+•
+Networking on page 589
+•
+GPU Management on page 607
+•
+Monitoring and Alerts on page 629
+•
+Storage for Applications on page 646
+Operations
+You can manage your cluster and deployed applications using platform applications.
+After you deploy an NKP cluster and the platform applications you want to use, you are ready to begin
+managing cluster operations and their application workloads to optimize your organization’s productivity.
+In most cases, a production cluster requires additional advanced configuration tailored for your
+environment, ongoing maintenance, authentication and authorization, and other common activities. For
+example, it is important to monitor cluster activity and collect metrics to ensure application performance
+and response time, evaluate network traffic patterns, manage user access to services, and verify workload
+distribution and efficiency.
+In addition to the configurations, you can also control the appearance of your NKP UI by adding banners
+and footers. There are different options available depending on the NKP level that you license and install.
+•
+Access Control on page 228
+•
+Identity Providers on page 241
+•
+Kubectl API Access Using an Identity Provider on page 249
+•
+Infrastructure Providers on page 253
+Nutanix Kubernetes Platform | Cluster Operations Management | 227
+
+--- page 228 ---
+•
+Header, Footer, and Logo Implementation on page 269
+Access Control
+You can centrally manage access across clusters and define role-based authorization within the NKP UI to
+control resource access on the management cluster for a set or all of the target clusters. These resources
+are similar to Kubernetes RBAC but with crucial differences, and they make it possible to define the roles
+and role bindings once and federate them to clusters within a given scope.
+NKP UI has two conceptual groups of resources that are used to manage access control:
+•
+Kommander Roles: control access to resources on the management clusters.
+•
+Cluster Roles: control access to resources on all target clusters.
+Use these two groups of resources to manage access control within three levels of scope:
+Table 16: Managing Access Across Scopes
+Environment Context
+Kommander Roles
+Cluster Roles
+Global : Manages access to
+the entire environment.
+Create ClusterRoles on the
+management cluster.
+Federates ClusterRoles on all target
+clusters across all workspaces.
+Workspace: Manages access
+to clusters in a specific
+workspace, for example, in
+the scope of multi-tenancy.
+See Multi-Tenancy in NKP on
+page 365.
+Create namespaced Roles on
+the management cluster in the
+workspace namespace.
+Federates ClusterRoles on all target
+clusters in the workspace.
+Project: Manages access for
+clusters in a specific project, for
+example, in the scope of multi-
+tenancy. See Multi-Tenancy in
+NKP on page 365.
+Create namespaced Roles on
+the management cluster in the
+project namespace.
+Federates namespaced Roles on all
+target clusters in the project in the
+project namespace.
+Create the role bindings for each level and type create RoleBindings or ClusterRoleBindings on the
+clusters that apply to each category.
+This approach gives you maximum flexibility over who has access to what resources, conveniently mapped
+to your existing identity providers’ claims.
+Limitation for Kommander Roles
+In addition to granting a Kommander Role, you must also grant the appropriate NKP role to allow external
+users and groups into the UI. For details about the built-in NKP roles, see Types of Access Control Objects
+on page 229. Here are examples of ClusterRoleBindings that grant an Identity provider (IdP) group (in
+this example, the user group engineering) is provided with admin access to the Kommander routes:
+The property for the subjects.name varies depending on the context for which you have established an
+Identity Provider.
+Nutanix Kubernetes Platform | Cluster Operations Management | 228
+
+--- page 229 ---
+•
+If you have set up an identity provider for All Workspaces:
+•
+For groups: configure the subjects.name field to oidc:<IdP_user_group>. For example,
+oidc:engineering.
+•
+For users: configure the subjects.name field to <user_email>. For example,
+jane.doe@example.com
+•
+If you have set up an identity provider for a Specific Workspace:
+•
+For groups: configure the subjects.name field to oidc:<workspace_ID>:<IdP_user_group>. For
+example, oidc:tenant-z:engineering.
+•
+For users: configure the subjects.name field to <workspace_ID>:<user_email>. For example,
+tenant-z:jane.doe@example.com.
+Note:  Run kubectl get workspaces to obtain a list of all existing workspaces. The
+workspace_ID  is listed under the NAME column.
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eng-kommander-dashboard
+  labels:
+    "workspaces.kommander.mesosphere.io/rbac": ""
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dkp-kommander-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: oidc:engineering
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: eng-nkp-routes
+  labels:
+    "workspaces.kommander.mesosphere.io/rbac": ""
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dkp-admin
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: oidc:engineering
+EOF
+Types of Access Control Objects
+Manage Kubernetes role-based access control with three different object categories: Groups, Roles, and
+Policies.
+Groups
+Access control groups are configured in the Groups tab of the Identity Providers page.
+Nutanix Kubernetes Platform | Cluster Operations Management | 229
+
+--- page 230 ---
+You can map group and user claims made by your configured identity providers to Kommander groups
+by selecting administration or identity providers in the left sidebar in the global workspace level, and then
+select the Groups tab.
+For Identity Provider groups, use the group value that your identity provider returns in the authentication
+token, and then apply the required prefix based on scope. For GitHub, the token can return multiple values
+in groups. Select the group value that you want to map. For example:
+"groups": [
+  "ab-metal-g98pc:mesosphere",
+  "ab-metal-g98pc:mesosphere:d2iq-sales-engineers",
+  "ab-metal-g98pc"
+]
+•
+If you have set up an identity provider globally, for All Workspaces:
+•
+For groups: Add an Identity Provider Group by prefixing the returned group value with oidc:. For
+example, if the token returns mesosphere:d2iq-sales-engineers, enter oidc:mesosphere:d2iq-
+sales-engineers.
+•
+For users: Add an Identity Provider User in the <user_email>. For example,
+jane.doe@example.com
+•
+If you have set up an identity provider for a Specific Workspace:
+•
+For groups: Add an Identity Provider Group by prefixing the returned group value with
+oidc:<workspace_name>:. For example, if the token returns mesosphere:d2iq-sales-engineers
+for workspace tenant-z, enter oidc:tenant-z:mesosphere:d2iq-sales-engineers.
+•
+For users: Add an Identity Provider User in the <workspace_ID>:<user_email>. For example,
+tenant-z:jane.doe@example.com.
+Note:  Run kubectl get workspaces to obtain a list of all existing workspaces. The
+workspace_ID  is listed under the NAME column.
+Roles
+ClusterRoles are named collections of rules defining which verbs can be applied to what resources.
+•
+Kommander Roles apply specifically to resources in the management cluster.
+•
+Cluster Roles apply to target clusters within their scope at these levels:
+•
+Global level - all target clusters in all workspaces.
+•
+Workspace level - all target clusters in the workspaces.
+•
+Project level - all target clusters that are added to the project.
+Propagating Workspace Roles to Projects
+By default, users are granted the Kommander Workspace Admin, Edit, or View roles. You are also
+granted the equivalent Kommander Project Admin, Edit, or View role for any project created in the
+workspace. Other workspace roles are not automatically propagated to the equivalent role for a project in
+the workspace.
+About this task
+Each workspace has roles defined using KommanderWorkspaceRole resources. Automatic propagation is
+controlled using the annotation "workspace.kommander.mesosphere.io/sync-to-project": "true" on
+a KommanderWorkspaceRole resource. You can manage this only by using the CLI.
+Nutanix Kubernetes Platform | Cluster Operations Management | 230
+
+--- page 231 ---
+Procedure
+1. Run the command kubectl get kommanderworkspaceroles -n <WORKSPACE_NAMESPACE>.
+NAME                        DISPLAY NAME                     AGE
+kommander-workspace-admin   Kommander Workspace Admin Role   2m18s
+kommander-workspace-edit    Kommander Workspace Edit Role    2m18s
+kommander-workspace-view    Kommander Workspace View Role    2m18s
+2. To prevent propagation of the kommander-workspace-view role, remove this annotation from the
+KommanderWorkspaceRole resource.
+kubectl annotate kommanderworkspacerole -n <WORKSPACE_NAMESPACE> kommander-workspace-
+view workspace.kommander.mesosphere.io/sync-to-project=false --overwrite
+3. To enable propagation of the role, add this annotation to the relevant KommanderWorkspaceRole
+resource.
+kubectl annotate kommanderworkspacerole -n <WORKSPACE_NAMESPACE> kommander-workspace-
+view workspace.kommander.mesosphere.io/sync-to-project=true --overwrite
+Limitation for Workspace
+During the inheritance of the Project Role, when granting users access to a workspace, you must manually
+grant access to the projects within that workspace. Each project is created with a set of admin, edit, or view
+roles, and you can choose to add RoleBinding to each group or user of the workspace for one of these
+project roles. Usually, these are prefixed with one of the roles kommander-project-(admin/edit/view).
+This is an example of RoleBinding that grants the Kommander Project Admin role access for the project
+namespace to the engineering group:
+cat <<EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: workspace-admin-project1-admin
+  namespace: <my-project-namespace-xxxxx>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: <kommander-project-admin-xxxxx>
+subjects:
+  - apiGroup: rbac.authorization.k8s.io
+    kind: Group
+    name: oidc:engineering
+EOF
+Role Bindings
+Kommander role bindings, cluster role bindings, and project role bindings bind a Kommander group to
+any number of roles. All groups defined in the Groups tab are present at the global, workspace, or project
+levels and are ready for you to assign roles to them.
+Access to Kubernetes and Kommander Resources
+You can grant access to Kommander and Kubernetes resources using RBAC.
+Initially, users and groups from an external identity provider have no access to Kubernetes resources.
+Privileges must be granted explicitly by interacting with the RBAC API. This section provides some basic
+examples for general usage. For more information on the RBAC API, see the Using RBAC Authorization
+section in the Kubernetes documentation at https://kubernetes.io/docs/reference/access-authn-authz/rbac/.
+Nutanix Kubernetes Platform | Cluster Operations Management | 231
+
+--- page 232 ---
+Kubernetes does not provide an identity database for standard users. A trusted identity provider must
+provide users and group membership. In Kubernetes, RBAC policies are additive, which means that a
+subject (user, group, or service account) is denied access to a resource unless explicitly granted access
+by a cluster administrator. You can grant access by binding a subject to a role, which grants some level
+of access to one or more resources. Kubernetes is shipped with some default role, which aids in creating
+broad access control policies. For more information, see Default roles and role bindings in the Kubernetes
+documentation https://kubernetes.io/docs/reference/access-authn-authz/rbac/#default-roles-and-role-
+bindings.
+For example, if you want to make mary@example.com a cluster administrator, bind their username to the
+cluster-admin default role as follows:
+cat << EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: mary-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: mary@example.com
+EOF
+If you have configured an Identity Provider for a specific workspace, configure the  subjects.name field to
+<workspace_ID>:<user_email>. For example, tenant-z:jane.doe@example.com.
+User Namespace Restriction
+A common example is granting users access to specific namespaces by creating a RoleBinding
+(RoleBindings are namespaced scoped). For example, to make the user bob@example.com a reader of the
+baz namespace, bind the user to the view role:
+cat << EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: bob-view
+  namespace: baz
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: bob@example.com
+EOF
+If you have configured an Identity Provider for a specific workspace, configure the  subjects.name field to
+<workspace_ID>:<user_email>. For example, tenant-z:jane.doe@example.com.
+The user can now only perform non-destructive operations targeting resources in the #baz# namespace.
+Groups
+If your external identity provider supports group claims, you can also bind groups to roles. To make the
+engineering LDAP group administrators of the production namespace bind the group to the admin role:
+cat << EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+Nutanix Kubernetes Platform | Cluster Operations Management | 232
+
+--- page 233 ---
+kind: RoleBinding
+metadata:
+  name: engineering-admin
+  namespace: production
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: oidc:engineering
+EOF
+One important distinction from adding users is that all external groups are prefixed with oidc:, so a group
+name is oidc:devops. This prevents collision with locally defined groups.
+The property for the subjects.name varies depending on the context for which you have established an
+Identity Provider.
+•
+If you have set up an identity provider for All Workspaces:
+•
+For groups: configure the subjects.name field to oidc:<IdP_user_group>. For example,
+oidc:engineering.
+•
+For users: configure the subjects.name field to <user_email>. For example,
+jane.doe@example.com
+•
+If you have set up an identity provider for a Specific Workspace:
+•
+For groups: configure the subjects.name field to oidc:<workspace_ID>:<IdP_user_group>. For
+example, oidc:tenant-z:engineering.
+•
+For users: configure the subjects.name field to <workspace_ID>:<user_email>. For example,
+tenant-z:jane.doe@example.com.
+Note:  Run kubectl get workspaces to obtain a list of all existing workspaces. The
+workspace_ID  is listed under the NAME column.
+NKP UI Authorization
+The NKP UI and other HTTP applications protected by Kommander forward authentication, are also
+authorized by the Kubernetes RBAC API. In addition to the Kubernetes API resources, it is possible
+to define rules which map to HTTP URIs and HTTP verbs. Kubernetes RBAC refer to these as
+nonResourceURLs, Kommander forward authentication uses these rules to grant or deny access to HTTP
+endpoints.
+Default Roles
+Roles are created to grant access to the dashboard and select applications that expose an HTTP server
+through the ingress controller. The cluster-admin role is a system role that grants permission to all
+actions (verbs) on any resource, including non-resource URLs. The default dashboard user is bound to this
+role.
+Note:
+Nutanix Kubernetes Platform | Cluster Operations Management | 233
+
+--- page 234 ---
+•
+With the NKP Starter license, you can only select the following cluster roles: cluster-admin or
+cluster view
+These cluster roles are applied to all the clusters and workspaces. The default roles are not
+available with the NKP Starter license.
+•
+Granting user administrator privileges on /dkp/* grants admin privileges to all sub-resources,
+even if the bindings exist for sub-resources with fewer privileges.
+Table 17: Table
+Dashboard
+Role
+Path
+access
+*
+cluster-admin
+*
+read, write, delete
+kommander
+dkp-view
+/dkp/*
+read
+kommander
+dkp-edit
+/dkp/*
+read, write
+kommander
+dkp-admin
+/dkp/*
+read, write, delete
+kommander-dashboard
+dkp-kommander-view
+/dkp/kommander/
+dashboard/*
+read
+kommander-dashboard
+dkp-kommander-edit
+/dkp/kommander/
+dashboard/*
+read, write
+kommander-dashboard
+dkp-kommander-admin
+/dkp/kommander/
+dashboard/*
+read, write, delete
+alertmanager
+dkp-kube-prometheus-
+stack-alertmanager-view
+/dkp/alertmanager/*
+read
+alertmanager
+dkp-kube-prometheus-
+stack-alertmanager-edit
+/dkp/alertmanager/*
+read, write
+alertmanager
+dkp-kube-prometheus-
+stack-alertmanager-
+admin
+/dkp/alertmanager/*
+read, write, delete
+centralized-grafana
+dkp-centralized-grafana-
+grafana-view
+/dkp/kommander/
+monitoring/grafana/*
+read
+centralized-grafana
+dkp-centralized-grafana-
+grafana-edit
+/dkp/kommander/
+monitoring/grafana/*
+read, write
+centralized-grafana
+dkp-centralized-grafana-
+grafana-admin
+/dkp/kommander/
+monitoring/grafana/*
+read, write, delete
+centralized-opencost
+dkp-centralized-
+opencost-view
+/dkp/kommander/
+opencost/*
+read
+centralized-opencost
+dkp-centralized-
+opencost-edit
+/dkp/kommander/
+opencost/*
+read, write
+centralized-opencost
+dkp-centralized-
+opencost-admin
+/dkp/kommander/
+opencost/*
+read, write, delete
+grafana
+dkp-kube-prometheus-
+stack-grafana-view
+/dkp/grafana/*
+read
+grafana
+dkp-kube-prometheus-
+stack-grafana-edit
+/dkp/grafana/*
+read, write
+Nutanix Kubernetes Platform | Cluster Operations Management | 234
+
+--- page 235 ---
+Dashboard
+Role
+Path
+access
+grafana
+dkp-kube-prometheus-
+stack-grafana-admin
+/dkp/grafana/*
+read, write, delete
+grafana-logging
+dkp-grafana-logging-view /dkp/logging/grafana/*
+read
+grafana-logging
+dkp-grafana-logging-edit
+/dkp/logging/grafana/*
+read, write
+grafana-logging
+dkp-grafana-logging-
+admin
+/dkp/logging/grafana/*
+read, write, delete
+karma
+dkp-karma-view
+/dkp/kommander/
+monitoring/karma/*
+read
+karma
+dkp-karma-edit
+/dkp/kommander/
+monitoring/karma/*
+read, write
+karma
+dkp-karma-admin
+/dkp/kommander/
+monitoring/karma/*
+read, write, delete
+kubernetes-dashboard
+dkp-kubernetes-
+dashboard-view
+/dkp/kubernetes/*
+read
+kubernetes-dashboard
+dkp-kubernetes-
+dashboard-edit
+/dkp/kubernetes/*
+read, write
+kubernetes-dashboard
+dkp-kubernetes-
+dashboard-admin
+/dkp/kubernetes/*
+read, write, delete
+prometheus
+dkp-kube-prometheus-
+stack-prometheus-view
+/dkp/prometheus/*
+read
+prometheus
+dkp-kube-prometheus-
+stack-prometheus-edit
+/dkp/prometheus/*
+read, write
+prometheus
+dkp-kube-prometheus-
+stack-prometheus-admin
+/dkp/prometheus/*
+read, write, edit
+traefik
+dkp-traefik-view
+/dkp/traefik/*
+read
+traefik
+dkp-traefik-edit
+/dkp/traefik/*
+read, edit
+traefik
+dkp-traefik-admin
+/dkp/traefik/*
+read, edit, delete
+thanos
+dkp-thanos-query-view
+/dkp/kommander/
+monitoring/query/*
+read
+thanos
+dkp-thanos-query-edit
+/dkp/kommander/
+monitoring/query/*
+read, write
+thanos
+dkp-thanos-query-admin
+/dkp/kommander/
+monitoring/query/*
+read, write, delete
+Examples of Default Roles
+This topic provides a few examples of binding subjects to the default roles defined for the NKP UI
+endpoints.
+User
+To grant the user mary@example.com administrative access to all Kommander resources, bind the user to
+the dkp-admin role:
+cat << EOF | kubectl apply -f -
+---
+Nutanix Kubernetes Platform | Cluster Operations Management | 235
+
+--- page 236 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dkp-admin-mary
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dkp-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: mary@example.com
+EOF
+If you inspect the role, you can see what access is now granted:
+kubectl describe clusterroles dkp-admin
+Name:         dkp-admin
+Labels:       app.kubernetes.io/instance=kommander
+              app.kubernetes.io/managed-by=Helm
+              app.kubernetes.io/version=v2.13.1
+              helm.toolkit.fluxcd.io/name=kommander
+              helm.toolkit.fluxcd.io/namespace=kommander
+              rbac.authorization.k8s.io/aggregate-to-admin=true
+Annotations:  meta.helm.sh/release-name: kommander
+              meta.helm.sh/release-namespace: kommander
+PolicyRule:
+  Resources  Non-Resource URLs  Resource Names  Verbs
+  ---------  -----------------  --------------  -----
+             [/dkp/*]           []              [delete]
+             [/dkp]             []              [delete]
+             [/dkp/*]           []              [get]
+             [/dkp]             []              [get]
+             [/dkp/*]           []              [head]
+             [/dkp]             []              [head]
+             [/dkp/*]           []              [post]
+             [/dkp]             []              [post]
+             [/dkp/*]           []              [put]
+             [/dkp]             []              [put]
+The user can now use the HTTP verbs HEAD, GET, DELETE, POST, and PUT when accessing any URL
+at or under /dkp. The downstream application follows REST conventions. This effectively allows privileges
+to be read, edited, and deleted.
+Note:  To enable users to access the NKP UI, ensure they have the appropriate dkp-kommander role and
+the Kommander roles granted in the NKP UI.
+Group
+To grant view access to the /dkp/* endpoints and edit access to the grafana logging endpoint to group
+logging-ops, create the following ClusterRoleBindings:
+cat << EOF | kubectl apply -f -
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: nkp-view-logging-ops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dkp-view
+Nutanix Kubernetes Platform | Cluster Operations Management | 236
+
+--- page 237 ---
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: oidc:logging-ops
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: dkp-logging-edit-logging-ops
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dkp-logging-edit
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: oidc:logging-ops
+EOF
+Note:  External groups must be prefixed by oidc:
+Members of logging-ops to view all the resources under /nkp and edit all the resources under /nkp/
+logging/grafana.
+Creating Custom Roles
+If one of the predefined roles from NKP does not include all the permissions you need, you can create a
+custom role.
+About this task
+Perform the following tasks to assign actions and permissions to roles:
+Procedure
+1. In the Administration section of the sidebar menu, select Access Control.
+2. Select the Cluster Roles tab, and then select + Create Role .
+3. Enter a descriptive name for the role and ensure that Cluster Role is selected as the type.
+4. For example, to configure a read-only role, select Add Rule.
+a. In the Resources input, select All Resource Types.
+b. Select the get, list, and watch options.
+c. Click Save.
+You can assign your newly created role to the developer's group.
+Kubernetes Dashboard
+The Kubernetes dashboard displays information that offloads authorization directly to the Kubernetes API
+server. Once authenticated, all users may access the dashboard at /dkp/kubernetes/ without needing
+an dkp role. However, the cluster RBAC policy protects access to the underlying Kubernetes resources
+exposed by the dashboard.
+Access to the Kubernetes dashboard at the /dkp/kubernetes/ URL requires an dkp role that grants
+access to that URL path. NKP provides several pre-defined ClusterRoles to provide access such as: dkp-
+kubernetes-dashboard-view, dkp-kubernetes-dashboard-edit, and dkp-kubernetes-dashboard-admin
+Nutanix Kubernetes Platform | Cluster Operations Management | 237
+
+--- page 238 ---
+For example, to provide all authenticated users in the oidc:developers group access to Kubernetes
+dashboard, add the following ClusterRoleBinding:
+cat << EOF | kubectl apply -f -
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: developer-dashboard-access
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: dkp-kubernetes-dashboard-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: oidc:developers
+EOF  
+However, access to the underlying Kubernetes resources exposed by the dashboard are protected by the
+cluster RBAC policy.
+This topic describes some basic examples of operations that provide the building blocks for creating an
+access control policy. For more information about creating your roles and advanced policies, see Using
+RBAC Authorization in the Kubernetes documentation at https://kubernetes.io/docs/reference/access-
+authn-authz/rbac/. For information on adding a user to a cluster as an administrator, see Onboarding a
+User to an NKP Cluster on page 238.
+Onboarding a User to an NKP Cluster
+After you install NKP and create a cluster, you can add new users to your environment.
+Before you begin
+You must have administrator rights. Also, ensure that:
+•
+You have an LDAP Connector.
+•
+You are a cluster administrator.
+•
+You have a valid NKP license (Ultimate, Starter, or Pro)
+•
+You have a running cluster.
+For information about adding users using other types of connectors, see:
+•
+https://dexidp.io/docs/connectors/oidc/
+•
+https://dexidp.io/docs/connectors/saml/
+•
+https://dexidp.io/docs/connectors/github/
+To onboard a user:
+Procedure
+1. Create an LDAP Connector definition and name the file ldap.yaml.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ldap-password
+  namespace: kommander
+type: Opaque
+stringData:
+Nutanix Kubernetes Platform | Cluster Operations Management | 238
+
+--- page 239 ---
+  password: superSecret
+---
+apiVersion: dex.mesosphere.io/v1alpha1
+kind: Connector
+metadata:
+  name: ldap
+  namespace: kommander
+spec:
+  enabled: true
+  type: ldap
+  displayName: LDAP Test Connector
+  ldap:
+    host: ldapdce.testdomain
+    insecureNoSSL: true
+    bindDN: cn=ldapconnector,cn=testgroup,ou=testorg,dc=testdomain
+    bindSecretRef:
+      name: ldap-password
+    userSearch:
+      baseDN: dc=testdomain
+      filter: "(objectClass=inetOrgPerson)"
+      username: uid
+      idAttr: uid
+      emailAttr: uid
+    groupSearch:
+      baseDN: ou=testorg,dc=testdomain
+      filter: "(objectClass=posixGroup)"
+      userMatchers:
+      - userAttr: uid
+        groupAttr: memberUid
+      nameAttr: cn
+2. Add the connector and use the command kubectl apply -f ldap.yaml.
+The following output is displayed.
+secret/ldap-password created
+connector.dex.mesosphere.io/ldap created
+Nutanix Kubernetes Platform | Cluster Operations Management | 239
+
+--- page 240 ---
+3. Add the appropriate role bindings and name the file new_user.yaml.
+The property for the subjects.name varies depending on the context for which you have established an
+Identity Provider.
+•
+If you have set up an identity provider for All Workspaces:
+•
+For groups: configure the subjects.name field to oidc:<IdP_user_group>. For example,
+oidc:engineering.
+•
+For users: configure the subjects.name field to <user_email>. For example,
+jane.doe@example.com
+•
+If you have set up an identity provider for a Specific Workspace:
+•
+For groups: configure the subjects.name field to oidc:<workspace_ID>:<IdP_user_group>.
+For example, oidc:tenant-z:engineering.
+•
+For users: configure the subjects.name field to <workspace_ID>:<user_email>. For example,
+tenant-z:jane.doe@example.com.
+Note:  Run kubectl get workspaces to obtain a list of all existing workspaces. The
+workspace_ID  is listed under the NAME column.
+See the following examples for both Single User and Group Bindings.
+»
+For Single Users:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: newUser
+»
+For Group Binding:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cluster-admin
+  namespace: ml 
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin 
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: oidc:kommanderAdmins
+Nutanix Kubernetes Platform | Cluster Operations Management | 240
+
+--- page 241 ---
+4. Add the role binding(s) use the command kubectl apply -f new_user.yaml.
+Note:
+•
+ClusterRoleBindings permissions are applicable at the global level.
+•
+RoleBindings permissions are applicable at the namespace level.
+For additional information about the other roles in NKP and their permissions, see Access to
+Kubernetes and Kommander Resources on page 231.
+Identity Providers
+You can grant access to users in your organization.
+NKP supports GitHub Identity Provider Configuration on page 242, Adding an LDAP Connector on
+page 245, SAML,and standard OIDC identity providers such as Google. These identity management
+providers support the login and authentication process for NKP and your Kubernetes clusters.
+You can configure as many identity providers as you want, and users can select from any method when
+logging in. If you have multiple workspaces in your environment, you can use a single identity provider to
+manage access for all of them or choose to configure an identity provider per workspace.
+Configuring a dedicated identity provider per workspace can be useful if you want to retain access
+to your workspaces separately. In this case, users of a specific workspace have a dedicated login 2-
+factor authentication page with the identity provider options configured for their workspace. This setup
+is particularly helpful if you have multiple tenants. For more information, see Multi-Tenancy in NKP on
+page 365.
+Advantages of Using an External Identity Provider
+Using an external identity provider is beneficial for:
+•
+Centralized management of multiple users and multiple clusters.
+•
+Centralized management of password rotation, expiration, and so on.
+•
+Support of 2-factor-authentication methods for increased security.
+•
+Separate storage of user credentials.
+Access Limitations
+•
+The GitHub provider allows you to specify any organizations and teams that are eligible for access.
+•
+The LDAP provider allows you to configure search filters for either users or groups.
+•
+The OIDC provider cannot limit users based on identity.
+•
+The SAML provider allows users to log in using a single sign-on (SSO).
+Configuring an Identity Provider Through the UI
+You can configure an identity provider through the UI.
+Before you begin
+Limit Access
+•
+The GitHub provider allows you to specify any of the organizations and teams are eligible for access.
+•
+The LDAP provider allows you to configure search filters for either users or groups.
+Nutanix Kubernetes Platform | Cluster Operations Management | 241
+
+--- page 242 ---
+•
+The OIDC provider cannot limit users based on identity.
+•
+The SAML provider allows users to log in using a single sign-on (SSO) profile.
+To configure an identity provider:
+Procedure
+1. Log into the Kommander UI. See Pre-provisioned: Logging In To the UI on page 87.
+2. From the dropdown list, select the Global workspace.
+3. Select Administration > Identity Providers.
+4. Select the Identity Providers tab.
+5. Select Add Identity Provider.
+6. Select an identity provider.
+7. Select the target workspace for the identity provider and complete the fields with the relevant details.
+Note:  You can configure an identity provider globally for your entire organization using theAll
+Workspaces option or per workspace, enabling multi-tenancy.
+8. Click Save.
+Disabling an Identity Provider
+You can temporarily disable an identity provider.
+Procedure
+1. Select the three-dot button on the Identity Providers table.
+2. Select Disable from the dropdown menu.
+The identity provider is disabled. You can view the disabled identity providers in the Identity Providers
+tab.
+GitHub Identity Provider Configuration
+You can configure GitHub as an identity provider and grant access to NKP.
+NKP allows authorizing access to your clusters and the UI with GitHub credentials but it must be
+configured in the dashboard. To ensure every developer in your GitHub organization has access to your
+Kubernetes clusters using their GitHub credentials, add that option for login by adding an identity provider
+with the information from your GitHub profile in the OAuth application settings
+The first login requires you to authorize the GitHub account. As an administrator of the cluster, select
+the  Authorize github-username button on the page that follows the login. After setting up the GitHub
+authorization, the future login screens will have the Log in with github-auth button as an option.
+Adding an Identity Provider Using GitHub
+To authorize all developers to access your clusters using their GitHub credentials, set up GitHub as an
+identity provider login option.
+Nutanix Kubernetes Platform | Cluster Operations Management | 242
+
+--- page 243 ---
+Procedure
+1.
+Start by creating a new OAuth Application in your GitHub organization by completing the registration
+form.
+To view the form, see https://github.com/settings/applications/new.
+2.
+In the Application name field, enter a name for your application.
+3.
+In the Homepage URL field, enter your cluster URL.
+4.
+In the Authorization callback URL field, use your cluster URL followed by /dex/callback by adding
+this to the end of your URL.
+5.
+Click Register application.
+After you complete the application, the Settings page. appears
+6.
+You need the Client ID and Client Secret from this page for the NKP UI.
+If you do not have a Client Secret for the application, to generate a new client secret, select Generate
+a new client secret.
+7.
+Log in to your NKP UI from the top menu bar, and select the Global workspace.
+8.
+Select Identity Providers in the Administration section of the sidebar menu.
+9.
+Select the Identity Providers tab and then click Add Identity Provider .
+10. Select GitHub as the identity provider type, and select the target workspace.
+11. Copy the Client ID and Client Secret values from GitHub into this form.
+12. To configure dex to load all the groups configured in the user's GitHub identity, select the Load All
+Groups check box.
+This allows you to configure group-specific access to NKP and Kubernetes resources.
+Note:  Do not select the Enable Device Flow checkbox before selecting <Register the Application> .
+13. Click Save.
+Mapping the Identity Provider Groups to the Kubernetes Groups
+You can map the identity provider groups to the Kubernetes groups.
+Procedure
+1. In the NKP UI, select the Groups tab from the Identity Provider screen, and then click Create Group.
+2. In the Enter Name field, enter a descriptive name.
+For Identity Provider groups, use the group value that your identity provider returns in the authentication
+token, and then apply the required prefix based on scope. For GitHub, the token can return multiple
+values in groups. Select the group value that you want to map. For example:
+"groups": [
+  "ab-metal-g98pc:mesosphere",
+  "ab-metal-g98pc:mesosphere:d2iq-sales-engineers",
+  "ab-metal-g98pc"
+Nutanix Kubernetes Platform | Cluster Operations Management | 243
+
+--- page 244 ---
+]
+•
+If you have set up an identity provider globally, for All Workspaces:
+•
+For groups: Add an Identity Provider Group by prefixing the returned group value with
+oidc:. For example, if the token returns mesosphere:d2iq-sales-engineers, enter
+oidc:mesosphere:d2iq-sales-engineers.
+•
+For users: Add an Identity Provider User in the <user_email>. For example,
+jane.doe@example.com
+•
+If you have set up an identity provider for a Specific Workspace:
+•
+For groups: Add an Identity Provider Group by prefixing the returned group value with
+oidc:<workspace_name>:. For example, if the token returns mesosphere:d2iq-sales-
+engineers for workspace tenant-z, enter oidc:tenant-z:mesosphere:d2iq-sales-
+engineers.
+•
+For users: Add an Identity Provider User in the <workspace_ID>:<user_email>. For example,
+tenant-z:jane.doe@example.com.
+Note:  Run kubectl get workspaces to obtain a list of all existing workspaces. The
+workspace_ID  is listed under the NAME column.
+3. Add the groups or teams from your GitHub provider under Identity Provider Groups.
+For more information on finding the teams to which you are assigned in GitHub, see the Changing team
+visibility section at https://docs.github.com/en/organizations/organizing-members-into-teams/changing-
+team-visibility.
+4. Click Save.
+Assigning a Role to the Developers Group
+After defining a group, bind one or more roles to this group. This topic describes how to bind the group to
+the View Only role.
+Procedure
+1. In the NKP UI, from the top menu bar, select Global or the target workspace.
+2. Select the Cluster Role Bindings tab and then select Add roles.
+3. Select View Only role from the Roles dropdown list and select Save.
+For more information on granting users access to Kommander paths on your cluster, see Access to
+Kubernetes and Kommander Resources on page 231.
+Nutanix Kubernetes Platform | Cluster Operations Management | 244
+
+--- page 245 ---
+4. At a minimum, add a read only path for access to all the Kommander Dashboard views:
+Table 18: Kommander Dashboard Views
+Dashboard
+Role
+Path
+Access
+kommander-dashboard
+nkp-kommander-view
+/nkp/kommander/
+dashboard/*
+read
+When you check your attached clusters and login as a user from your matched groups, every resource,
+is listed. Do delete or edit them.
+Future Log In
+The first login will require you to authorize the GitHub account, so the administrator of the cluster will
+select the <Authorize github-username> button on the page that follows the login. After setting up
+GitHub authorization, future login screens will have that as an option: <Log in with github-auth>
+button.
+External LDAP Directory Configuration
+This section details about configuring LDAP directory.
+You can connect your cluster to an external LDAP directory. Configure your NKP cluster for logging in with
+the credentials stored in an external LDAP directory service.
+Each LDAP directory is set up in unique ways. You may add the LDAP authentication mechanism using the
+CLI or UI.
+Adding an LDAP Connector
+Each LDAP directory is set up in unique ways. So, these steps are important. Add the LDAP authentication
+mechanism using the CLI or UI.
+About this task
+This topic describes the configuration of an NKP cluster to connect to the Online LDAP Test Server in
+Forum Systems Web site at https://www.forumsys.com/tutorials/integration-how-to/ldap/online-ldap-test-
+server/. For demonstration purpose, the configuration shown uses insecureNoSSL: true. In production,
+you should protect LDAP communication with a properly configured transport layer security (TLS). When
+using TLS, as an admin, you can add insecureSkipVerify: true to spec.ldap to skip server certificate
+verification, if needed.
+Procedure
+Choose whether to establish an external LDAP globally or for a specific workspace.
+»
+Global LDAP - identity provider serves all workspaces: Create and apply the following objects:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ldap-password
+  namespace: kommander
+type: Opaque
+stringData:
+  password: password
+---
+apiVersion: dex.mesosphere.io/v1alpha1
+Nutanix Kubernetes Platform | Cluster Operations Management | 245
+
+--- page 246 ---
+kind: Connector
+metadata:
+  name: ldap
+  namespace: kommander
+spec:
+  enabled: true
+  type: ldap
+  displayName: LDAP Test
+  ldap:
+    host: ldap.forumsys.com:389
+    insecureNoSSL: true
+    bindDN: cn=read-only-admin,dc=example,dc=com
+    bindSecretRef:
+      name: ldap-password
+    userSearch:
+      baseDN: dc=example,dc=com
+      filter: "(objectClass=inetOrgPerson)"
+      username: uid
+      idAttr: uid
+      emailAttr: mail
+    groupSearch:
+      baseDN: dc=example,dc=com
+      filter: "(objectClass=groupOfUniqueNames)"
+      userMatchers:
+      - userAttr: DN
+        groupAttr: uniqueMember
+      nameAttr: ou
+EOF
+Note:  The value for the LDAP connector spec:displayName (here LDAP Test) appears on the Login
+button for this identity provider in the NKP UI. Enter a name for the users.
+»
+Workspace LDAP - identity provider serves a specific workspace: Create and apply the following
+objects:
+Note:  Establish LDAP for a specific workspace in the scope of multiple tenants.
+•
+1. Obtain the workspace name for which you are establishing an LDAP authentication
+server.
+kubectl get workspaces
+Note down the value under the WORKSPACE NAMESPACE column.
+2. Set the WORKSPACE_NAMESPACE environment variable to that namespace.
+export WORKSPACE_NAMESPACE=<your-namespace>
+3. Create and apply the following objects on that workspace.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ldap-password
+  namespace: ${WORKSPACE_NAMESPACE}
+type: Opaque
+stringData:
+  password: password
+---
+apiVersion: dex.mesosphere.io/v1alpha1
+kind: Connector
+metadata:
+  name: ldap
+Nutanix Kubernetes Platform | Cluster Operations Management | 246
+
+--- page 247 ---
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  enabled: true
+  type: ldap
+  displayName: LDAP Test
+  ldap:
+    host: ldap.forumsys.com:389
+    insecureNoSSL: true
+    bindDN: cn=read-only-admin,dc=example,dc=com
+    bindSecretRef:
+      name: ldap-password
+    userSearch:
+      baseDN: dc=example,dc=com
+      filter: "(objectClass=inetOrgPerson)"
+      username: uid
+      idAttr: uid
+      emailAttr: mail
+    groupSearch:
+      baseDN: dc=example,dc=com
+      filter: "(objectClass=groupOfUniqueNames)"
+      userMatchers:
+      - userAttr: DN
+        groupAttr: uniqueMember
+      nameAttr: ou
+EOF
+Note:  The value for the LDAP connector spec:displayName (here LDAP Test)
+appears on the Login button for this identity provider in the NKP UI. Choose a name for
+the users.
+Testing the LDAP Connector
+You can test the LDAP connector.
+Procedure
+1. To retrieve a list of connectors using the kubectl get connector.dex.mesosphere.io -A command.
+2. Run the kubectl get Connector.dex.mesosphere.io -n kommander <LDAP-CONNECTOR-NAME> -o
+yaml command to verify that the LDAP connector is created successfully.
+Logging In for Global LDAP
+Global LDAP identity provider serves all workspaces.
+Procedure
+1. Visit https://<YOUR-CLUSTER-HOST>/token and initiate a login flow.
+2. On the login page, click Log in with <ldap-name>.
+3. Enter the LDAP credentials and log in.
+Note:  In the UI, after the LDAP authentication is enabled, additional access rights must be configured
+using the Add Identity Provider page in the UI.
+Nutanix Kubernetes Platform | Cluster Operations Management | 247
+
+--- page 248 ---
+Logging In for Workspace LDAP
+Workspace LDAP identity provider serves a specific workspace.
+Procedure
+1. Complete the steps in Generating a Dedicated Login URL for Each Tenant on page 368.
+2. On the login page, click Log in with <ldap-name>.
+3. Enter the LDAP credentials and log in.
+Note:  In the UI, after the LDAP authentication is enabled, additional access rights must be configured
+using the Add Identity Provider page in the UI.
+LDAP Troubleshooting
+If the Dex LDAP connector configuration is incorrect, you must debug the problem, and iterate on it to
+identify and resolve the issue. The Dex log output contains error messages that must be reviewed, as
+indicated in the following examples:
+Reading Errors During Dex Startup
+About this task
+If the Dex configuration fragment provided results in an invalid Dex config log file, Dex does not properly
+start up. Then, read the error details by reviewing the Dex logs.
+Procedure
+1. Use the following command to retrieve the Dex logs.
+kubectl logs -f dex-66675fcb7c-snxb8 -n kommander
+You may see an error similar to the following example:
+error parse config file /etc/dex/cfg/config.yaml: error unmarshaling JSON: parse
+ connector config: illegal base64 data at input byte 0
+2. Another reason for Dex not starting up correctly is that https://<YOUR-CLUSTER-HOST>/token displays
+a 5xx HTTP error response after timing out.
+Errors Upon Login
+Most problems with the Dex LDAP connector configuration become apparent only after a login attempt.
+A login that fails from misconfiguration results in an error displaying only Internal Server Error and
+Login error. You can find the root cause by reading the Dex log, as shown in the following example.
+kubectl logs -f dex-5d55b6b94b-9pm2d -n kommander
+You can look for output similar to this example.
+[...]
+time="2019-07-29T13:03:57Z" level=error msg="Failed to login user: failed to connect:
+ LDAP Result Code 200 \"Network Error\": dial tcp: lookup freeipa.example.com on
+ 10.255.0.10:53: no such host"
+Here, the directory’s DNS name was misconfigured, which should be easy to address.
+Nutanix Kubernetes Platform | Cluster Operations Management | 248
+
+--- page 249 ---
+A more difficult problem occurs when a login through Dex through LDAP fails because Dex cannot find
+the specified user unambiguously in the directory. That is the result of an invalid LDAP user search
+configuration. Here’s an example error message from the Dex log.
+time="2019-07-29T14:21:27Z" level=info msg="performing ldap search
+ cn=users,cn=compat,dc=demo1,dc=freeipa,dc=org sub (&(objectClass=posixAccount)
+(uid=employee))"
+time="2019-07-29T14:21:27Z" level=error msg="Failed to login user: ldap: filter
+ returned multiple (2) results: \"(&(objectClass=posixAccount)(uid=employee))\""
+Solving problems like this requires you to review the directory structures carefully. Directory structures can
+be very different between different LDAP setups. You must carefully assemble a user search configuration
+matching the directory structure.
+Notably, with some directories, it can be hard to distinguish between the cases such as properly
+configured and user not found where login fails in an expected way and displays not properly
+configured, and therefore user not found where login fails in an unexpected way.
+Successful Login Example
+For comparison, here are some sample log lines issued by Dex for a successful login:
+time="2019-07-29T15:35:51Z" level=info msg="performing ldap search
+ cn=accounts,dc=demo1,dc=freeipa,dc=org sub (&(objectClass=posixAccount)
+(uid=employee))"
+time="2019-07-29T15:35:52Z" level=info msg="username \"employee\" mapped to entry
+ uid=employee,cn=users,cn=accounts,dc=demo1,dc=freeipa,dc=org"
+time="2019-07-29T15:35:52Z" level=info msg="login successful: connector \"ldap\",
+ username=\"\", email=\"employee@demo1.freeipa.org\", groups=[]"
+Kubectl API Access Using an Identity Provider
+After installing NKP, a single user with admin rights and static credentials is available. However, static
+credentials are hard to manage and replace.
+To allow other users and user groups to access your environment, Nutanix recommends setting up an
+external identity provider. Users added through an identity provider do not have static credentials, but have
+to generate a token to gain access to your environment’s kubectl API. This token ensures that certificates
+are rotated continuously for security reasons.
+There are two options for the generation of this token:
+Table 19: Token Generation
+Method
+How Often Does the User Have to Generate a Token?
+Generating a token
+User must log in with credentials and manually generate a
+kubeconfig file with a fresh token every 24 hours.
+Enabling the Konvoy Async
+Plugin
+User configures the Konvoy Async Plugin so the authentication is
+routed through Dex's oidc and the token is generated automatically.
+By enabling the plugin, the user is routed to an additional login
+procedure for authentication, but they no longer have to generate a
+token manually in the UI.
+The instructions for either generating a token manually or enabling the Konvoy Async Plugin differ slightly
+depending on whether you configured the identity provide globally for all the workspaces, or individually for
+a single workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 249
+
+--- page 250 ---
+Configuring Token Authentication for Global Identity Providers
+In this scenario, the Identity Provider serves all workspaces.
+About this task
+Note:  You must manually generate a new token every 24 hours:
+About this task
+Procedure
+1. Log in to the NKP UI with your credentials.
+2. Select your username.
+3. Select Generate Token.
+4. Login again.
+5. If there are several clusters, select the target cluster.
+6. Follow the instructions on the displayed page.
+Enabling the Konvoy Async Plugin for Global Identity Providers
+Enable the Konvoy Async Plugin to automatically update the token.
+Before you begin
+You or a global admin must configure an identity provider to see this option.
+Procedure
+1. Open the login URL.
+2. To authenticate, select Konvoy credentials plugin instructions.
+3. Follow the instructions on the displayed (Konvoy) Credentials plugin instructionspage.
+If you use Method 1 in the instructions documented in the (Konvoy) Credentials plugin instructions,
+then download a kubeconfig file that includes the contexts for all clusters.
+Alternatively, to switch between clusters, you can use Method 2 to create a kubeconfig file per cluster
+and use the --kubeconfig= flag or export KUBECONFIG= commands.
+Warning:  If you choose Method 2, the Set profile name field is not optional if you have multiple clusters
+in your environment. Ensure you change the name of the profile for each cluster for which you want
+to generate a kubeconfig file. Otherwise, all clusters will use the same token, which makes cluster
+authentication vulnerable and can let users access clusters for which they do not have authorization.
+Configuring Token Authentication for Workspace Identity Providers
+In this scenario, the identity provider serves a specific workspace or tenant.
+About this task
+Note:  You must manually generate a new token every 24 hours:
+Nutanix Kubernetes Platform | Cluster Operations Management | 250
+
+--- page 251 ---
+Procedure
+1. Open the login link you obtained from the global administrator, which they generated for your workspace
+or tenant.
+2. Select Generate Kubectl Configuration.
+3. If there are several clusters in the workspace, select the cluster for which you want to generate a token.
+4. Log in with your credentials.
+5. Follow the instructions on the page displayed.
+Enabling the Konvoy Async Plugin for Workspace Identity Providers
+Enable the Konvoy Async Plugin to automatically update the token.
+Before you begin
+You or a global admin must configure a workspace-scoped identity provider to see this option.
+Procedure
+1. Open the login link you obtained from the global administrator, which they generated for your workspace
+or tenant.
+2. Select Credentials plugin instructions.
+3. Follow the instructions on the (Konvoy) Credentials plugin instructions page.
+If you use Method 1 in the instructions documented in the (Konvoy) Credentials plugin instructions,
+then download a kubeconfig file that includes the contexts for all clusters.
+Alternatively, to switch between clusters, you can use Method 2 to create a kubeconfig file per cluster
+and use the --kubeconfig= flag or export KUBECONFIG= commands.
+Warning:  If you choose Method 2, the Set profile name field is not optional if you have multiple clusters
+in your environment. Ensure you change the name of the profile for each cluster for which you want
+to generate a kubeconfig file. Otherwise, all clusters will use the same token, which makes cluster
+authentication vulnerable and can let users access clusters for which they do not have authorization.
+Frequently Asked Questions
+What happens if I have several clusters in my environment?
+Each cluster has a unique API server address, and each cluster requires a unique token.
+There are several things you can do to have access to several clusters.
+If you decide to manually create a kubeconfig file with a fresh token every 24 hours, you must do this for
+each cluster in your environment.
+If you decide to enable the Konvoy Async Plugin to automatically refresh the token, you can use the
+Method 1 steps documented in the (Konvoy) Credentials plugin instructions page to download a
+kubeconfig that includes the contexts for all clusters.
+Alternatively, you can use the Method 2 steps documented in the (Konvoy) Credentials plugin
+instructions page to create a kubeconfig file per cluster, and use the --kubeconfig= flag export
+KUBECONFIG= or commands to switch between clusters.
+Warning:  If you choose Method 2, the Set profile name field is not optional if you have multiple clusters in
+your environment. Ensure you change the name of the profile for each cluster for which you want to generate
+Nutanix Kubernetes Platform | Cluster Operations Management | 251
+
+--- page 252 ---
+a kubeconfig file. Otherwise, all clusters will use the same token, which makes cluster authentication
+vulnerable and can let users access clusters for which they do not have authorization.
+How does NKP ensure that users only see the login options for their specific workspace?
+NKP supports multi-tenancy by enabling administrators to configure dedicated Identity Providers per
+workspace/tenant. Given that a user employs a dedicated workspace login URL to access the NKP UI, the
+user only sees the login options (and IdPs) available in said workspace.
+What is a kubeconfig file?
+A file that is used to configure access to clusters is called a kubeconfig file.
+The kubectl and NKP command-line tools use kubeconfig files to find the information it needs to choose a
+cluster and communicate with the API server of a cluster.
+In NKP, a kubeconfig file is created automatically when you create a cluster, but it requires a valid token
+to obtain access to it.
+For more information, see Provide Context for Commands with a kubeconfig File.
+Rotating the NKP Dashboard Password
+Rotate the static local administrator password for the NKP dashboard. Rotate the password periodically as
+a security measure, or after you configure an external identity provider for regular user access.
+About this task
+The NKP dashboard uses a static local administrator account as a backup credential. Rotating the
+password invalidates existing sessions and any stored copies of the previous password. Retrieve the new
+password with the nkp get dashboard command after the rotation completes.
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Are you sure you want to continue? [y/N]: y
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+If you decline the prompt, the command aborts without changing the password:
+Aborted. The dashboard password was not rotated.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+3. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+The user name, new password, and dashboard URL appear in the command output. Store the new
+password securely.
+Nutanix Kubernetes Platform | Cluster Operations Management | 252
+
+--- page 253 ---
+What to do next
+The static local credentials are backup credentials. For regular user access, configure an external identity
+provider. For more information, see Identity Providers.
+Infrastructure Providers
+Infrastructure providers, such as Nutanix, AWS, Azure, and vSphere, provide the infrastructure for your
+management clusters. You can include many accounts for a single infrastructure provider. To automate
+cluster provisioning and cluster management in the Nutanix Kubernetes® Platform (NKP) user interface,
+NKP requires authentication keys and credentials for your preferred infrastructure provider.
+Based on your licenses, NKP enables you to provision and manage clusters from multiple infrastructure
+providers as follows:
+•
+NKP Starter supports only Nutanix Infrastructure. You cannot provision and manage clusters from
+multiple infrastructure providers.
+•
+NKP Pro supports multi-cluster environment, with a single management cluster and one or more
+attached or managed clusters of the same infrastructure provider.
+•
+NKP Ultimate supports a multi-cluster environment, with a single management cluster and one or more
+attached or managed clusters of multiple infrastructure providers.
+In NKP, you can create the following infrastructure providers.
+•
+For Nutanix, see Configuring a Nutanix Infrastructure Provider in the UI on page 253
+•
+For AWS, see Configuring an AWS Infrastructure Provider with a User Role on page 254
+•
+For Azure, Configuring an Azure Infrastructure Provider in the UI on page 267
+•
+For vSphere, see Configuring a vSphere Infrastructure Provider in the UI on page 268
+Infrastructure provider credentials are configured in each workspace. The name you assign must be unique
+across all the other namespaces in your cluster.
+Configuring a Nutanix Infrastructure Provider in the UI
+If you have Nutanix Kubernetes® Platform (NKP) Starter, Pro, or Ultimate licenses, you can create Nutanix
+infrastructure provider in the NKP user interface. NKP enables to you add multiple infrastructure providers
+only in NKP Pro and Ultimate license types. NKP Pro supports multi-cluster environment with a single
+management cluster with one or more attached or managed clusters of the same infrastructure provider.
+NKP Ultimate supports a multi-cluster environment with a single management cluster with one or more
+attached or managed clusters of multiple infrastructure providers.
+About this task
+Before you provision Nutanix clusters using the NKP user interface, you must first create a Nutanix
+infrastructure provider to contain your Prism Central credentials.
+To add a single or multiple Nutanix infrastructures and contain your Prism Central credentials, follow these
+steps:
+Procedure
+1. Log in to the NKP dashboard.
+2. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+3. From the left navigation pane, click Administration > Infrastructure Providers.
+Nutanix Kubernetes Platform | Cluster Operations Management | 253
+
+--- page 254 ---
+4. Click Add Infrastructure Provider.
+The Add Infrastructure Provider page appears.
+5. In the Workspace dropdown menu, select the workspace for your infrastructure provider.
+NKP automatically creates the new infrastructure provider in that workspace.
+6. From the Select Infrastructure Provider, select Nutanix and add the following information:
+a. In the Name field, enter a name for your infrastructure provider.
+b. In the Prism Central Endpoint field, enter the endpoint URL of Prism Central.
+The Prism Central endpoint must be in the format https://<Prism Central IP Address or FQDN>:9440
+c. In the Username field, enter a valid Prism Central username.
+d. In the Password field, enter a valid Prism Central user password.
+e. To upload the trust bundle, follow these steps:
+1. Click Upload File.
+2. Browse to the location of the Prism Central endpoint certificate and click Open.
+f.
+Click Save.
+Configuring an AWS Infrastructure Provider with a User Role
+If you have Nutanix Kubernetes® Platform (NKP) Pro or Ultimate licenses, you can create an AWS
+infrastructure provider in the NKP user interface. NKP enables to you add multiple infrastructure providers
+based on your license type. NKP Pro supports multi-cluster environment with a single management cluster
+with one or more attached or managed clusters of the same infrastructure provider. NKP Ultimate supports
+a multi-cluster environment with a single management cluster with one or more attached or managed
+clusters of multiple infrastructure providers.
+Before you begin
+Before creating an AWS Infrastructure Provider in the NKP user interface, ensure that you manually create
+a user role. For more information, see Create a Role Manually on page 255
+About this task
+Create your infrastructure provider to add resources to your AWS account. For more flexible credential
+configuration and third-party access, NKP offers a role-based authentication method with an optional
+external ID. For more information, see IAM roles for Amazon EC2.
+Note:
+•
+Nutanix recommends using the role-based method as it is more secure.
+•
+If your management cluster runs on AWS, you can use the role authentication method.
+To create a single or multiple AWS infrastructure provider with a user role, follow these steps:
+Procedure
+1. Log in to the NKP dashboard.
+2. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 254
+
+--- page 255 ---
+3. From the left navigation pane, click Administration > Infrastructure Providers.
+4. Click Add Infrastructure Provider.
+The Add Infrastructure Provider page appears.
+5. In the Workspace dropdown menu, select the workspace for your infrastructure provider.
+NKP automatically creates the new infrastructure provider in that workspace.
+6. From the Select Infrastructure Provider, select Amazon Web Services (AWS) and add the following
+information:
+a. In the Name field, enter a name for your infrastructure provider.
+Select a name that matches the AWS user.
+b. To configure the AWS infrastructure provider with the user role, in the Authentication Method
+dropdown list, select Role.
+Ensure to select Role as the authentication method only when your management cluster runs on
+AWS.
+c. In the Role ARN field, enter the unique identifier of the IAM role.
+d. (Optional) To share the role with a third-party account or service, in the External ID field, add a
+secret string or unique identifier of that account or service.
+External IDs secure your environment from accidentally used roles. For more information see
+Access to AWS accounts owned by third parties.
+e. Click Save.
+Create a Role Manually
+Create a role manually before configuring an AWS Infrastructure Provider with a User Role.
+About this task
+The role must grant permissions to create the following resources in the AWS account:
+•
+EC2 Instances
+•
+VPC
+•
+Subnets
+•
+Elastic Load Balancer (ELB)
+•
+Internet Gateway
+•
+NAT Gateway
+•
+Elastic Block Storage (EBS) Volumes
+•
+Security Groups
+•
+Route Tables
+•
+IAM Roles
+Nutanix Kubernetes Platform | Cluster Operations Management | 255
+
+--- page 256 ---
+Procedure
+1. The user you delegate from your role must have a minimum set of permissions. The following snippet is
+the minimal IAM policy required.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:AllocateAddress",
+        "ec2:AssociateRouteTable",
+        "ec2:AttachInternetGateway",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:CreateInternetGateway",
+        "ec2:CreateNatGateway",
+        "ec2:CreateRoute",
+        "ec2:CreateRouteTable",
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "ec2:CreateVpc",
+        "ec2:ModifyVpcAttribute",
+        "ec2:DeleteInternetGateway",
+        "ec2:DeleteNatGateway",
+        "ec2:DeleteRouteTable",
+        "ec2:DeleteSecurityGroup",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteTags",
+        "ec2:DeleteVpc",
+        "ec2:DescribeAccountAttributes",
+        "ec2:DescribeAddresses",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeImages",
+        "ec2:DescribeNatGateways",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeNetworkInterfaceAttribute",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeVolumes",
+        "ec2:DetachInternetGateway",
+        "ec2:DisassociateRouteTable",
+        "ec2:DisassociateAddress",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyNetworkInterfaceAttribute",
+        "ec2:ModifySubnetAttribute",
+        "ec2:ReleaseAddress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RunInstances",
+        "ec2:TerminateInstances",
+        "tag:GetResources",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:ConfigureHealthCheck",
+        "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DescribeLoadBalancers",
+Nutanix Kubernetes Platform | Cluster Operations Management | 256
+
+--- page 257 ---
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+        "elasticloadbalancing:RemoveTags",
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeInstanceRefreshes",
+        "ec2:CreateLaunchTemplate",
+        "ec2:CreateLaunchTemplateVersion",
+        "ec2:DescribeLaunchTemplates",
+        "ec2:DescribeLaunchTemplateVersions",
+        "ec2:DeleteLaunchTemplate",
+        "ec2:DeleteLaunchTemplateVersions",
+        "ec2:DescribeKeyPairs"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:CreateAutoScalingGroup",
+        "autoscaling:UpdateAutoScalingGroup",
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:StartInstanceRefresh",
+        "autoscaling:DeleteAutoScalingGroup",
+        "autoscaling:DeleteTags"
+      ],
+      "Resource": [
+        "arn:*:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/autoscaling.amazonaws.com/
+AWSServiceRoleForAutoScaling"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "autoscaling.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/
+AWSServiceRoleForElasticLoadBalancing"
+      ],
+      "Condition": {
+        "StringLike": {
+          "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
+        }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+Nutanix Kubernetes Platform | Cluster Operations Management | 257
+
+--- page 258 ---
+        "arn:*:iam::*:role/aws-service-role/spot.amazonaws.com/
+AWSServiceRoleForEC2Spot"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "spot.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": ["arn:*:iam::*:role/*.cluster-api-provider-aws.sigs.k8s.io"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:TagResource"
+      ],
+      "Resource": ["arn:*:secretsmanager:*:*:secret:aws.cluster.x-k8s.io/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter"],
+      "Resource": ["arn:*:ssm:*:*:parameter/aws/service/eks/optimized-ami/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/eks.amazonaws.com/
+AWSServiceRoleForAmazonEKS"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "eks.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/
+AWSServiceRoleForAmazonEKSNodegroup"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "eks-nodegroup.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:aws:iam::*:role/aws-service-role/eks-fargate-pods.amazonaws.com/
+AWSServiceRoleForAmazonEKSForFargate"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "eks-fargate.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:GetRole", "iam:ListAttachedRolePolicies"],
+Nutanix Kubernetes Platform | Cluster Operations Management | 258
+
+--- page 259 ---
+      "Resource": ["arn:*:iam::*:role/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:GetPolicy"],
+      "Resource": ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListClusters",
+        "eks:CreateCluster",
+        "eks:TagResource",
+        "eks:UpdateClusterVersion",
+        "eks:DeleteCluster",
+        "eks:UpdateClusterConfig",
+        "eks:UntagResource",
+        "eks:UpdateNodegroupVersion",
+        "eks:DescribeNodegroup",
+        "eks:DeleteNodegroup",
+        "eks:UpdateNodegroupConfig",
+        "eks:CreateNodegroup",
+        "eks:AssociateEncryptionConfig"
+      ],
+      "Resource": ["arn:*:eks:*:*:cluster/*", "arn:*:eks:*:*:nodegroup/*/*/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListAddons",
+        "eks:CreateAddon",
+        "eks:DescribeAddonVersions",
+        "eks:DescribeAddon",
+        "eks:DeleteAddon",
+        "eks:UpdateAddon",
+        "eks:TagResource",
+        "eks:DescribeFargateProfile",
+        "eks:CreateFargateProfile",
+        "eks:DeleteFargateProfile"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": ["*"],
+      "Condition": {
+        "StringEquals": { "iam:PassedToService": "eks.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["kms:CreateGrant", "kms:DescribeKey"],
+      "Resource": ["*"],
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "kms:ResourceAliases": "alias/cluster-api-provider-aws-*"
+        }
+      }
+    }
+  ]
+Nutanix Kubernetes Platform | Cluster Operations Management | 259
+
+--- page 260 ---
+}
+Ensure to add a correct trust relationship to the created role.
+This provides everyone within the same account to assign AssumeRole with the created role.
+2. Replace YOURACCOUNTRESTRICTION with the AWS Account ID that you want AssumeRole from.
+Note:  Never add a */ wildcard. This opens your account to the public.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Service": "ec2.amazonaws.com",
+        "AWS": "arn:aws:iam::YOURACCOUNTRESTRICTION:root"
+      },
+      "Action": "sts:AssumeRole"
+    }
+  ]
+}
+3. To use the role created, attach the following policy to the role which is already attached to your
+managed or attached cluster. Replace YOURACCOUNTRESTRICTION with the AWS Account ID where the
+role AssumeRole is saved. Also, replace THEROLEYOUCREATED with the AWS Role name.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AssumeRoleKommander",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": "arn:aws:iam::YOURACCOUNTRESTRICTION:role/THEROLEYOUCREATED"
+    }
+  ]
+}
+Configuring an AWS Infrastructure Provider with Static Credentials
+If you have Nutanix Kubernetes® Platform (NKP) Pro or Ultimate licenses, you can create an AWS
+infrastructure provider in the NKP user interface. NKP enables to you add multiple infrastructure providers
+based on your license type. NKP Pro supports multi-cluster environment with a single management cluster
+with one or more attached or managed clusters of the same infrastructure provider. NKP Ultimate supports
+a multi-cluster environment with a single management cluster with one or more attached or managed
+clusters of multiple infrastructure providers.
+About this task
+When configuring AWS infrastructure provider with static credentials, you need an access key ID and a
+secret access key for the IAM user with a set of minimum capabilities. For more information, see
+To create a single or multiple AWS infrastructure provider with static credentials, follow these steps:
+Procedure
+1. Log in to the NKP dashboard.
+2. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 260
+
+--- page 261 ---
+3. From the left navigation pane, click Administration > Infrastructure Providers.
+4. Click Add Infrastructure Provider.
+The Add Infrastructure Provider page appears.
+5. In the Workspace dropdown menu, select the workspace for your infrastructure provider.
+NKP automatically creates the new infrastructure provider in that workspace.
+6. From the Select Infrastructure Provider, select Amazon Web Services (AWS) and add the following
+information:
+a. In the Name field, enter a name for your infrastructure provider.
+Select a name that matches the AWS user.
+b. To configure the AWS infrastructure provider with the static credentials, in the Authentication
+Method dropdown list, select Static.
+c. In the Access Key field, enter the access key ID of the IAM user.
+d. In the Secret Key field, enter the secret access key of the IAM user.
+e. Click Save.
+Creating a User Using CLI
+You can create a user using CLI.
+Before you begin
+Ensure that you install the AWS CLI utility. For more information, see Install or update to the latest version
+of the AWS CLI.
+About this task
+To create a IAM user using AWS CLI, follow these steps:
+Procedure
+1. Create a user:
+aws iam create-user --user-name Kommander
+2. Create an IAM policy:
+aws iam create-policy --policy-name kommander-policy --policy-document
+ '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":
+["ec2:AllocateAddress","ec2:AssociateRouteTable","ec2:AttachInternetGateway","ec2:AuthorizeSecur
+["*"]},{"Effect":"Allow","Action":
+["autoscaling:CreateAutoScalingGroup","autoscaling:UpdateAutoScalingGroup","autoscaling:CreateOr
+["arn:*:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*"]},
+{"Effect":"Allow","Action":["iam:CreateServiceLinkedRole"],"Resource":
+["arn:*:iam::*:role/aws-service-role/autoscaling.amazonaws.com/
+AWSServiceRoleForAutoScaling"],"Condition":{"StringLike":
+{"iam:AWSServiceName":"autoscaling.amazonaws.com"}}},
+{"Effect":"Allow","Action":["iam:CreateServiceLinkedRole"],"Resource":
+["arn:*:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/
+AWSServiceRoleForElasticLoadBalancing"],"Condition":{"StringLike":
+{"iam:AWSServiceName":"elasticloadbalancing.amazonaws.com"}}},
+{"Effect":"Allow","Action":["iam:CreateServiceLinkedRole"],"Resource":
+["arn:*:iam::*:role/aws-service-role/spot.amazonaws.com/
+Nutanix Kubernetes Platform | Cluster Operations Management | 261
+
+--- page 262 ---
+AWSServiceRoleForEC2Spot"],"Condition":{"StringLike":
+{"iam:AWSServiceName":"spot.amazonaws.com"}}},{"Effect":"Allow","Action":
+["iam:PassRole"],"Resource":["arn:*:iam::*:role/*.cluster-
+api-provider-aws.sigs.k8s.io"]},{"Effect":"Allow","Action":
+["secretsmanager:CreateSecret","secretsmanager:DeleteSecret","secretsmanager:TagResource"],"Reso
+["arn:*:secretsmanager:*:*:secret:aws.cluster.x-k8s.io/*"]},
+{"Effect":"Allow","Action":["ssm:GetParameter"],"Resource":["arn:*:ssm:*:*:parameter/
+aws/service/eks/optimized-ami/*"]},{"Effect":"Allow","Action":
+["iam:CreateServiceLinkedRole"],"Resource":["arn:*:iam::*:role/aws-service-
+role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS"],"Condition":{"StringLike":
+{"iam:AWSServiceName":"eks.amazonaws.com"}}},{"Effect":"Allow","Action":
+["iam:CreateServiceLinkedRole"],"Resource":["arn:*:iam::*:role/aws-service-role/
+eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"],"Condition":
+{"StringLike":{"iam:AWSServiceName":"eks-nodegroup.amazonaws.com"}}},
+{"Effect":"Allow","Action":["iam:CreateServiceLinkedRole"],"Resource":
+["arn:aws:iam::*:role/aws-service-role/eks-fargate-pods.amazonaws.com/
+AWSServiceRoleForAmazonEKSForFargate"],"Condition":{"StringLike":
+{"iam:AWSServiceName":"eks-fargate.amazonaws.com"}}},{"Effect":"Allow","Action":
+["iam:GetRole","iam:ListAttachedRolePolicies"],"Resource":["arn:*:iam::*:role/
+*"]},{"Effect":"Allow","Action":["iam:GetPolicy"],"Resource":
+["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]},{"Effect":"Allow","Action":
+["eks:DescribeCluster","eks:ListClusters","eks:CreateCluster","eks:TagResource","eks:UpdateClust
+["arn:*:eks:*:*:cluster/*","arn:*:eks:*:*:nodegroup/*/*/*"]},
+{"Effect":"Allow","Action":
+["eks:ListAddons","eks:CreateAddon","eks:DescribeAddonVersions","eks:DescribeAddon","eks:DeleteA
+["*"]},{"Effect":"Allow","Action":["iam:PassRole"],"Resource":
+["*"],"Condition":{"StringEquals":{"iam:PassedToService":"eks.amazonaws.com"}}},
+{"Effect":"Allow","Action":["kms:CreateGrant","kms:DescribeKey"],"Resource":
+["*"],"Condition":{"ForAnyValue:StringLike":{"kms:ResourceAliases":"alias/cluster-
+api-provider-aws-*"}}}]}'
+3. Create an IAM attach-user policy:
+aws iam attach-user-policy --user-name Kommander --policy-arn $(aws iam list-policies
+ --query 'Policies[?PolicyName==`kommander-policy`].Arn' | grep -o '".*"' | tr -d
+ '"')
+4. Create an IAM access key:
+aws iam create-access-key --user-name Kommander
+Using an Existing User to Configure an AWS Infrastructure
+You can use an existing AWS user with the credentials configured.
+Before you begin
+Ensure that you are authorized to create the following resources in the AWS account:
+•
+EC2 Instances
+•
+VPC
+•
+Subnets
+•
+Elastic Load Balancer (ELB)
+•
+Internet Gateway
+•
+NAT Gateway
+•
+Elastic Block Storage (EBS) Volumes
+Nutanix Kubernetes Platform | Cluster Operations Management | 262
+
+--- page 263 ---
+•
+Security Groups
+•
+Route Tables
+•
+IAM Roles
+For more information, see Configuration and credential file settings in the AWS CLI
+Procedure
+The following is the minimal IAM policy required.
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:AllocateAddress",
+        "ec2:AssociateRouteTable",
+        "ec2:AttachInternetGateway",
+        "ec2:AuthorizeSecurityGroupIngress",
+        "ec2:CreateInternetGateway",
+        "ec2:CreateNatGateway",
+        "ec2:CreateRoute",
+        "ec2:CreateRouteTable",
+        "ec2:CreateSecurityGroup",
+        "ec2:CreateSubnet",
+        "ec2:CreateTags",
+        "ec2:CreateVpc",
+        "ec2:ModifyVpcAttribute",
+        "ec2:DeleteInternetGateway",
+        "ec2:DeleteNatGateway",
+        "ec2:DeleteRouteTable",
+        "ec2:DeleteSecurityGroup",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteTags",
+        "ec2:DeleteVpc",
+        "ec2:DescribeAccountAttributes",
+        "ec2:DescribeAddresses",
+        "ec2:DescribeAvailabilityZones",
+        "ec2:DescribeInstances",
+        "ec2:DescribeInternetGateways",
+        "ec2:DescribeImages",
+        "ec2:DescribeNatGateways",
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeNetworkInterfaceAttribute",
+        "ec2:DescribeRouteTables",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "ec2:DescribeVpcAttribute",
+        "ec2:DescribeVolumes",
+        "ec2:DetachInternetGateway",
+        "ec2:DisassociateRouteTable",
+        "ec2:DisassociateAddress",
+        "ec2:ModifyInstanceAttribute",
+        "ec2:ModifyNetworkInterfaceAttribute",
+        "ec2:ModifySubnetAttribute",
+        "ec2:ReleaseAddress",
+        "ec2:RevokeSecurityGroupIngress",
+        "ec2:RunInstances",
+        "ec2:TerminateInstances",
+Nutanix Kubernetes Platform | Cluster Operations Management | 263
+
+--- page 264 ---
+        "tag:GetResources",
+        "elasticloadbalancing:AddTags",
+        "elasticloadbalancing:CreateLoadBalancer",
+        "elasticloadbalancing:ConfigureHealthCheck",
+        "elasticloadbalancing:DeleteLoadBalancer",
+        "elasticloadbalancing:DescribeLoadBalancers",
+        "elasticloadbalancing:DescribeLoadBalancerAttributes",
+        "elasticloadbalancing:ApplySecurityGroupsToLoadBalancer",
+        "elasticloadbalancing:DescribeTags",
+        "elasticloadbalancing:ModifyLoadBalancerAttributes",
+        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+        "elasticloadbalancing:RemoveTags",
+        "autoscaling:DescribeAutoScalingGroups",
+        "autoscaling:DescribeInstanceRefreshes",
+        "ec2:CreateLaunchTemplate",
+        "ec2:CreateLaunchTemplateVersion",
+        "ec2:DescribeLaunchTemplates",
+        "ec2:DescribeLaunchTemplateVersions",
+        "ec2:DeleteLaunchTemplate",
+        "ec2:DeleteLaunchTemplateVersions",
+        "ec2:DescribeKeyPairs"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:CreateAutoScalingGroup",
+        "autoscaling:UpdateAutoScalingGroup",
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:StartInstanceRefresh",
+        "autoscaling:DeleteAutoScalingGroup",
+        "autoscaling:DeleteTags"
+      ],
+      "Resource": [
+        "arn:*:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/*"
+      ]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/autoscaling.amazonaws.com/
+AWSServiceRoleForAutoScaling"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "autoscaling.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/
+AWSServiceRoleForElasticLoadBalancing"
+      ],
+      "Condition": {
+        "StringLike": {
+          "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
+        }
+      }
+Nutanix Kubernetes Platform | Cluster Operations Management | 264
+
+--- page 265 ---
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/spot.amazonaws.com/
+AWSServiceRoleForEC2Spot"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "spot.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": ["arn:*:iam::*:role/*.cluster-api-provider-aws.sigs.k8s.io"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "secretsmanager:CreateSecret",
+        "secretsmanager:DeleteSecret",
+        "secretsmanager:TagResource"
+      ],
+      "Resource": ["arn:*:secretsmanager:*:*:secret:aws.cluster.x-k8s.io/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["ssm:GetParameter"],
+      "Resource": ["arn:*:ssm:*:*:parameter/aws/service/eks/optimized-ami/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/eks.amazonaws.com/
+AWSServiceRoleForAmazonEKS"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "eks.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:*:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/
+AWSServiceRoleForAmazonEKSNodegroup"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "eks-nodegroup.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:CreateServiceLinkedRole"],
+      "Resource": [
+        "arn:aws:iam::*:role/aws-service-role/eks-fargate-pods.amazonaws.com/
+AWSServiceRoleForAmazonEKSForFargate"
+      ],
+      "Condition": {
+        "StringLike": { "iam:AWSServiceName": "eks-fargate.amazonaws.com" }
+Nutanix Kubernetes Platform | Cluster Operations Management | 265
+
+--- page 266 ---
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:GetRole", "iam:ListAttachedRolePolicies"],
+      "Resource": ["arn:*:iam::*:role/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:GetPolicy"],
+      "Resource": ["arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:DescribeCluster",
+        "eks:ListClusters",
+        "eks:CreateCluster",
+        "eks:TagResource",
+        "eks:UpdateClusterVersion",
+        "eks:DeleteCluster",
+        "eks:UpdateClusterConfig",
+        "eks:UntagResource",
+        "eks:UpdateNodegroupVersion",
+        "eks:DescribeNodegroup",
+        "eks:DeleteNodegroup",
+        "eks:UpdateNodegroupConfig",
+        "eks:CreateNodegroup",
+        "eks:AssociateEncryptionConfig"
+      ],
+      "Resource": ["arn:*:eks:*:*:cluster/*", "arn:*:eks:*:*:nodegroup/*/*/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "eks:ListAddons",
+        "eks:CreateAddon",
+        "eks:DescribeAddonVersions",
+        "eks:DescribeAddon",
+        "eks:DeleteAddon",
+        "eks:UpdateAddon",
+        "eks:TagResource",
+        "eks:DescribeFargateProfile",
+        "eks:CreateFargateProfile",
+        "eks:DeleteFargateProfile"
+      ],
+      "Resource": ["*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["iam:PassRole"],
+      "Resource": ["*"],
+      "Condition": {
+        "StringEquals": { "iam:PassedToService": "eks.amazonaws.com" }
+      }
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["kms:CreateGrant", "kms:DescribeKey"],
+      "Resource": ["*"],
+      "Condition": {
+        "ForAnyValue:StringLike": {
+Nutanix Kubernetes Platform | Cluster Operations Management | 266
+
+--- page 267 ---
+          "kms:ResourceAliases": "alias/cluster-api-provider-aws-*"
+        }
+      }
+    }
+  ]
+}
+Configuring an Azure Infrastructure Provider in the UI
+If you have Nutanix Kubernetes® Platform (NKP) Pro or Ultimate licenses, you can create an Azure
+infrastructure provider in the NKP user interface. NKP enables to you add multiple infrastructure providers
+based on your license type. NKP Pro supports multi-cluster environment with a single management cluster
+with one or more attached or managed clusters of the same infrastructure provider. NKP Ultimate supports
+a multi-cluster environment with a single management cluster with one or more attached or managed
+clusters of multiple infrastructure providers.
+About this task
+Before you provision Azure clusters using the NKP user interface, you must first create an Azure
+infrastructure provider to contain your Azure credentials.
+To add a single or multiple AWS infrastructures and contain your Azure credentials, follow these steps:
+Procedure
+1. Log in to the Azure command line.
+az login
+2. Create an Azure service principal.
+az ad sp create-for-rbac --role contributor --name "$(whoami)-konvoy" --scopes=/
+subscriptions/$(az account show --query id -o tsv)
+3. Log in to the NKP dashboard.
+4. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+5. From the left navigation pane, click Administration > Infrastructure Providers.
+6. Click Add Infrastructure Provider.
+The Add Infrastructure Provider page appears.
+7. In the Workspace dropdown menu, select the workspace for your infrastructure provider.
+NKP automatically creates the new infrastructure provider in that workspace.
+8. From the Select Infrastructure Provider, select Microsoft Azure and add the following information:
+a. In the Subscription ID field, copy and paste the ID from the output of the login command.
+b. In the Tenant ID field, copy and paste the tenant value used for creating Azure service principal.
+c. In the Client ID field, copy and paste the appId value used for creating Azure service principal.
+d. In the Client Secret  field, copy and paste the password value used for creating Azure service
+principal.
+e. Click Save.
+Nutanix Kubernetes Platform | Cluster Operations Management | 267
+
+--- page 268 ---
+Configuring a vSphere Infrastructure Provider in the UI
+If you have Nutanix Kubernetes® Platform (NKP) Pro or Ultimate licenses, you can create a vSphere
+infrastructure provider in the NKP user interface. NKP enables to you add multiple infrastructure providers
+based on your license type. NKP Pro supports multi-cluster environment with a single management cluster
+with one or more attached or managed clusters of the same infrastructure provider. NKP Ultimate supports
+a multi-cluster environment with a single management cluster with one or more attached or managed
+clusters of multiple infrastructure providers.
+About this task
+To add a single or multiple vSphere infrastructures, follow these steps:
+Procedure
+1. Log in to the NKP dashboard.
+2. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+3. From the left navigation pane, click Administration > Infrastructure Providers.
+4. Click Add Infrastructure Provider.
+The Add Infrastructure Provider page appears.
+5. In the Workspace dropdown menu, select the workspace for your infrastructure provider.
+NKP automatically creates the new infrastructure provider in that workspace.
+6. From the Select Infrastructure Provider, select vSphere and add the following information:
+a. In the Name field, enter a name your infrastructure provider.
+b. In the Username field, enter a valid vSphere vCenter username.
+c. In the Password field, enter a valid vSphere vCenter user password.
+d. In the Host URL field, enter the vSphere vCenter server URL.
+Ensure that you add only the domain for the URL, such as vcenter.ca1.your-org-
+platform.domain.cloud. Do not specify the protocol http:// to avoid errors during cluster
+creation.
+e. (Optional) In the TLS Certificate Thumbprint field, enter a valid SHA-1 thumbprint of the vSphere
+server TLS certificate.
+The TLS certificate thumbprint creates a secure connection to VMware vCenter. If you do not have
+a thumbprint, NKP might mark your connection as insecure. You only need the TLS certificate
+thumbprint when you have a self-signed vCenter instance.
+To generate the SHA-1 thumbprint for the TLS certificate of vSpheres server, the terminal with
+access to the NKP CLI and run the following command:
+openssl s_client -connect <host url>:443 2>/dev/null | openssl x509 -noout -
+fingerprint -sha1
+f.
+Click Save.
+Viewing and Modifying Infrastructure Providers
+In the Nutanix Kubernetes® Platform (NKP) user interface, you can view and modify the infrastructure
+provider records.
+Nutanix Kubernetes Platform | Cluster Operations Management | 268
+
+--- page 269 ---
+About this task
+To view and modify an infrastructure provider, follow these steps:
+Procedure
+1. Log in to the NKP dashboard.
+2. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+3. From the left navigation pane, click Administration > Infrastructure Providers.
+The list of available infrastructure providers appears.
+4. To modify an infrastructure provider information, click the triple dot vertical icon on that infrastructure
+provider.
+5. Click Edit.
+Note:  You cannot modify the default or any Nutanix infrastructure provider information.
+The Add Infrastructure Provider page appears.
+6. After updating the required information specific to your infrastructure provider, click Save.
+Deleting an infrastructure provider
+Before you delete an infrastructure provider, Nutanix Kubernetes® Platform (NKP) checks whether any
+existing clusters are using that infrastructure provider.
+Before you begin
+Ensure that no clusters are currently associated with the infrastructure provider that you intend to delete.
+About this task
+To delete an infrastructure provider, follow these steps:
+Procedure
+1. Log in to the NKP dashboard.
+2. In the top-left corner, from the dropdown list, select the target workspace.
+By default, NKP displays the Global workspace.
+3. From the left navigation pane, click Administration > Infrastructure Providers.
+The list of available infrastructure providers appears.
+4. To delete an infrastructure provider, click the triple dot vertical icon next to that infrastructure provider.
+5. Click Delete.
+Note:  You cannot delete the default Nutanix infrastructure provider.
+Header, Footer, and Logo Implementation
+Use the customizable Banners page to add header banners, footer banners, and select the colors for
+them. You can define header and/or footer banners for your NKP pages and turn them on and off, as
+needed.
+NKP displays your header and footer banner in a default typeface and size, which cannot be changed.
+Nutanix Kubernetes Platform | Cluster Operations Management | 269
+
+--- page 270 ---
+Creating a Header Banner
+The text you type in the Text field appears centered at the top of the screen. The text length is limited to
+100 characters, including spaces. The text color is determined by the background color and automatically
+calculates an appropriate light or dark color for you.
+About this task
+The Color selection control uses the style of your browser for its color picker tool. This control allows you
+to select a color for your header banner:
+Procedure
+1. Enter the color’s Hex code.
+2. Select a general color range, and then select a specific shade or tint. The color input uses the style of
+your browser for its color selection tool.
+3. Select the eyedropper, move it to a sample of the color you want and select once to select that color’s
+location.
+Creating a Footer Banner
+The text you type in the Text field appears centered at the bottom of the screen.
+About this task
+The Color selection control uses the style of your browser for its color picker tool. This control allows you
+to select a color for your footer banner:
+Procedure
+1. Enter the color’s Hex code.
+2. Select a general color range from the slider bar, and then select a specific shade or tint with your mouse
+cursor.
+3. Select the eyedropper, move it to a sample of the color you want and select once to select that color’s
+location.
+Adding Your Organization’s Logo Using the Drag and Drop Option
+When you license and install NKP Ultimate or Gov Advanced, you also have the option to add your
+organization’s logo to the header. The width of the header banner automatically adjusts to contain your
+logo. NKP automatically places your logo on the left side of the header and centers it vertically.
+Before you begin
+Your logo graphic must meet the following criteria:
+•
+Use a suggested file format: PNG, SVG, or JPEG.
+•
+The file size cannot exceed 200 KB.
+Error messages affecting the file to upload appear below the image in red, inside the shaded logo area.
+Note:  To provide security against certain kinds of malicious activity, your browser has a same-origin policy
+for accessing resources. When you upload a file, the browser creates a unique identifier for the file. This
+prevents you from selecting a file more than once.
+Nutanix Kubernetes Platform | Cluster Operations Management | 270

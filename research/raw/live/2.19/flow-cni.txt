@@ -1,0 +1,60 @@
+# Flow CNI read-only facts — NKP 2.19.0 management cluster (AHV, Starter). Collected 2026-11-03 for skill nkp-flow-cni.
+# Commands: kubectl get / explain only, tar -t on the bundle. No dry run, no change. Scrubbed (<mgmt-cluster>, <ip>).
+
+=== kubectl -n caren-system get cm -o name (Flow-related) ===
+configmap/default-nutanix-flow-cni-helm-values-template      <- present in CAREN v0.62.7
+configmap/default-helm-addons-config
+
+=== kubectl -n caren-system get cm default-helm-addons-config -o jsonpath={.data} (key nutanix-flow-cni) ===
+nutanix-flow-cni:
+  ChartName: nutanix-flow-cni
+  ChartVersion: 1.1.0
+  RepositoryURL: 'oci://helm-repository.caren-system.svc/charts'
+(Same RepositoryURL as cilium 1.19.4, metallb 0.15.3, tigera-operator v3.32.1 etc.: the in-cluster mindthegap chart server.)
+
+=== kubectl -n caren-system get cm default-nutanix-flow-cni-helm-values-template -o yaml (data.values.yaml) ===
+nutanix-core-flow-ovn-kubernetes:
+  k8sAPIServer: "https://{{ .ControlPlaneEndpoint.Host }}:{{ .ControlPlaneEndpoint.Port }}"
+  podNetwork: "{{ .PodCIDR }}"
+  serviceNetwork: "{{ .ServiceCIDR }}"
+{{- if .ImagePullSecretName }}
+global:
+  imagePullSecretName: "{{ .ImagePullSecretName }}"
+imagePullSecrets:
+  - name: "{{ .ImagePullSecretName }}"
+{{- end }}
+Notes: no MTU key, no dockerConfigSecret block. Whether .PodCIDR gets the "/<hostsubnet>" suffix that the guide uses (192.168.0.0/16/24) is not visible here.
+
+=== ClusterClass nkp-nutanix-v2.19.0 (ns kommander), clusterConfig.addons.cni schema ===
+description: "NutanixCNI defines CNI configuration for Nutanix clusters, which additionally support Flow."
+provider: enum [Calico, Cilium, Flow] (required)
+strategy: enum [ClusterResourceSet, HelmAddon], default HelmAddon
+values.sourceRef: {kind: ConfigMap (only), name} "Configmap/Secret inside the same namespace"
+imagePullCredentials.secretRef.name (required inside imagePullCredentials):
+  "ImagePullCredentials is a reference to a Secret with image pull credentials for the CNI provider images.
+   The Secret will be copied to the workload cluster."
+
+=== kubectl get helmchartproxy -A (shape of a CAREN addon HCP) ===
+All 10 CAREN HCPs are in ns kommander (the cluster namespace), names <addon>-<cluster-uid>, ownerReference = CAPI Cluster,
+clusterSelector.matchLabels {cluster.x-k8s.io/cluster-name: <mgmt-cluster>}, repoURL oci://helm-repository.caren-system.svc/charts,
+tlsConfig.caSecret {name: helm-repository-tls, namespace: caren-system}. None is flow-cni.
+CAPI Cluster labels include cluster.x-k8s.io/cluster-name, clusters.nkp.nutanix.com/nkpcluster-name, clusters.nkp.nutanix.com/nkpcluster-namespace.
+
+=== kubectl explain helmchartproxy.spec --recursive (v1alpha1, CAAPH v0.6.2) ===
+required: chartName, clusterSelector, repoURL. Others: credentials{key, secret{name,namespace}}, namespace, options{atomic,
+dependencyUpdate, disableHooks, enableClientCache, install{createNamespace, includeCRDs}, skipCRDs, takeOwnership, timeout,
+uninstall{...}, upgrade{...}, wait, waitForJobs}, reconcileStrategy (""|InstallOnce|Continuous), releaseName,
+tlsConfig{caSecret{name,namespace}, insecureSkipTLSVerify}, valuesTemplate.
+
+=== Bundle nkp-v2.19.0/container-images/*.tar: tar -tf | grep -i -E 'flow|ovn' ===
+kommander, konvoy, kubernetes-os, product-catalog, release-specs bundles: no match. (AI catalog: only argoproj workflow-controller.)
+bundle-images.txt: no ovn / flow-cni image (only nvidia/mellanox/ovs-cni-plugin, unrelated).
+=> The Flow CNI images are not in the NKP 2.19.0 bundle. The chart itself is referenced from the CAREN chart server; whether
+   the CAREN chart bundle really holds nutanix-flow-cni 1.1.0 was not checked (needs exec or a pull).
+
+=== Chart in the CAREN chart server (read-only GET through the API server service proxy) ===
+kubectl get --raw "/api/v1/namespaces/caren-system/services/https:helm-repository:443/proxy/v2/charts/nutanix-flow-cni/tags/list"
+-> {"name":"charts/nutanix-flow-cni","tags":["1.1.0"]}
+(control: charts/cilium tags ["1.15.6","1.15.6","1.19.4"])
+=> The NKP 2.19.0 management cluster serves chart nutanix-flow-cni 1.1.0 at oci://helm-repository.caren-system.svc/charts.
+   The images of the chart are NOT in the bundle (see above).

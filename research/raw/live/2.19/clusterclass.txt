@@ -1,0 +1,17 @@
+=== spec keys ===
+controlPlane, infrastructure, patches, workers
+
+=== status.variables names ===
+clusterConfig	?
+workerConfig	?
+
+=== variable count ===
+2
+
+=== worker machineDeployments ===
+null
+null
+
+=== controlPlane infra kind ===
+none
+none

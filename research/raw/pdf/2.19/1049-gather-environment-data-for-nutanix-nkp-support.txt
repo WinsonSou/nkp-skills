@@ -1,0 +1,343 @@
+
+--- page 1049 ---
+12
+TROUBLESHOOTING GUIDE
+Collection of tips for self-remedying common NKP user issues.
+The sections in this chapter represent the most common areas of questions directed at our Support
+Department. Starting here, you can answer those frequently asked questions.
+Gather Environment Data for Nutanix NKP Support
+Steps for gathering the data needed to troubleshoot a Kubernetes cluster.
+The following pages provide the steps to troubleshoot a Kubernetes cluster customization. These subtopics
+offer a way to supply a support bundle file back to Nutanix for further analysis.
+Generate a Support Bundle
+In order to generate a support bundle with data collected for the last 48 hours of the life of the cluster, you
+must complete the following tasks. This helps in gathering environment data for support.
+Prerequisites
+Before generating a support bundle, verify that you have:
+•
+An AMD 64-based Linux or macOS machine with a supported version of the operating system.
+•
+A running Kubernetes cluster.
+•
+Access to the NKP binary.
+Diagnostic Bundle
+nkp diagnose was developed by NKP and builds on the open source troubleshoot.sh project.
+Note:  The command nkp diagnose is based on version v0.92.2 of troubleshoot.sh with custom
+modifications. The NKP fork is open source and available from this public GitHub repository: https://
+github.com/mesosphere/troubleshoot.
+nkp diagnose supports multiple support bundle collectors and can be configured as a SupportBundle
+Kubernetes resource in a YAML file. For more information, see https://troubleshoot.sh/docs/collect/all/.
+The following list is the minimum set of resources required to debug a cluster, but it can be further
+customized.
+The bundle uses the following collectors:
+•
+clusterInfo collects basic information about the cluster. For more information, see https://
+troubleshoot.sh/docs/collect/cluster-info/.
+•
+clusterResources collects a subset of available resources in the cluster. For more information, see
+https://troubleshoot.sh/docs/collect/cluster-resources/.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1049
+
+--- page 1050 ---
+•
+configMap collects the values of Kubernetes ConfigMaps. For more information, see https://
+troubleshoot.sh/docs/collect/configmap/.
+•
+secrets collects the names and metadata of secrets, but NOT the secret values or keys. For more
+information, see https://troubleshoot.sh/docs/collect/secret/.
+•
+execCopyFromHost runs a container on each node on the cluster and copies the created data. For more
+information, see Gathering information using the ExecCopyFromHost Collector on page 1053.
+•
+allLogs can collect logs from all containers on the cluster. For more information, see Using the AllLogs
+Collector on page 1055.
+Generating a Support Bundle
+About this task
+Note:  The command nkp diagnose uses the same Kubernetes configuration as the command kubectl.
+The nkp diagnose command can also be pointed at a specific configuration using the --kubeconfig
+parameter.
+To generate the support bundle, perform the following steps:
+Procedure
+1. Run the default collectors configuration using the command.
+nkp diagnose
+Output example:
+Collecting support bundle ...
+support-bundle-2021-08-13T14_44_23.tar.gz
+2. To view the bundle contents, extract the bundle and replace support-
+bundle-2021-08-13T14_44_23.tar.gz with the location from the previous step.
+Example:
+tar -xzvf support-bundle-<date-created>.tar.gz
+3. A new directory named support-bundle-<date-created> is created. This directory contains a number
+of sub directories. These directories contain the diagnostic information in files.
+ls support-bundle-<date-created>
+Example output:
+cluster-info  cluster-resources  configmaps  node-diagnostics  pod-logs  secrets 
+ version.yaml
+Collecting Information from a Bootstrap Cluster
+About this task
+During the initial deployment of the NKP management cluster, a bootstrap cluster is created first and then
+the resources are shifted to the newly created NKP management cluster. If your bootstrap cluster has not
+yet pivoted towards your NKP management cluster, you can collect log information from that bootstrap
+cluster, and there is a preconfigured set of relevant collectors. Specify an additional bootstrap cluster
+kubeconfig using the --bootstrap-kubeconfig parameter to activate bootstrap cluster diagnostics. You
+will receive an additional support bundle named bootstrap-support-bundle-<date created>.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1050
+
+--- page 1051 ---
+Note:  The bootstrap cluster diagnostics are independent of a general NKP cluster diagnostics configuration.
+We run a static collector set that collects the following bootstrap cluster information:
+•
+ClusterInfo
+•
+ClusterResources
+•
+AllLogs
+•
+ConfigMaps
+•
+Secrets
+Procedure
+Run the nkp diagnose command with bootstrap bundle configuration.
+Example:
+nkp diagnose --bootstrap-kubeconfig <path-to-kubeconfig>
+Using Customizations
+About this task
+To print the default collectors configuration, complete the following task:
+Procedure
+1. Run the nkp diagnose default-config > bundle.yaml command.
+2. Edit the file to make appropriate modifications.
+Note:  By default, nkp diagnose does not require that you supply a configuration. You can print the
+default bundle by running nkp diagnose default-config.
+3. Run the nkp diagnose bundle.yaml
+Using SSH Fallback and Ansible
+About this task
+In some cases, the Kubernetes API is unavailable for the cluster. In those cases, you can collect node-level
+information using SSH access to the diagnosed nodes. Be aware that not all clusters have SSH access
+configured. If they do not, then access using SSH fallback is not possible.
+To get node-level information from your cluster using SSH access, perform the following steps:
+Procedure
+To specify the nodes to access for data collection, run the command.
+nkp diagnose ssh <path/to/ansible-inventory.yaml>
+The ansible-inventory.yaml file specifies the nodes to access for data collection.
+Note:  This collector does not use the full Ansible inventory.yaml format, only a limited subset to
+describe the infrastructure.
+Only the following attributes of the ansible-inventory.yaml are supported. All other group definitions are
+ignored.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1051
+
+--- page 1052 ---
+•
+Support for all shared variables.
+•
+Support for hosts key in all groups.
+•
+Supported behavioral inventory is limited to:
+•
+ansible_host
+•
+ansible_port
+•
+ansible_user
+•
+ansible_ssh_private_key_file
+The following is an example inventory.yaml file:
+all:
+  vars:
+    ansible_user: centos
+  hosts:
+    host-1:
+      ansible_host: 192.168.10.1
+    host-2:
+      ansible_host: 192.168.10.22
+      ansible_port: 2222
+More information on these Ansible parameters can be found in the Ansible User Guide at https://
+docs.ansible.com/ansible/latest/user_guide/intro_inventory.html#connecting-to-hosts-behavioral-inventory-
+parameters.
+Note:  All other group definitions are in the inventory.yaml files are ignored.
+Example:
+all:
+  vars:
+    ansible_user: centos
+  hosts:
+    host-1:
+      ansible_host: 192.168.10.1
+    host-2:
+      ansible_host: 192.168.10.22
+      ansible_port: 2222
+The fallback collector runs a bash script over SSH and copies the collected data. The format of the created
+bundle matches that of nkp diagnose collector-generated bundles.
+Example:
+node-diagnostics/<HOSTNAME_PORT>/data/
+        - dmesg
+        - ....
+Redactors are supported and are in the same format as the main nkp diagnose command. Per node
+collection, timeouts are supported using the --timeout parameter.
+Create Diagnostic Bundles using Custom Collectors
+Nutanix Kubernetes® Platform (NKP) uses nkp diagnose to create diagnostic bundles with custom
+collectors in your cluster environment.
+NKP integrates a customized version of troubleshoot.sh to gather data such as logs, resource states,
+and configuration files. You can define custom collectors to include specific namespaces, workloads, or
+components, allowing precise troubleshooting and faster root cause analysis.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1052
+
+--- page 1053 ---
+Customizations
+To meet the specific needs of diagnosing NKP clusters, we have developed custom collectors and modified
+the behavior of upstream collectors. For more information on the changes, see our repository at https://
+github.com/mesosphere/troubleshoot/blob/v0.92.2-d2iq/README.d2iq.md.
+Gathering information using the ExecCopyFromHost Collector
+About this task
+This collector is explicitly created to gather host-level information from cluster nodes. The collector allows
+you to run a provided container image in a privileged mode as a root user, with additional Linux capabilities
+and the host filesystem mounted in the container.
+You can collect host-level information other than copying host-level files. (This is already possible with the
+CopyFromHost collector.) Like the CopyFromHost collector, this collector runs as a Kubernetes DaemonSet
+executed on all nodes in the system. The data produced by the container are copied from a pre-defined
+directory into the diagnostics bundle under each node name. The name of the parent directory in the
+diagnostics bundle is determined by the name of the collector specified in its configuration.
+Procedure
+1. The data written into the diagnostics bundle follows this format <collector-name> / <node-name> /
+data / (file1|file2|...)
+The following is a sample configuration file:
+spec:
+  collectors:
+    - execCopyFromHost:
+        name: node-diagnostics
+        image: mesosphere/nkp-diagnostics-node-collector:latest
+        timeout: 30s
+        command:
+          - "/bin/bash"
+          - "-c"
+          - "/diagnostics/container.sh --hostroot /host --hostpath ${PATH} --
+outputroot /output"
+        workingDir: "/diagnostics"
+        includeControlPlane: true
+        privileged: true
+        capabilities:
+          - AUDIT_CONTROL
+          - AUDIT_READ
+          - BLOCK_SUSPEND
+          - BPF
+          - CHECKPOINT_RESTORE
+          - DAC_READ_SEARCH
+          - IPC_LOCK
+          - IPC_OWNER
+          - LEASE
+          - LINUX_IMMUTABLE
+          - MAC_ADMIN
+          - MAC_OVERRIDE
+          - NET_ADMIN
+          - NET_BROADCAST
+          - PERFMON
+          - SYS_ADMIN
+          - SYS_BOOT
+          - SYS_MODULE
+          - SYS_NICE
+          - SYS_PACCT
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1053
+
+--- page 1054 ---
+          - SYS_PTRACE
+          - SYS_RAWIO
+          - SYS_RESOURCE
+          - SYS_TIME
+          - SYS_TTY_CONFIG
+          - SYSLOG
+          - WAKE_ALARM
+        extractArchive: true
+The following is an example of the data produced by running this collector:
+### node-diagnostics
+#   ### troubleshoot-control-plane
+#   #   ### data
+#   #       ### certs_expiration_kubeadm
+#   #       ### containerd_config.toml
+                ...
+#   #       ### whoami_validate
+#   ### troubleshoot-worker
+#       ### data
+#           ### containerd_config.toml
+#           ### containers_crictl
+                ...
+#           ### whoami_validate
+If an error occurs while collecting node diagnostics, the node-diagnostics/<node>/pod-
+collector.json file contains the serialized JSON representations of the running pod. This helps
+debug the reasons for the collection failure. The node-diagnostics/<node>/pod-collector.log file
+contains standard output from the collector container that runs the diagnostics script. In addition, the
+command may also produce certain -error.txt files. file-copy-error.txt and pod-collector-
+files-copy-error.txt are two file examples. These files contain error messages generated while
+fetching log files from the collector.
+When using this collector for node-level information, you must run additional docker containers and
+must have the following docker images:
+•
+mesosphere/pause-alpine:3.2
+•
+mesosphere/nkp-diagnostics-node-collector:$(nkp-diagnose version)
+For more information on the configuration options, see the ExecCopyFromHost in the pkg/apis/
+troubleshoot/v1beta2/exec_copy_from_host.go file.
+2. (Optional) If there is a timeout, do the following:
+a. Run the diagnose command:
+If there is a timeout, the following is displayed:
+Collecting support bundle node-diagnostics 
+failed to run collector: exec-copy-from-host/node-diagnostics: timeout
+This collector copies data collected from cluster nodes to the diagnostics bundle. This collector is
+configured to run for 30 seconds by default . Depending on the cluster size, the size of the collected
+data, and the network connection speed between the CLI environment and the cluster, 30 seconds
+may not be enough to copy the data.
+b. Do one of the following:
+•
+Configure the timeout field to higher value.
+•
+Configure the timeout field to 0.
+The timeout is removed. The collector copies data successfully.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1054
+
+--- page 1055 ---
+Using the AllLogs Collector
+About this task
+This collector gathers pod logs from specified namespaces or all namespaces if none are selected. You
+can collect logs of all the pods from all the namespaces. The pod logs are collected under the allPodLogs
+directory.
+Procedure
+The data written into the diagnostics bundle follows this format: <collector-name> / <namespace-
+name> / <pod-name> - (container1|container2|...)
+The following is a sample configuration file to collect logs from all the pods from all the namespaces:
+spec:
+  collectors:
+    - allLogs:
+        namespaces:
+          - "*"
+The following is a sample configuration file to collect logs from all the pods from specific namespaces:
+spec:
+  collectors:
+    - allLogs:
+        namespaces:
+          - default
+          - dev
+          - prod
+The following is an example of the data produced by running this collector:
+### node-diagnostics
+#   ### troubleshoot-control-plane
+#   #   ### data
+#   #       ### certs_expiration_kubeadm
+#   #       ### containerd_config.toml
+                ...
+#   #       ### whoami_validate
+#   ### troubleshoot-worker
+#       ### data
+#           ### containerd_config.toml
+#           ### containers_crictl
+                ...
+#           ### whoami_validate
+If an error occurs while collecting node diagnostics, the node-diagnostics/<node>/pod-collector.json
+file contains the serialized JSON representations of the running pod. This helps debug the reasons for
+the collection failure. The node-diagnostics/<node>/pod-collector.log file contains stdout from the
+collector container that runs the diagnostics script.
+When using this collector for node-level information, you must run additional docker containers and must
+have the following docker images:
+•
+mesosphere/pause-alpine:3.2
+•
+mesosphere/nkp-diagnostics-node-collector:$(nkp-diagnose version)
+For more information on the configuration options, see the ExecCopyFromHost in the pkg/apis/
+troubleshoot/v1beta2/exec_copy_from_host.go file.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1055

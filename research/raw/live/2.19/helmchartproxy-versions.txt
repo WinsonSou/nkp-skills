@@ -1,0 +1,11 @@
+=== HelmChartProxy addon chart versions (CAREN) ===
+ca	cluster-autoscaler	9.59.0	ca-<uuid>	kommander
+cilium	cilium	1.19.4	cilium	kube-system
+cosi	cosi	0.2.2	cosi-controller	container-object-storage-system
+konnector	konnector-agent	1.4.2	konnector-agent	ntnx-system
+metallb	metallb	0.15.3	metallb	metallb-system
+multus	multus	0.1.1	multus	kube-system
+node	node-feature-discovery	0.19.0	node-feature-discovery	node-feature-discovery
+nutanix	nkp-cloud-provider-nutanix	0.8.12	nutanix-ccm	kube-system
+nutanix	nutanix-csi-storage	3.9.0	nutanix-csi	ntnx-system
+snapshot	snapshot-controller	5.0.3	snapshot-controller	kube-system

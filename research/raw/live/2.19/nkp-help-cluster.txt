@@ -1,0 +1,204 @@
+########## nkp create cluster nutanix --help ##########
+Create a Konvoy cluster in Nutanix
+
+Usage:
+  nkp create cluster nutanix [flags]
+
+Flags:
+      --acme-email string                                  Email address the ACME server can use to contact you.
+      --acme-server string                                 Address of the ACME service issuing the certificates (default: Let's encrypt). (default "https://acme-v02.api.letsencrypt.org/directory")
+      --additional-trust-bundle string                     Additional CA trust bundle to use to validate the Prism Central server certificate.
+      --airgapped                                          Enable airgapped mode.
+      --aws-service-endpoints string                       Custom AWS service endpoints in a semi-colon separated format: ${SigningRegion1}:${ServiceID1}=${URL},${ServiceID2}=${URL};${SigningRegion2}...
+      --bootstrap-cluster-image string                     Container image used to create the bootstrap cluster. Can be an image name or path to a file, e.g., ./nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar. If not provided, the default image will be used (default "docker.io/mesosphere/konvoy-bootstrap:v2.19.0")
+      --bundle files                                       A comma separated list of bundle artifacts that will be pushed to an in-cluster registry. Supports glob pattern to match multiple artifacts (e.g. ./bundles/*.tar). Following artifacts must be provided: konvoy-image-bundle-v2.19.0.tar, kommander-image-bundle-v2.19.0.tar (default [])
+      --capi-additional-sync-machine-annotations string    Comma-separated list of regex patterns for additional machine annotations that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+      --capi-additional-sync-machine-labels string         Comma-separated list of regex patterns for additional machine labels that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+      --cluster-hostname string                            Hostname that is used for accessing the cluster's ingresses.
+  -c, --cluster-name name                                  Name used to prefix the cluster and all the created resources.
+      --control-plane-cores-per-vcpu int32                 The number of cores per vCPU(equivalent to CPU cores) to use in a control plane machine (default 1)
+      --control-plane-disk-size int32                      The size of the primary disk (in GiB) of a control plane machine (default 80)
+      --control-plane-endpoint-ip ip                       The control plane endpoint ip. Must be a static IPv4 address from the Layer 2 network of the control plane machines.
+      --control-plane-endpoint-port int32                  The control plane endpoint port. (default 6443)
+      --control-plane-external-endpoint string             The external control plane endpoint. A host that resolves to the endpoint IP. The host may be a Floating IPv4 address that maps to the control plane endpoint IP, or an FQDN that resolves to the control plane endpoint IP.
+      --control-plane-memory int32                         The size of memory (in GiB) of a control plane machine (default 16)
+      --control-plane-pc-categories strings                Names of Prism Central categories to associate with control plane resources (VMs, VGs, etc). Example: key1=value1,key1=value2,key2=value2 (default [])
+      --control-plane-prism-element-cluster string         Name of the Prism Element cluster to use to create a control plane machine
+      --control-plane-renew-certificates-before int32      Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+      --control-plane-replicas int32                       Number of control plane nodes (default 3)
+      --control-plane-subnets strings                      Names of Prism Central subnets to use for control plane machines. Example: subnet1,subnet2,subnet3 (default [])
+      --control-plane-vcpus int32                          The number of vCPUs(equivalent to CPU sockets) to use in a control plane machine (default 4)
+      --control-plane-vm-image string                      Name of OS image to use for control plane machines.
+      --csi-file-system string                             File system to use for CSI volumes. Allowed values ["ext4" "xfs"]. (default "ext4")
+      --csi-flash-mode                                     If true, will enable flash mode for CSI volumes.
+      --csi-hypervisor-attached-volumes                    If true, will enable the hypervisor attached feature for CSI volumes which allows disks to attach directly to the host without using iSCSI. (default true)
+      --csi-reclaim-policy string                          Reclaim policy for CSI volumes. Allowed values ["Delete" "Retain"]. (default "Delete")
+      --csi-storage-container string                       Name of the Prism Central storage container to associate with the storage class created on the cluster.
+      --dry-run                                            Only print the objects that would be created, without creating them.
+      --endpoint url                                       Prism Central URL. Accepted formats: host, host:port, http[s]://host[:port]. Accepted host formats: IP, FQDN.
+      --extra-sans strings                                 A comma separated list of additional Subject Alternative Names for the API Server signing cert (default [])
+      --fips                                               Enable FIPS mode. Note: The OS images used by the cluster must be prepared with FIPS mode enabled.
+  -h, --help                                               Help for nutanix
+      --http-proxy string                                  HTTP proxy for all nodes in the cluster
+      --https-proxy string                                 HTTPS proxy for all nodes in the cluster
+      --ingress-ca file                                    Path to file containing the certificate's CA bundle.
+      --ingress-certificate file                           Path to file containing certificates for configuring Ingress.
+      --ingress-private-key file                           Path to file containing the certificate's private key (PEM).
+      --insecure                                           If true, the Prism Central server certificate will not be validated.
+      --kubeconfig string                                  Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply. This flag is ignored if used with the --self-managed flag.
+      --kubernetes-pod-network-cidr cidr                   The Kubernetes Pod network CIDR to use in the cluster (default 192.168.0.0/16)
+      --kubernetes-service-cidr cidr                       The Kubernetes Service CIDR to use in the cluster (default 10.96.0.0/12)
+      --kubernetes-service-load-balancer-ip-range string   A hyphen separated IP range to configure the Kubernetes Service Load Balancer provider with. Example: <start-ip>-<end-ip>
+      --kubernetes-version string                          Kubernetes version (default "1.36.2")
+  -n, --namespace string                                   If present, the namespace scope for this CLI request. (default "kommander")
+      --no-proxy strings                                   No Proxy list for all nodes in the cluster (default [])
+      --ntp-servers strings                                A comma-separated list of NTP servers to configure on all nodes. Each entry must be a fully qualified domain name (FQDN) or an IP address (IPv4 or IPv6). This list overrides any default NTP settings preconfigured in the machine image. (default [])
+      --nutanix-registry-password string                   Personal access token (PAT) for the Nutanix DockerHub organization, used to pull NKP images.
+      --nutanix-registry-username string                   Username for the Nutanix DockerHub organization, used to pull NKP images.
+      --onboard-to-prism-central                           Makes the cluster visible in the Prism Central in the infrastructure tab. (default true)
+  -o, --output string                                      Output format. One of: (json, yaml, name).
+      --output-directory string                            Used with --output=json|yaml. The directory where to output resources to files. The directory must already exist.
+      --pc-project string                                  Name of the Prism Central project to associate with all cluster resources (VMs, VGs, etc).
+      --registry-cacert file                               Path to file containing the CA certificate used to verify the registry server certificate
+      --registry-mirror-cacert file                        Path to file containing the CA certificate used to verify the registry mirror server certificate
+      --registry-mirror-password string                    Password used to authenticate with the registry mirror
+      --registry-mirror-url url                            URL of a container registry used as a mirror (required for air-gapped installations)
+      --registry-mirror-username string                    Username used to authenticate with the registry mirror
+      --registry-password string                           Password used to authenticate with the registry
+      --registry-url url                                   URL of a container registry
+      --registry-username string                           Username used to authenticate with the registry
+      --self-managed                                       When set to true, the required prerequisites are created before creating the cluster and the resulting cluster has all necessary components deployed onto itself, so it can manage its own cluster lifecycle. When set to false, a management cluster is used. (default false)
+      --show-managed-fields                                If true, keep the managedFields when printing objects in JSON or YAML format.
+      --skip-preflight-checks strings                      Skip preflight checks. Use "all" to skip all checks, a comma-separated list of names to skip specific checks, or "" to run all checks, even if checks were previously skipped. (default [])
+      --ssh-public-key-file string                         Path to the authorized SSH key for the user
+      --ssh-username string                                Name of the user to create on the instance (default "konvoy")
+      --timeout duration                                   The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+  -v, --verbose int                                        Output verbosity
+      --vm-image string                                    Name of OS image to use for all machines.
+      --wait                                               If true, wait for operations to complete before returning. This flag is ignored and will always be 'true' if used with the --self-managed flag. (default true)
+      --with-aws-bootstrap-credentials                     Set true to use AWS bootstrap credentials from your environment. When false, the instance profile of the EC2 instance where the CAPA controller is scheduled on will be used instead.
+      --with-gcp-bootstrap-credentials                     Set true to use GCP bootstrap credentials from your environment. When false, the service account of the VM instance where the CAPG controller is scheduled on will be used instead.
+      --worker-cores-per-vcpu int32                        The number of cores per vCPU(equivalent to CPU cores) to use in a worker machine (default 1)
+      --worker-disk-size int32                             The size of the primary disk (in GiB) of a worker machine (default 80)
+      --worker-memory int32                                The size of memory (in GiB) of a worker machine (default 32)
+      --worker-pc-categories strings                       Names of Prism Central categories to associate with worker resources (VMs, VGs, etc). Example: key1=value1,key1=value2,key2=value2 (default [])
+      --worker-prism-element-cluster string                Name of the Prism Element cluster to use to create a worker machine
+      --worker-replicas int32                              Number of workers (default 4)
+      --worker-subnets strings                             Names of Prism Central subnets to use for worker machines. Example: subnet1,subnet2,subnet3 (default [])
+      --worker-vcpus int32                                 The number of vCPUs(equivalent to CPU sockets) to use in a worker machine (default 8)
+      --worker-vm-image string                             Name of OS image to use for worker machines.
+      --worker-vm-profile string                           Name of the VM profile to use for worker machine. Cannot be used with machine configuration flags: --worker-cores-per-vcpu, --worker-vcpus, --worker-memory.
+
+########## nkp create cluster metal --help ##########
+Create a Kubernetes cluster on bare metal.
+
+Usage:
+  nkp create cluster metal [flags]
+
+Flags:
+  -c, --cluster-name name                                  Name used to prefix the cluster and all the created resources.
+      --control-plane-endpoint-ip ip                       The control plane endpoint ip. Must be a static IPv4 address from the Layer 2 network of the control plane machines.
+      --control-plane-host-selector stringToString         Host selector is a map of key-value pairs that are used to select hosts. Example: --control-plane-host-selector metal.nutanix.io/inventory=test-inventory,metal.nutanix.io/gpu=test-gpu. Multiple selectors can be specified by repeating the flag. (default [])
+      --control-plane-hosts strings                        Explicit list of host names to claim. Sets the replica count to the number of hosts provided. Mutually exclusive with --control-plane-host-selector. (default [])
+      --control-plane-replicas int32                       Number of control plane nodes. (default 3)
+      --csi-file-system string                             File system to use for CSI volumes. Allowed values [ext4 xfs]. (default "ext4")
+      --csi-flash-mode                                     If true, will enable flash mode for CSI volumes.
+      --csi-prism-central-endpoint url                     Prism Central URL. Accepted formats: host, host:port, http[s]://host[:port]. Accepted host formats: IP, FQDN.
+      --csi-prism-element-cluster string                   Name or UUID of the Prism Element cluster to associate with the storage class created on the cluster.
+      --csi-reclaim-policy string                          Reclaim policy for CSI volumes. Allowed values [Delete Retain]. (default "Delete")
+      --csi-storage-container string                       Name of the Prism Central storage container to associate with the storage class created on the cluster.
+      --dry-run                                            Only print the objects that would be created, without creating them.
+      --extra-sans strings                                 A comma separated list of additional Subject Alternative Names for the API Server signing cert. (default [])
+  -h, --help                                               Help for metal
+      --http-proxy string                                  HTTP proxy for all nodes in the cluster.
+      --https-proxy string                                 HTTPS proxy for all nodes in the cluster.
+      --kubeconfig string                                  Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-image-uri image-uri                     Machine OS image URI uploaded to an OCI-compliant registry. The expected format is oci://<registry-url>/<registry-path>/<image-name>:<image-tag>. When unset, will be derived based on the Kubernetes versions using the registry mirror when one is configured.
+      --kubernetes-pod-network-cidr cidr                   The Kubernetes Pod network CIDR to use in the cluster. (default 192.168.0.0/16)
+      --kubernetes-service-cidr cidr                       The Kubernetes Service CIDR to use in the cluster. (default 10.96.0.0/12)
+      --kubernetes-service-load-balancer-ip-range string   A hyphen separated IP range to configure the Kubernetes Service Load Balancer provider with. Example: <start-ip>-<end-ip>.
+      --kubernetes-version string                          Kubernetes version. (default "1.36.2")
+  -n, --namespace string                                   If present, the namespace scope for this CLI request. (default "kommander-default-workspace")
+      --no-proxy strings                                   No Proxy list for all nodes in the cluster. (default [])
+      --nutanix-registry-password string                   Personal access token (PAT) for the Nutanix DockerHub organization, used to pull NKP images.
+      --nutanix-registry-username string                   Username for the Nutanix DockerHub organization, used to pull NKP images.
+  -o, --output string                                      Output format. One of: (json, yaml, kyaml, name).
+      --registry-cacert file                               Path to file containing the CA certificate used to verify the registry server certificate.
+      --registry-mirror-cacert file                        Path to file containing the CA certificate used to verify the registry mirror server certificate.
+      --registry-mirror-password string                    Password used to authenticate with the registry mirror.
+      --registry-mirror-url url                            URL of a container registry used as a mirror (required for air-gapped installations).
+      --registry-mirror-username string                    Username used to authenticate with the registry mirror.
+      --registry-password string                           Password used to authenticate with the registry.
+      --registry-url url                                   URL of a container registry.
+      --registry-username string                           Username used to authenticate with the registry.
+      --show-managed-fields                                If true, keep the managedFields when printing objects in JSON or YAML format.
+      --skip-preflight-checks strings                      Skip preflight checks. Use "all" to skip all checks, a comma-separated list of names to skip specific checks, or "" to run all checks, even if checks were previously skipped. (default [])
+      --ssh-public-key-file string                         Path to the authorized SSH key for the user.
+      --ssh-username string                                Name of the user to create on the instance. (default "konvoy")
+      --timeout duration                                   The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 1h0m0s)
+  -v, --verbose int                                        Output verbosity
+      --wait                                               If true, wait for operations to complete before returning. (default true)
+      --worker-host-selector stringToString                Host selector is a map of key-value pairs that are used to select hosts. Example: --worker-host-selector metal.nutanix.io/inventory=test-inventory,metal.nutanix.io/gpu=test-gpu. Multiple selectors can be specified by repeating the flag. (default [])
+      --worker-hosts strings                               Explicit list of host names to claim. Sets the replica count to the number of hosts provided. Mutually exclusive with --worker-host-selector. (default [])
+      --worker-replicas int32                              Number of workers. (default 4)
+
+########## nkp create cluster preprovisioned --help ##########
+Create a Konvoy cluster on pre-provisioned infrastructure
+
+Usage:
+  nkp create cluster preprovisioned [flags]
+
+Flags:
+      --aws-service-endpoints string                      Custom AWS service endpoints in a semi-colon separated format: ${SigningRegion1}:${ServiceID1}=${URL},${ServiceID2}=${URL};${SigningRegion2}...
+      --bootstrap-cluster-image string                    Container image used to create the bootstrap cluster. Can be an image name or path to a file, e.g., ./nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar. If not provided, the default image will be used (default "docker.io/mesosphere/konvoy-bootstrap:v2.19.0")
+      --capi-additional-sync-machine-annotations string   Comma-separated list of regex patterns for additional machine annotations that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+      --capi-additional-sync-machine-labels string        Comma-separated list of regex patterns for additional machine labels that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+  -c, --cluster-name name                                 Name used to prefix the cluster and all the created resources.
+      --control-plane-endpoint-host string                The control plane endpoint address. To use an external load balancer, set to its IP or hostname. To use the built-in virtual IP, set to a static IPv4 address in the Layer 2 network of the control plane machines. [Not for production use: To use a single-machine control plane, set to the IP or hostname of the machine.]
+      --control-plane-endpoint-port int32                 The control plane endpoint port. To use an external load balancer, set to its listening port. (default 6443)
+      --control-plane-http-proxy string                   HTTP proxy for control plane machines
+      --control-plane-https-proxy string                  HTTPS proxy for control plane machines
+      --control-plane-no-proxy strings                    No Proxy list for control plane machines (default [])
+      --control-plane-renew-certificates-before int32     Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+      --control-plane-replicas int32                      Number of control plane nodes (default 3)
+      --dry-run                                           Only print the objects that would be created, without creating them.
+      --etcd-image-repository string                      The image repository to use for pulling the etcd image
+      --etcd-version string                               The version of etcd to use.
+      --extra-sans strings                                A comma separated list of additional Subject Alternative Names for the API Server signing cert (default [])
+  -h, --help                                              Help for preprovisioned
+      --http-proxy string                                 HTTP proxy for CAPI controllers
+      --https-proxy string                                HTTPS proxy for CAPI controllers
+      --kubeconfig string                                 Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply. This flag is ignored if used with the --self-managed flag.
+      --kubernetes-image-repository string                The image repository to use for pulling kubernetes images
+      --kubernetes-pod-network-cidr cidr                  The Kubernetes Pod network CIDR to use in the cluster (default 192.168.0.0/16)
+      --kubernetes-service-cidr cidr                      The Kubernetes Service CIDR to use in the cluster (default 10.96.0.0/12)
+      --kubernetes-version string                         Kubernetes version (default "1.36.2")
+  -n, --namespace string                                  If present, the namespace scope for this CLI request. (default "default")
+      --no-proxy strings                                  No Proxy list for CAPI controllers (default [])
+      --nutanix-registry-password string                  Personal access token (PAT) for the Nutanix DockerHub organization, used to pull NKP images.
+      --nutanix-registry-username string                  Username for the Nutanix DockerHub organization, used to pull NKP images.
+  -o, --output string                                     Output format. One of: (json, yaml, name).
+      --output-directory string                           Used with --output=json|yaml. The directory where to output resources to files. The directory must already exist.
+      --override-file string                              Path to a file containing any provided overrides on a preprovisioned cluster. All overrides defined at provisioning should be present in this file.
+      --override-secret-name string                       Name of the secret for any provided overrides on a preprovisioned cluster. All overrides defined at provisioning should be present in this secret.
+      --pre-provisioned-inventory-file string             Path to PreprovisionedInventory inventory file
+      --registry-mirror-cacert file                       Path to file containing the CA certificate used to verify the registry mirror server certificate
+      --registry-mirror-password string                   Password used to authenticate with the registry mirror
+      --registry-mirror-url url                           URL of a container registry used as a mirror (required for air-gapped installations)
+      --registry-mirror-username string                   Username used to authenticate with the registry mirror
+      --self-managed                                      When set to true, the required prerequisites are created before creating the cluster and the resulting cluster has all necessary components deployed onto itself, so it can manage its own cluster lifecycle. When set to false, a management cluster is used. (default false)
+      --show-managed-fields                               If true, keep the managedFields when printing objects in JSON or YAML format.
+      --ssh-private-key-file string                       Path to the private SSH key file used by Konvoy to access the pre-provisioned hosts
+      --ssh-public-key-file string                        Path to the authorized SSH key for the user
+      --ssh-username string                               Name of the user to create on the instance (default "konvoy")
+      --timeout duration                                  The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 45m0s)
+  -v, --verbose int                                       Output verbosity
+      --virtual-ip-interface string                       The network interface, e.g, 'eth0' or 'ens5', to use for the built-in virtual IP control plane endpoint. This interface must be available on every control plane machine. If the value is empty, the flag does nothing. If the value is not empty, the built-in virtual IP control plane endpoint is created, using values from --control-plane-endpoint-host and --control-plane-endpoint-port.
+      --wait                                              If true, wait for operations to complete before returning. This flag is ignored and will always be 'true' if used with the --self-managed flag. (default true)
+      --with-aws-bootstrap-credentials                    Set true to use AWS bootstrap credentials from your environment. When false, the instance profile of the EC2 instance where the CAPA controller is scheduled on will be used instead.
+      --with-gcp-bootstrap-credentials                    Set true to use GCP bootstrap credentials from your environment. When false, the service account of the VM instance where the CAPG controller is scheduled on will be used instead.
+      --worker-http-proxy string                          HTTP proxy for nodes
+      --worker-https-proxy string                         HTTPS proxy for nodes
+      --worker-no-proxy strings                           No Proxy list for nodes (default [])
+      --worker-replicas int32                             Number of workers (default 4)
+

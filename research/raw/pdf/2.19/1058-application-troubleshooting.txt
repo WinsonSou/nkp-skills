@@ -1,0 +1,332 @@
+
+--- page 1058 ---
+Verb and Purpose
+Examples
+HelmRelease
+HelmRelease(s) are deployed
+by each Kustomization, and for
+the Application to function, these
+resources must be in the “Ready”
+state. To check:
+kubectl get helmrelease -A
+or
+kubectl describe -n <namespace> helmrelrease <name>
+Each HelmRelease also consumes
+a HelmChart. We can ensure the
+status of HelmCharts with the
+following:
+kubectl get helmchart -A
+or
+kubectl describe -n <namespace> helmchart <name>
+The controller that manages
+HelmReleases and HelmCharts
+is the helm-controller in the
+kommander-flux Namespace. It can
+be helpful to check the status and
+logs of the helm-controller pod:
+kubectl describe -n kommander-flux deploy/helm-
+controller
+or
+kubectl logs -n kommander-flux deploy/helm-controller
+ --tail -1
+Workspace Discovery Commands
+Workspaces are managed by a Custom Resource named Workspaces. You can use common kubectl
+verbs to investigate status and gather log data to help determine any problem areas:
+Examples
+Examples
+Leverage kubectl to investigate
+workspace information:
+kubectl get workspaces
+or
+kubectl describe workspace <name>
+The controller that manages
+Workspaces is the kommander-
+cm deployment in the kommander
+Namespace. Check status logs :
+kubectl describe -n kommander deployment/kommander-cm
+or
+kubectl logs -n kommander deployment/kommander-cm --
+all-containers --tail -1
+Attached Clusters
+To check
+kubectl get kommanderclusters -n <workspace-namespace>
+ -o yaml
+or
+kubectl describe kommanderclusters -n <workspace-
+namespace>
+Application Troubleshooting
+Describes common application behaviors when the root cause is with an application deployed on the
+Kommander component.
+Not sure if you are having problems with the Applications deployed on the Kommander component of
+NKP? This section will explain some behaviors you may observe if you have issues with Applications. Also,
+you see context around the machinery that manages the resources and how they interact.
+Related Topics
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1058
+
+--- page 1059 ---
+•
+Deploying Platform Applications Using CLI on page 297
+•
+Platform Applications Dependencies For All Clusters on page 298
+Applications Context
+Application definitions originate from the source Git Repository(ies). They are configured inside the cluster
+for Flux to consume. The controller that manages Git Repositories is the source-controller deployment
+in the kommander-flux Namespace.
+Kommander Applications are deployed as AppDeployments and reference Apps and ClusterApps. The
+controller that manages Apps, ClusterApps, and AppDeployments is the kommander-appmanagement
+deployment in the kommander Namespace. For more information on AppDeployments, see Applications on
+page 271.
+Each AppDeployment creates a Kustomization. The controller that manages Kustomizations is the
+kustomize-controller in the kommander-flux Namespace.
+Each Kustomization typically deploys a few resources, with HelmRelease(s) being the most notable. For
+the application functionality, these resources should always be ready. Each HelmRelease also consumes
+a HelmChart. The controller that manages HelmReleases and HelmCharts is the helm-controller in the
+kommander-flux Namespace.
+Note:  The NKP Release Notes on the Nutanix Support Portal contains the current version information for
+Applications.
+Troubleshooting Approach
+To properly troubleshoot an issue, you need to be familiar with how all the pieces connected to Applications
+work. This knowledge will assist in identifying the problem and where to start troubleshooting.
+Note:  For specific symptoms, you can always search the NKP Knowledge Base for resolutions to behaviors.
+For more information, see https://portal.nutanix.com/page/documents/kbs/list?filterVal=Nutanix
+%20Kubernetes%20Platform%20(NKP).
+Example issues might be:
+•
+My Kommander Apps are not getting federated down to my attached clusters.
+•
+The process has halted. How can I check my status?
+Use the subtopics in this section for more specific help:
+•
+Applications Deployment CLI vs UI on page 1060
+•
+Application YAML Customizations on page 1064
+Related Topics
+Use the information provided in these troubleshooting sections.
+Additional troubleshooting information is located in the following sections of the Cluster Operations
+Management on page 227 chapter of this guide:
+•
+Platform Applications on page 294
+•
+Deploying Platform Applications Using CLI on page 297
+•
+Workspaces on page 317
+Use the following subtopics for specific help:
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1059
+
+--- page 1060 ---
+•
+Applications Deployment CLI vs UI on page 1060
+•
+Application YAML Customizations on page 1064
+Applications Deployment CLI vs UI
+When installing NKP, an AppDeployment resource is created for each enabled Platform Application. This
+AppDeployment resource references a ClusterApp, which then references the repository that contains
+a concrete declarative and preconfigured setup of an application, usually in the form of a HelmRelease.
+ClusterApps are cluster-scoped, so these Platform Applications are deployable to all Workspaces or
+Projects. Also, refer to AppDeployment Resources on page 271.
+Applications can be enabled and configured using the UI or CLI at both levels:
+•
+Workspace level for all clusters in a Workspace
+•
+Cluster level for specific clusters within a Workspace.
+See the following table for an overview:
+Desired level of
+Configuration
+CLI
+UI
+Cluster-scoped deployment
+Create an AppDeployment,
+and specify target clusters
+in spec.clusterSelector.
+Reference ConfigMap with
+customization overrides in
+clusterConfigOverrides.
+To see an example deployment, see
+Enabling an Application Per Cluster
+For the First Time on page 322.
+Go to the target workspace and
+enable through the application card,
+selecting the target clusters.
+For an example deployment, see
+Pro: Enabling an Application Using
+the UI on page 281.
+Workspace-scoped
+deployment
+Create an AppDeployment without
+a spec.clusterSelector section.
+Automatically deploys to all clusters
+in the workspace.
+To see an example deployment,
+see Deploying Platform Applications
+Using CLI on page 297.
+Go to
+the target workspace and enable
+it through the application card,
+selecting all target clusters. For
+an example deployment, see Pro:
+Customizing an Application Using
+the UI on page 281.
+Cluster-scoped
+customization
+Create an AppDeployment,
+and specify target clusters
+in spec.clusterSelector.
+Reference ConfigMap with
+customization overrides in
+clusterConfigOverrides.
+To see an example deployment,
+see Customizing an Application Per
+Cluster on page 323.
+Go to target workspace and enable
+through the application card. Select
+the target clusters and establish
+customizations in the configuration
+service per cluster.
+For an example deployment, see
+Pro: Customizing an Application
+Using the UI on page 281.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1060
+
+--- page 1061 ---
+Desired level of
+Configuration
+CLI
+UI
+Workspace-scoped
+customization
+Create an AppDeployment
+without a spec.clusterSelector
+section. Reference ConfigMap
+with customization overrides
+in clusterConfigOverrides.
+Automatically deploys customization
+to all clusters in the workspace.
+To see an example deployment, see
+Customizing Your Application on
+page 272.
+Go to the target workspace and
+enable it through the application
+card. Manually select all clusters
+and copy-paste the customization
+in the configuration service for all
+clusters.
+For an example deployment, see
+Pro: Customizing an Application
+Using the UI on page 281.
+Applications Deployment in a Workspace
+Print and Review the Current State of an AppDeployment Resource.
+If you want to know how the AppDeployment resource is currently configured, use the commands below
+to print a table of the declared information. If the AppDeployment is configured for several clusters in a
+workspace, a column will display a list of the clusters.
+Reviewing all AppDeployments in a Workspace
+About this task
+To review the state of the AppDeployment resource for a specific workspace, complete the following task.
+Procedure
+Using the name of your workspace, run the command.
+nkp get appdeployments -w kommander-workspace
+The output should contain a list of all your applications, as shown in the example.
+NAME APP CLUSTERS
+[...]
+kube-oidc-proxy                 kube-oidc-proxy-0.3.2           management
+kube-prometheus-stack           kube-prometheus-stack-46.8.0    management
+[...]
+Reviewing a Specific AppDeployment of an Application in a Workspace
+About this task
+To review the state of a specific AppDeployment of an application, complete the following task.
+Procedure
+Using the application's name and your workspace, run the nkp get appdeployment kube-prometheus-
+stack -w kommander-workspace command.
+The output should contain a list of all your applications, as shown in the example.
+NAME APP CLUSTERS
+kube-prometheus-stack kube-prometheus-stack-46.8.0 management
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1061
+
+--- page 1062 ---
+Deployment Scope
+In a single-cluster environment with an Pro license, AppDeployments enable customizing any platform
+application.
+In a multi-cluster environment with an Ultimate license, AppDeployments enable Control Plane Nodes and
+Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on page 694, Project Applications
+on page 370, and Cluster-scoped Application for Existing AppDeployments on page 321.
+Use Case Example
+About this task
+As a user, I have multiple clusters in a Workspace. I want to allow an application for some but not all
+clusters in that workspace. I also want to enable a custom configuration.
+To define which cluster should have an application deployed onto them, use the AppDeployment’s
+spec.clusterSelector field.
+Note:  The user can edit the AppDeployment at anytime to add or remove clusters from the spec.
+Enable Workspace Applications for a subset of clusters and custom configurations for each cluster:
+Procedure
+1. Create an AppDeployment using the command to enable and disable clusters and set cluster config
+overrides per cluster:
+nkp create appdeployment
+2. Use the code editor to edit the AppDeployment spec to directly:
+a. Enable or disable clusters
+b. Add or remove cluster config overrides for clusters. using the nkp edit appdeployment
+APPDEPLOYMENT_NAME -n NAMESPACE command.
+Example:
+nkp edit appdeployment kube-oidc-proxy -n kommander
+Note:  NAMESPACE is the namespace in which the AppDeployment resides - this can be a Workspace or
+a Project Namespace. To list all available workspace namespaces, run kubectl get workspaces.
+Troubleshooting
+About this task
+For up-to-date status on which clusters an application has been enabled, or what configuration overrides
+have been applied to each cluster,
+Procedure
+1. Check the AppDeployment status using the command.
+nkp get appdeployment
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1062
+
+--- page 1063 ---
+2. Use the kubectl get appdeployment command to get the entire YAML object, including cluster config
+overrides that might be set on a cluster and the status of the appdeployment.
+Example:
+nkp get appdeployment --output yaml
+Example output:
+apiversion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:  
+  generation: 1  # this means there is only one instance of the application, must
+ match with the number of instances you expect to see
+  name: kube-oidc-proxy  # APP ID of the application as displayed in the Release
+ Notes
+  namespace: kommander # equal to the workspace namespace of the workspace where the
+ app is deployed
+spec:  
+  appRef:    
+    kind: ClusterApp    
+    name: kube-oidc-proxy-0.3.2 # APP ID with the app version as displayed in the
+ Release Notes
+  clusterConfigOverrides:  # present only for apps with custom configurations
+  - clusterSelector:   # present only for workspaces with several clusters    
+      matchLabels:        
+        kommander.d2iq.io/cluster-name: management  # cluster name where app is
+ deployed  
+    configMapName: kube-oidc-proxy-management  # name of the ConfigMap file that
+ contains the Overrides with the custom configuration for this specific cluster
+  clusterSelector:    
+    matchExpressions:    
+    - key: kommander.d2iq.io/cluster-name      
+      operator: In      
+      values:      
+      - management # cluster name where app is deployed
+status:  
+  clusters:  
+  - clusterConfigOverridesRef:      
+    name: kube-oidc-proxy-host-management # name of the ConfigMap file that contains
+ the Overrides with the custom configuration for this specific cluster   
+  conditions:    
+  - status: "True" # must be True for app to be deployed successfully       
+    type: AppDeploymentEnabled    
+  name: management  
+observedGeneration: 1 
+Verifying Applications
+About this task
+Once the applications are enabled, verify the deployment using this task.
+Procedure
+Connect to the attached cluster and check the HelmReleases using the command.
+kubectl get helmreleases -n ${WORKSPACE_NAMESPACE}
+Example output:
+NAMESPACE               NAME               READY   STATUS                            
+ AGE
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1063

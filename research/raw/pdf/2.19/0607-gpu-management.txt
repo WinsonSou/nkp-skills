@@ -1,0 +1,679 @@
+
+--- page 607 ---
+7. After uninstalling the AppDeployment and operator, remove the remaining Istio Operator custom
+resource (CR) and existing control plane and gateway deployments:
+kubectl delete istioOperator istio-default -n kommander &
+kubectl patch istioOperator -n kommander istio-default --type=merge --
+patch='{"metadata":{"finalizers":null}}'
+kubectl delete deployments istiod, istio-ingressgateway -n istio-system
+kubectl delete svc istio-ingressgateway -n istio-system
+Uninstalling Istio-Helm
+Directions to ensure Istio-Helm is entirely uninstalled from a cluster.
+About this task
+To manually uninstall Istio-Helm using Nutanix Kubernetes® Platform (NKP) UI, follow these steps:
+Procedure
+1. Log in to the NKP UI dashboard.
+2. Select Management Cluster Workspace from the dropdown menu.
+3. From the left navigation pane, select Applications.
+4. Select the triple dot horizontal icon in the application tile for Istio-Helm and click Disable.
+A prompt appears to confirm your decision to disable the application.
+5. Follow the instructions in the prompt and click Disable.
+6. Refresh the page to confirm that the application has been removed from the cluster.
+This process only removes the application from the specific cluster. To remove this application from
+other clusters, navigate to the Clusters page and repeat the process.
+GPU Management
+Nutanix Kubernetes Platform (NKP) supports GPU passthrough and virtual GPU (vGPU) through the
+NVIDIA operator. NKP configures the container runtime to run GPU containers using the NVIDIA GPU
+operator application, which installs the necessary components to enable NVIDIA GPU devices.
+•
+NVIDIA GPU Passthrough: In NKP, nodes that use NVIDIA GPU passthrough are configured with
+nvidia-gpu-operator and NVIDIA drivers to support the container runtime. For more information, see
+Nutanix GPU Passthrough.
+•
+NVIDIA GRID Virtual GPU: NVIDIA Virtual GPU (vGPU) enables multiple virtual machines (VMs)
+to access a single physical GPU concurrently and directly. By sharing a single GPU among multiple
+workloads, NVIDIA vGPU provides VMs with exceptional graphics and compute performance,
+application compatibility, cost-efficiency, and scalability. For more information, see NVIDIA GRID Virtual
+GPU.
+If you deploy NKP on Nutanix AHV, verify GPU compatibility by checking the list of supported GPUs. For
+more information about compatible GPUs, see NVIDIA Drivers in the Compatibility and Interoperability
+Matrix.
+If you deploy NKP on bare metal instances or on pre-provisioned infrastructure, ensure GPU compatibility
+by verifying the list of GPUs that NVIDIA GPU operators support. For more information, see Supported
+NVIDIA Data Center GPUs and Systems for your specific NVIDIA GPU Operator version.
+The supported NVIDIA driver version is 580.x.
+Nutanix Kubernetes Platform | Cluster Operations Management | 607
+
+--- page 608 ---
+Operating System Compatibility
+GPU support varies by operating system and infrastructure platform. Verify that your chosen operating
+system supports GPU functionality for your deployment type before configuring GPU workloads.
+For comprehensive information about GPU support across all supported operating systems and
+infrastructure platforms, including air-gapped and FIPS configurations, see Supported Infrastructure
+Operating Systems.
+GPU Driver Deployment Options
+NKP provides the following options for deploying NVIDIA GPU drivers on your clusters:
+•
+Custom OS image with GPU drivers: Create a custom operating system image that includes pre-
+installed NVIDIA GPU drivers. You can build custom images using the Nutanix Image Builder and
+include the specific NVIDIA driver version required for your workloads. For more information, see
+Nutanix Image Builder on page 55.
+•
+Pre-compiled drivers for out-of-the-box images: Use the NVIDIA GPU operator with pre-compiled
+drivers on standard operating system images. This approach eliminates the need to compile drivers
+during deployment, reducing installation time compared to runtime compilation. For more information
+about configuring pre-compiled drivers, see Enable NVIDIA GPU Operator Using the Nutanix
+Kubernetes Platform UI on page 611 or Enable NVIDIA GPU Operator Using Nutanix Kubernetes
+Platform CLI on page 615.
+GPU Support Components
+The following components provide NVIDIA GPU support on NKP:
+•
+libnvidia-container and nvidia-container-runtime: GPU support in NKP depends on the
+containerd runtime. These components fit between containerd and runc to simplify GPU integration
+with the container runtime.
+•
+NVIDIA Device Plugin: It is Kubernetes device plugin that enables GPU-enabled containers to run on
+NKP. The plugin monitors the number of available GPUs on each node and their health status. For
+more information, see NVIDIA Device Plugin.
+•
+NVIDIA Data Center GPU Manager: Contains a Prometheus exporter that provides NVIDIA GPU
+metrics. For more information, see NVIDIA Data Center GPU Manager.
+NKP runs these components as daemon sets, which simplifies management and upgrades across all GPU
+nodes. For more information, see the Getting Started Guide from NVIDIA.
+NVIDIA GPU
+Create and configure NVIDIA GPU-enabled resources for Nutanix Kubernetes Platform (NKP) clusters.
+NKP supports NVIDIA GPU passthrough and virtual GPU (vGPU) workloads through the NVIDIA GPU
+operator application. For an overview of NVIDIA support in NKP, see GPU Management.
+Creating GPU-Enabled Operating System Images
+Create operating system images with GPU passthrough or virtual GPU (vGPU) support for Nutanix
+Kubernetes Platform (NKP) clusters using the Nutanix Image Builder. The Nutanix Image Builder supports
+both basic GPU passthrough images and custom images with pre-installed vGPU drivers.
+Before you begin
+Before creating GPU-enabled operating system images, verify that you meet the following requirements:
+•
+(For vGPU images only) Access to the NVIDIA licensing portal.
+•
+(For vGPU images only) NVIDIA vGPU host drivers installed on your infrastructure provider.
+Nutanix Kubernetes Platform | Cluster Operations Management | 608
+
+--- page 609 ---
+•
+(For vGPU images only) Guest driver runfile corresponding to your NVIDIA vGPU host driver.
+•
+Compatible NVIDIA driver version for your deployment. For more information, see Compatibility and
+Interoperability Matrix in the Nutanix Support Portal.
+•
+Operating system that supports GPU functionality for your deployment type. For more information, see
+Supported Infrastructure Operating Systems.
+Note:  vGPU support requires NKP version 2.16.0 or later.
+About this task
+Create GPU-enabled operating system images for worker nodes on Nutanix infrastructure using the NKP
+image builder. The following commands are specific to Nutanix deployments and allow you to create
+images with basic GPU passthrough support or custom images with pre-installed vGPU drivers.
+Note:  For information about creating custom images on other supported infrastructure providers, see
+Nutanix Image Builder on page 55.
+Procedure
+1. Open a terminal with access to the NKP CLI.
+2. Create a GPU passthrough image:
+nkp create image nutanix --gpu-name=${GPU_NAME} --cluster=${NUTANIX_CLUSTER_NAME} --
+endpoint=${NUTANIX_PC_ENDPOINT} --subnet=${NUTANIX_SUBNET} OS_TYPE-OS_VERSION
+For example:
+nkp create image nutanix --gpu-name=RTX-A6000 --cluster=graphics-cluster --
+endpoint=pc.datacenter.local --subnet=infra-subnet rocky-9.6
+Note:  Verify that the subnet has external connectivity to configure the machine. For restricted network
+environments, use the bastion host configuration.
+The command returns output similar to the following: --> nutanix.nib_image: <Name of the GPU OS
+image created by NKP CLI>
+3. If your environment requires a bastion host, create the image using bastion host configuration:
+nkp create image nutanix \
+  --gpu-name=${GPU_NAME} \
+  --cluster=${NUTANIX_CLUSTER_NAME} \
+  --endpoint=${NUTANIX_PC_ENDPOINT} \
+  --subnet=${NUTANIX_SUBNET} \
+  --bastion-host=${BASTION_IP} \
+  --bastion-username=${BASTION_SSH_USERNAME} \
+  --bastion-private-key-file=path/to/private_key.pem \
+  OS_TYPE-OS_VERSION
+4. Create a custom VM image with pre-installed vGPU driver runfiles:
+nkp create image nutanix \
+  --vgpu-runfile=/path/to/NVIDIA-Linux-x86_64-580.126.18-grid.run \
+  --subnet="${NUTANIX_SUBNET}" \
+  --gpu-name="${VGPU_PROFILE}" \
+  --cluster cluster-name \
+  --endpoint prism-central-endpoint \
+  --output-directory=output_dir/ \
+  OS_TYPE-OS_VERSION
+Nutanix Kubernetes Platform | Cluster Operations Management | 609
+
+--- page 610 ---
+GPU Scheduling with DRA and MIG
+Dynamic Resource Allocation (DRA) is the primary method for advanced GPU scheduling in Nutanix
+Kubernetes Platform (NKP), providing explicit, policy-aware allocation of accelerator resources.
+NKP supports GPU scheduling through Dynamic Resource Allocation (DRA) and vendor GPU Operators.
+DRA is the primary method for advanced GPU scheduling.
+Multi-Instance GPU (MIG) behavior can vary across infrastructure, node configurations, and operator
+capabilities.
+Use the Kubernetes DRA API when you need explicit, policy-aware allocation of accelerator resources,
+such as GPUs. DRA separates the resource request, scheduling, and allocation life cycle; therefore,
+workloads can bind to accelerator capacity in a controlled and auditable flow.
+In NKP v2.19.0 and later, Dynamic Resource Allocation (DRA) is enabled by default because NKP now
+ships with Kubernetes v1.36 or later and Containerd v2.1.x. Containerd 2.1.x enables the Container Device
+Interface (CDI). You do not need to enable the Kubernetes DRA API. Configure the GPU Operator to use
+the DRA driver instead of the device plugin:
+•
+For NVIDIA GPUs: Deploy the NVIDIA GPU Operator from the AI Catalog and explicitly configure its
+Helm values to enable the DRA driver. Configure those values so the DRA driver does not conflict with
+the device plugin on the same node pool.
+For more information, see the Support Dynamic Resource Allocation (DRA) section in the CNCF AI
+Conformance document.
+Managing Driver Runtime Configurations
+Install and maintain compatible accelerator drivers and container-runtime configurations on GPU nodes
+using the NVIDIA GPU Operator in Nutanix Kubernetes Platform (NKP).
+Ensure that compatible accelerator drivers and the corresponding container-runtime configurations are
+correctly installed and maintained on accelerator nodes.
+NKP ships the NVIDIA GPU Operator as a platform component to manage accelerator drivers, container
+toolkit, device plugin, and runtime configuration on GPU nodes. Node Feature Discovery (NFD) and GPU
+Feature Discovery (GFD) provide attestation of node metadata.
+For more information, see the Driver Runtime Management section in the CNCF AI Conformance
+document.
+GPU Management Using Nutanix Kubernetes Platform UI
+Manage GPU resources in Nutanix Kubernetes Platform (NKP) clusters using the UI. The UI provides a
+streamlined workflow for creating GPU-enabled images, configuring GPU node pools, and enabling GPU
+operator applications across your clusters.
+The typical GPU management workflow using the UI involves the following steps:
+•
+Adding GPU Node Pools Using the Nutanix Kubernetes Platform UI on page 610
+•
+Enable NVIDIA GPU Operator Using the Nutanix Kubernetes Platform UI on page 611
+•
+Disabling NVIDIA GPU Operator Using Nutanix Kubernetes Platform UI on page 613
+Adding GPU Node Pools Using the Nutanix Kubernetes Platform UI
+Add GPU passthrough or virtual GPU (vGPU) node pools to existing Nutanix Kubernetes Platform (NKP)
+clusters using the UI. This method is supported only for Nutanix infrastructure. It includes configuring
+node pools with either GPU type, setting GPU counts, and selecting compatible VM images and cluster
+resources.
+Nutanix Kubernetes Platform | Cluster Operations Management | 610
+
+--- page 611 ---
+Before you begin
+Before adding GPU node pools, verify that you have a Nutanix cluster with NVIDIA GPU passthrough or
+vGPU capabilities configured.
+About this task
+To add a GPU passthrough or vGPU node pool to an existing NKP clusters using UI, follow these steps:
+Procedure
+1.
+Log in to the NKP dashboard.
+The Dashboard displays both management and managed clusters by default.
+2.
+In the top-left corner, click the Global dropdown and select your target workspace.
+For example, if your target cluster is a management cluster, select Management Cluster Workspace.
+3.
+In the left navigation menu, click Clusters and select your target cluster.
+4.
+In the cluster widget, click View Details.
+5.
+On the General Cluster Information page, click Nodepools.
+6.
+Select a worker node pool and click the vertical three-dot menu icon.
+Note:  GPUs can only be added to worker node pools, not control plane nodes.
+7.
+Click Edit.
+8.
+In the Edit Node Pool window, navigate to the GPU section and select Passthrough or vGPU.
+Note:  Before creating vGPU node pools to run the GPU-enabled applications on clusters, ensure
+that you enable the vGPU token operator and add your client secret configuration token. For more
+information, see Enabling the VGPU Token Operator on a Management, Attached or Managed
+Clusters on page 617.
+9.
+Select a GPU type and specify the number of GPUs per node.
+Note:  Starting with Prism Central version 7.6, selecting a GPU by name is no longer valid. Select a
+GPU profile instead. If the node pool already selects a GPU by name, the existing selection displays as
+legacy; select a GPU profile to replace it.
+10. To set the MIG profile, apply labels to your GPU nodes, click Add a Label and enter key-value pairs
+for every node in the node pool.
+For example, to configure an A30 GPU with 1g.6gb profiles on all instances, enter nvidia.com/
+mig.config as the key and all-1g.6gb as the value.
+Labels help you select specific nodes for pod scheduling.
+11. Click Save.
+Enable NVIDIA GPU Operator Using the Nutanix Kubernetes Platform UI
+Enable the NVIDIA GPU Operator platform application on existing Nutanix Kubernetes Platform (NKP)
+management, managed, and attached clusters using the UI. This method applies to all infrastructure
+providers that supports GPUs.
+Nutanix Kubernetes Platform | Cluster Operations Management | 611
+
+--- page 612 ---
+Before you begin
+Before enabling the NVIDIA GPU operator, verify that you meet the following requirements:
+•
+An existing NKP cluster on a supported infrastructure provider
+•
+A VM image with NVIDIA GPU drivers installed. For more information, see Nutanix Image Builder on
+page 55.
+•
+A node pool with NVIDIA GPUs configured for your environment. For more information, see Adding
+GPU Node Pools Using the Nutanix Kubernetes Platform UI on page 610 or Adding GPU Node Pools
+Using the Nutanix Kubernetes Platform CLI on page 613 based on your infrastructure provider.
+•
+GPU-enabled nodes in your cluster with compatible NVIDIA GPUs. For supported NVIDIA driver
+information, see NVIDIA Drivers in the Compatibility and Interoperability Matrix.
+About this task
+Enable GPU support on existing NKP clusters after installation is complete. The NKP UI facilitates you to
+configure advanced GPU features such as pre-compiled drivers and Multi-Instance GPU (MIG).
+Procedure
+1. Log in to the NKP dashboard.
+The Dashboard displays both management and managed clusters by default.
+2. In the top-left corner, click the Global dropdown and select your target workspace.
+For example, if your target cluster is a management cluster, select Management Cluster Workspace.
+3. In the left navigation menu, click Applications.
+4. Locate NVIDIA GPU Operator and click View Details.
+5. On the NVIDIA GPU Operator page, click Enable.
+6. In the Workspace Application Configuration Override section, enter the workspace application
+configuration for all clusters in this workspace using the code editor.
+For GPU operator with pre-compiled drivers (recommended for production):
+driver:
+  enabled: true
+  usePrecompiled: true
+  version: 580
+  kernelModuleType: auto
+  image: driver
+nvidiaDriverRoot: /run/nvidia/driver
+Note:  This override is specific to Nutanix-provided Ubuntu images.
+7. To use MIG functionality, add the MIG configuration:
+mig:
+  strategy: single
+Note:
+•
+Set strategy: mixed when MIG mode is not enabled on all GPUs in a node. Set
+strategy: single when MIG is enabled on all GPUs with the same device types.
+•
+Starting with Nutanix AOS 7.3 and AHV 10.3, MIG profiles are hidden in the NKP UI and
+CLI to prevent accidental assignments. MIG supports only VMs configured with GPU
+Nutanix Kubernetes Platform | Cluster Operations Management | 612
+
+--- page 613 ---
+passthrough. Nutanix does not support MIG profiles for vGPU-attached VMs. To remove
+a MIG vGPU profile from a VM, see Prism Central Infrastructure Guide: Updating a VM
+through Prism Central (AHV).
+8. Click Enable.
+Disabling NVIDIA GPU Operator Using Nutanix Kubernetes Platform UI
+Disable the NVIDIA GPU Operator platform application in Nutanix Kubernetes Platform (NKP) using the UI
+method by removing GPU workloads and deleting the AppDeployment.
+About this task
+To disable NVIDIA GPU operator platform application in NKP UI, follow these steps:
+Procedure
+1. Log in to NKP dashboard.
+By default, the Dashboard displays both management and managed clusters.
+2. In the top-left corner, click the Global dropdown list and select your target workspace.
+For example, if your target cluster is management cluster, select Management Cluster Workspace.
+3. In the left navigation menu, click Cluster and choose your target cluster.
+4. In the Management Cluster, managed, or attached clusters widget, click View Details.
+5. In the General Cluster Information page, click Enabled Application.
+6. Navigate to NVIDIA GPU Operator and click the dropdown menu next to Dashboard.
+7. Select Disable.
+GPU Management Using Nutanix Kubernetes Platform CLI
+Manage GPU resources in Nutanix Kubernetes Platform (NKP) clusters using the CLI. The CLI method
+allows you to create GPU-enabled images, configure GPU node pools, and enable GPU operator
+applications across your clusters.
+The typical GPU management workflow using the CLI involves the following steps:
+•
+Adding GPU Node Pools Using the Nutanix Kubernetes Platform CLI on page 613
+•
+Enable NVIDIA GPU Operator Using Nutanix Kubernetes Platform CLI on page 615
+•
+Disabling NVIDIA GPU Operator Using Nutanix Kubernetes Platform CLI on page 616
+Adding GPU Node Pools Using the Nutanix Kubernetes Platform CLI
+Add GPU passthrough or virtual GPU (vGPU) node pools to existing Nutanix Kubernetes Platform (NKP)
+clusters using the CLI. This method is supported only for Nutanix infrastructure. It includes configuring
+node pools with either GPU type, setting GPU counts, and selecting compatible VM images, and cluster
+resources.
+Before you begin
+Before adding GPU node pools, verify that you have an NKP cluster with NVIDIA GPU passthrough or
+vGPU capabilities configured on your infrastructure provider.
+Nutanix Kubernetes Platform | Cluster Operations Management | 613
+
+--- page 614 ---
+About this task
+Note:  Starting with Prism Central version 7.6, identifying the GPU by name with the --gpu-name flag is no
+longer valid. Select a GPU profile instead by editing the node pool through GitOps or the NKP UI. For more
+information, see Adding a Node Pool to an Nutanix Kubernetes Platform Cluster Using the UI on
+page 758.
+Add GPU node pools to existing NKP clusters using the CLI that supports both GPU passthrough and
+vGPU configurations across all infrastructure providers.
+Procedure
+1. Open a terminal with access to the NKP CLI.
+Verify that the NKP CLI is configured to point to your management cluster. For more information about
+configuring the CLI context, see Commands within a kubeconfig File on page 34.
+2. Create a node pool with GPU passthrough.
+Run the following command, replacing the variables with your specific values:
+nkp create nodepool nutanix \
+  -c ${NKP_CLUSTER_NAME} \
+  --gpu-name "${GPU_NAME}" \
+  --vm-image ${GPU_VM_IMAGE_NAME} \
+  --prism-element-cluster ${PE_CLUSTER_WITH_GPU} \
+  --subnets ${SUBNET_NAME} \
+  --replicas=1 \
+  ${GPU_NODEPOOL_NAME}
+Note:  Use the --gpu-count flag to specify the number of GPUs per machine. The default gpu-count
+is 1. For Nutanix deployments, the command fails when the required number of GPUs (calculated as
+gpu-count * replicas) exceeds the available GPUs in your Prism Element cluster.
+The command creates a node pool with one worker node and one GPU passthrough device.
+3. Create a node pool with vGPU support.
+Run the following command, replacing the variables with your specific values:
+nkp create nodepool nutanix \
+  -c ${NKP_CLUSTER_NAME} \
+  --gpu-name "${GPU_NAME}" \
+  --vm-image vgpu-enabled-image-name \
+  --subnets subnet-name \
+  --prism-element-cluster PE-cluster-name \
+  ${GPU_NODEPOOL_NAME}
+Note:  Before creating vGPU node pools to run the GPU-enabled applications on clusters, ensure
+that you enable the vGPU token operator and add your client secret configuration token. For more
+information, see Enabling the VGPU Token Operator on a Management, Attached or Managed
+Clusters on page 617.
+The command creates a node pool with one worker node and one vGPU device.
+4. To set the MIG profile, label the node ${NODE} with the following profile:
+kubectl label nodes ${NODE} nvidia.com/mig.config=all-1g.6gb --overwrite
+For example, to configure an A30 GPU with 1g.6gb profiles on all instances, enter nvidia.com/
+mig.config as the key and all-1g.6gb as the value.
+Nutanix Kubernetes Platform | Cluster Operations Management | 614
+
+--- page 615 ---
+5. Check the node labels to confirm that the MIG configurations is applied to the GPU-enabled node:
+kubectl get no -o json | jq .items[0].metadata.labels
+Sample output:
+"nvidia.com/mig.config": "all-1g.6gb",
+  "nvidia.com/mig.config.state": "success",
+  "nvidia.com/mig.strategy": "single"
+Enable NVIDIA GPU Operator Using Nutanix Kubernetes Platform CLI
+Enable the NVIDIA GPU operator on an existing Nutanix Kubernetes Platform (NKP) management cluster
+using the CLI method. This method applies to all infrastructure providers that supports GPUs.
+Before you begin
+Before enabling the NVIDIA GPU operator, verify that you meet the following requirements:
+•
+Create a VM image with NVIDIA GPU drivers installed. For more information, see Nutanix Image
+Builder on page 55.
+•
+Create a node pool with NVIDIA GPUs for your environments. For more information, see Adding GPU
+Node Pools Using the Nutanix Kubernetes Platform UI on page 610 or Adding GPU Node Pools Using
+the Nutanix Kubernetes Platform CLI on page 613 based on your infrastructure provider.
+•
+An existing NKP cluster on any supported infrastructure provider.
+•
+GPU-enabled nodes in your cluster with compatible NVIDIA GPUs. For the supported NVIDIA driver
+information, see NVIDIA Drivers in the Compatibility and Interoperability Matrix
+•
+The NKP CLI configured to point to your management cluster.
+About this task
+Use this method to enable GPU support on existing NKP clusters after installation is complete. The CLI
+method allows you to configure advanced GPU features such as pre-compiled drivers and Multi-Instance
+GPU (MIG).
+Important:  Ensure that your cluster has GPU-enabled nodes before enabling the NVIDIA GPU operator. For
+information about creating GPU node pools, see the documentation specific to your infrastructure provider.
+Procedure
+1. Create a ConfigMap with the GPU operator configuration.
+For GPU operator with pre-compiled drivers (recommended for production):
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: kommander
+  name: nvidia-gpu-operator-overrides
+data:
+  values.yaml: |
+    driver:
+      enabled: true
+      usePrecompiled: true
+      version: 580
+      kernelModuleType: auto
+Nutanix Kubernetes Platform | Cluster Operations Management | 615
+
+--- page 616 ---
+      image: driver
+    nvidiaDriverRoot: /run/nvidia/driver
+EOF
+Note:  This override is specific to Nutanix-provided Ubuntu images.
+2. To use MIG functionality, add the MIG configuration to the values.yaml:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: kommander
+  name: nvidia-gpu-operator-overrides
+data:
+  values.yaml: |
+    ...
+    mig:
+      strategy: single
+Note:
+•
+Set strategy: mixed when MIG mode is not enabled on all GPUs in a node. Set
+strategy: single when MIG is enabled on all GPUs with the same device types.
+•
+Starting with Nutanix AOS 7.3 and AHV 10.3, MIG profiles are hidden in the NKP UI and
+CLI to prevent accidental assignments. MIG supports only VMs configured with GPU
+passthrough. Nutanix does not support MIG profiles for vGPU-attached VMs. To remove
+a MIG vGPU profile from a VM, see Prism Central Infrastructure Guide: Updating a VM
+through Prism Central (AHV).
+3. Create the NVIDIA GPU operator AppDeployment that references the ConfigMap:
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: nvidia-gpu-operator
+  namespace: kommander
+spec:
+  appRef:
+    name: nvidia-gpu-operator-gpu-operator-version
+    kind: ClusterApp
+  configOverrides:
+    name: nvidia-gpu-operator-overrides
+EOF
+For the supported NVIDIA GPU operator version, see the Supported Applications section in the NKP
+Release Notes.
+4. Verify that the GPU operator is installed and running:
+kubectl get pods -n nvidia-gpu-operator
+The command returns a list of running GPU operator pods, including the device plugin, driver, and
+operator components.
+Disabling NVIDIA GPU Operator Using Nutanix Kubernetes Platform CLI
+Disable the NVIDIA GPU Operator platform application in Nutanix Kubernetes Platform (NKP) using the
+CLI method by removing GPU workloads and deleting the AppDeployment.
+Nutanix Kubernetes Platform | Cluster Operations Management | 616
+
+--- page 617 ---
+About this task
+To disable NVIDIA GPU operator platform application in NKP CLI, follow these steps:
+Procedure
+1. Delete all GPU workloads running on the GPU nodes where the NVIDIA GPU Operator platform
+application is active.
+2. Delete the existing NVIDIA GPU operator AppDeployment:
+kubectl delete appdeployment -n kommander nvidia-gpu-operator
+3. To check the pod status, monitor the cleanup of NVIDIA-specific resources in the Terminating state:
+kubectl get pods -A | grep nvidia
+For more information, see Pre-provisioned: Deleting Node Pools on page 817.
+Enabling the VGPU Token Operator on a Management, Attached or Managed Clusters
+To run GPU-enabled applications on your management, attached, or managed clusters with vGPU
+nodepools, enable the vGPU token operator and add you client secret configuration token.
+Before you begin
+Before enabling the vGPU token operator, ensure that you meet the following requirements:
+•
+Access to the NVIDIA licensing portal.
+•
+A valid .tok file to access the license. For example, client_configuration_token.tok.
+For more information, see Generating a Client Configuration Token.
+•
+A cloud licensing server or delegated license server is available.
+About this task
+To enable the VGPU token operator on a management, attached or managed clusters, follow these steps:
+Procedure
+1. Log in to the Nutanix Kubernetes Platform (NKP) dashboard.
+2. In the top-left corner, from the dropdown list, select your target workspace.
+By default, the Global workspace is displayed.
+3. From the left navigation pane, click Clusters.
+4. In the cluster (management, attached, or managed) widget, click View Details.
+5. In the Enabled Applications tab, locate VGPU Token Operator and click View Details.
+You can also filter the applications by its name, category, and type.
+6. On the VGPU Token Operator page, click Edit.
+The Edit VGPU Token Operator (v1.0.7) page is displayed.
+7. In the Workspace Application Configuration field, update the client secret configuration token for
+your cluster.
+8. Click Enable.
+Nutanix Kubernetes Platform | Cluster Operations Management | 617
+
+--- page 618 ---
+Validating the Application
+Validate your application and its GPU functionality by checking pod status, node labels, and running a test
+container. Ensure that the required components are active and vGPU is configured. You can use a sample
+pod to verify GPU access and run validation to ensure a successful deployment.
+About this task
+To validate your application, follow these steps:
+Procedure
+1. Validate that your application is started.
+kubectl get pods -A | grep nvidia
+Sample output:
+nvidia-container-toolkit-daemonset-7h2l5   1/1  Running  0              150m
+nvidia-container-toolkit-daemonset-mm65g   1/1  Running  0              150m
+nvidia-container-toolkit-daemonset-mv7xj   1/1  Running  0              150m
+nvidia-cuda-validator-pdlz8             0/1  Completed   0              150m
+nvidia-cuda-validator-r7qc4             0/1  Completed   0              150m
+nvidia-cuda-validator-xvtqm             0/1  Completed   0              150m
+nvidia-dcgm-exporter-9r6rl              1/1  Running  1 (149m ago)   150m
+nvidia-dcgm-exporter-hn6hn              1/1  Running  1 (149m ago)   150m
+nvidia-dcgm-exporter-j7g7g              1/1  Running  0              150m
+nvidia-dcgm-jpr57                       1/1  Running  0              150m
+nvidia-dcgm-jwldh                       1/1  Running  0              150m
+nvidia-dcgm-qg2vc                       1/1  Running  0              150m
+nvidia-device-plugin-daemonset-2gv8h    1/1  Running  0              150m
+nvidia-device-plugin-daemonset-tcmgk    1/1  Running  0              150m
+nvidia-device-plugin-daemonset-vqj88    1/1  Running  0              150m
+nvidia-device-plugin-validator-9xdqr    0/1  Completed   0              149m
+nvidia-device-plugin-validator-jjhdr    0/1  Completed   0              149m
+nvidia-device-plugin-validator-llxjk    0/1  Completed   0              149m
+nvidia-operator-validator-9kzv4         1/1  Running  0              150m
+nvidia-operator-validator-fvsr7         1/1  Running  0              150m
+nvidia-operator-validator-qr9cj         1/1  Running  0              150m
+2. To validate whether the vGPU is set up, check the node labels.
+kubectl get nodes -o json | jq '.items[].metadata.labels' | grep -i nvidia
+Sample output:
+"nvidia.com/gpu.product": "NVIDIA-A40-4C",
+"nvidia.com/gpu.replicas": "1",
+"nvidia.com/gpu.sharing-strategy": "none",
+"nvidia.com/mig.capable": "true",
+"nvidia.com/mig.strategy": "single",
+"nvidia.com/mps.capable": "false",
+"nvidia.com/vgpu.host-driver-branch": "r538_67",
+"nvidia.com/vgpu.host-driver-version": "580.126.18",
+"nvidia.com/vgpu.present": "true"
+The presence of nvidia.com/vgpu.present: "true" confirms that vGPU is configured.
+3. To validate whether the vGPU is set up, follow these steps:
+a. To verify the vGPU access, create a test pod.
+# https://catalog.ngc.nvidia.com/orgs/nvidia/teams/k8s/containers/cuda-sample
+apiVersion: v1
+kind: Pod
+Nutanix Kubernetes Platform | Cluster Operations Management | 618
+
+--- page 619 ---
+metadata:
+  generateName: gpu-pod-
+  labels:
+    test: gpu-pod
+spec:
+  restartPolicy: OnFailure
+  containers:
+  - name: gpu-pod
+    image: nvcr.io/nvidia/k8s/cuda-sample:vectoradd-cuda12.5.0
+    command: ["/bin/bash", "-c"]
+    args:
+      - "sleep inf"
+    resources:
+      limits:
+        nvidia.com/gpu: 1
+  nodeSelector:
+    "nvidia.com/gpu.present": "true"
+b. Apply the YAML.
+kubectl apply -f gpu-test-pod.yaml
+c. Run nvidia-smi in the pod that you created and check the status of the license.
+kubectl exec <generated-pod-name> -- nvidia-smi -q
+Sample output:
+$ kubectl exec gpu-pod-6z7vj -- nvidia-smi 
+Wed Apr  2 15:51:38 2025       
++---------------------------------------------------------------------------------------
++
+| NVIDIA-SMI 580.126.18             Driver Version: 580.126.18   CUDA Version:
+ 12.2     |
+NVIDIA GPU Metrics Monitoring
+GPU observability in Nutanix Kubernetes Platform (NKP) depends on the GPU Operator stack, node-
+level exporters, and the monitoring pipeline, including the NVIDIA data center GPU manager (DCGM)
+integration that exports GPU metrics to Prometheus.
+Accurate GPU metrics require all collection components to be healthy and aligned with the node driver and
+runtime versions.
+By default, Kommander has a Grafana dashboard named NVIDIA DCGM Exporter Dashboard, which
+displays the GPU performance and health data. You can access this dashboard from the Kommander
+Grafana user interface to monitor GPU metrics across your clusters. For information, see NVIDIA DCGM.
+Common GPU metrics available include the following information:
+•
+GPU utilization percentage by device and node
+•
+GPU memory used, free, and total capacity
+•
+GPU temperature and power draw
+•
+Tensor or compute engine activity (where exposed by the vendor stack)
+•
+GPU error counters, throttling signals, and health indicators
+•
+Per-pod or per-container accelerator usage labels where mapping is supported
+Review the following collection prerequisites:
+•
+GPU Operator and device plugin pods are running and healthy.
+Nutanix Kubernetes Platform | Cluster Operations Management | 619
+
+--- page 620 ---
+•
+Exporter pods are running on all intended accelerator nodes.
+•
+Prometheus scrape configuration includes exporter targets.
+•
+Network policy allows metrics path access from Prometheus to exporter endpoints.
+•
+Node labels and discovery configuration correctly identify accelerator nodes.
+For more information, see the Accelerator Performance Metrics section in the CNCF AI Conformance
+document.
+Troubleshooting NVIDIA GPU Operator on Nutanix Kubernetes Platform
+Troubleshoot the NVIDIA GPU operator issues on Nutanix Kubernetes Platform (NKP) by verifying GPU
+availability, monitoring pod status, and reviewing toolkit configuration.
+About this task
+To troubleshoot the common errors with NVIDIA GPU Operator on NKP, follow these steps:
+Procedure
+1. Connect to your GPU-enabled nodes using SSH or similar and run nvidia-smi.
+Sample output:
+  [ec2-user@ip-10-0-0-241 ~]$ nvidia-smi
+  Thu Nov  3 22:52:59 2022       
+  +-----------------------------------------------------------------------------+
+  | NVIDIA-SMI 580.126.18    Driver Version: 580.126.18    CUDA Version: 12.2.2     |
+  |-------------------------------+----------------------+----------------------+
+  | GPU  Name        Persistence-M| Bus-Id        Disp.A | Volatile Uncorr. ECC |
+  | Fan  Temp  Perf  Pwr:Usage/Cap|         Memory-Usage | GPU-Util  Compute M. |
+  |                               |                      |               MIG M. |
+  |===============================+======================+======================|
+  |   0  Tesla T4            On   | 00000000:00:1E.0 Off |                    0 |
+  | N/A   54C    P8    11W /  70W |      0MiB / 15109MiB |      0%      Default |
+  |                               |                      |                  N/A |
+  +-------------------------------+----------------------+----------------------+    
+                                                                    
+  +-----------------------------------------------------------------------------+
+  | Processes:                                                                  |
+  |  GPU   GI   CI        PID   Type   Process name                  GPU Memory |
+  |        ID   ID                                                   Usage      |
+  |=============================================================================|
+  |  No running processes found                                                 |
+  +-----------------------------------------------------------------------------+
+2. If you misconfigure the toolkit version, NVIDIA pods enter in a bad state.
+Sample output:
+nvidia-container-toolkit-daemonset-jrqt2                          1/1     Running    
+             0             29s
+nvidia-dcgm-exporter-b4mww                                        0/1     Error      
+             1 (9s ago)    16s
+nvidia-dcgm-pqsz8                                                 0/1    
+ CrashLoopBackOff        1 (13s ago)   27s
+nvidia-device-plugin-daemonset-7fkzr                              0/1     Init:0/1   
+             0             14s
+Nutanix Kubernetes Platform | Cluster Operations Management | 620

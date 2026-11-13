@@ -1,0 +1,521 @@
+
+--- page 215 ---
+  user:
+    token: ${USER_TOKEN_VALUE}
+EOF
+8. This process produces a file in your current working directory called kommander-cluster-admin-
+config. The contents of this file are used in Kommander to attach the cluster. Before importing this
+configuration, verify the kubeconfig file can access the cluster.
+kubectl --kubeconfig $(pwd)/kommander-cluster-admin-config get all --all-namespaces
+Finalize attaching your cluster from the UI
+About this task
+Now that you have the kubeconfig, go to the NKP UI and follow these steps below:
+Procedure
+From the top menu bar, select your target workspace.
+a. On the Dashboard page, select the Add Cluster option in the Actions dropdown menu at the top right.
+b. Select Attach Cluster.
+c. Select the No additional networking restrictions card. Alternatively, if you must use network
+restrictions, stop following the steps below and see the Attach a cluster WITH network restrictions.
+d. Upload the kubeconfig file you created in the previous section (or copy its contents) into the Cluster
+Configuration section.
+e. The Cluster Name field automatically populates with the name of the cluster in the kubeconfig. You can
+edit this field using the name you want for your cluster.
+f.
+Add labels to classify your cluster as needed.
+g. Select Create to attach your cluster. Next Step
+Note:  If a cluster has limited resources to deploy all the federated platform services, it will fail to stay
+attached in the NKP UI. If this happens, ensure your system has sufficient resources for all pods.
+GCP Installation Options
+For an environment that is on the GCP Infrastructure, install options based on those environment variables
+are provided for you in this location.
+Remember, there are always more options for custom YAML in the Custom Installation and Additional
+Infrastructure Tools section, but this will get you operative in the most common scenarios.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+For a list of all the NKP supported environment combinations, see Supported Infrastructure Operating
+Systems on page 13.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 215
+
+--- page 216 ---
+Additional Resource Information Specific to GCP
+•
+Control plane nodes - NKP on GCP defaults to deploying an n2-standard-4 instance with an 80GiB
+root volume for control plane nodes, which meets the above requirements.
+•
+Worker nodes - NKP on GCP defaults to deploying a n2-standard-8 instance with an 80GiB root
+volume for worker nodes, which meets the above requirements.
+GCP Installation
+This installation provides instructions to install NKP in an GCP non-air-gapped environment.
+For an environment that is on the GCP Infrastructure, install options are provided for you in this one
+location. Remember, there are always more options for custom YAML in the Custom Installation and
+Additional Infrastructure Tools section, but this will get you operating with basic features.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+GCP Prerequisites
+Verify that your Google Cloud project does not have the Enable OS Login feature enabled.
+Warning:  The Enable OS Login feature is sometimes enabled by default in GCP projects. If the OS login
+feature is enabled, NIB will not be able to ssh to the VM instances it creates and will not be able to create
+an image successfully.
+To check if it is enabled, use the commands on this page Set and remove custom metadata
+| Compute Engine Documentation | Google Cloud to inspect the metadata configured in your
+project. If you find the enable-oslogin flag set to TRUE, you must remove it (or set it to FALSE)
+to use NIB.
+The user creating the Service Accounts needs additional privileges in addition to the Editor role. For more
+information, see GCP Roles.
+GCP: Creating an Image
+Learn how to build a custom image for use with NKP.
+About this task
+This procedure describes how to use the Nutanix Image Builder on page 55 (NIB) to create a Cluster
+API compliant GCP image. GCP images contain configuration information and software to create a
+specific, pre-configured, operating environment. For example, you can create a GCP image of your current
+computer system settings and software. The GCP image can then be replicated and distributed, creating
+your computer system for other users.
+Warning:  Google Cloud Platform does not publish images. You must first build the image using Nutanix
+Image Builder on page 55. Explore the Customize your Image topic for more options. For more information
+regarding using the image in creating clusters, refer to the GCP Infrastructure section of the documentation.
+Procedure
+Follow the steps listed in Building a Custom Image with GCP on page 67.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 216
+
+--- page 217 ---
+GCP: Creating the Management Cluster
+Create a GCP Management Cluster in a non-air-gapped environment.
+About this task
+Create a new Google Cloud Platform Kubernetes cluster in a non-air-gapped environment with the steps
+below.
+Use this procedure to create a self-managed Management cluster with NKP. A self-managed cluster
+refers to one in which the CAPI resources and controllers that describe and manage it are running on the
+same cluster they are managing. First, you must name your cluster.
+Warning:  NKP uses the GCP CSI driver as the default storage provider. Use a Kubernetes CSI
+compatible storage that is suitable for production.
+Name Your Cluster
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+2. Set the environment variable using the command.
+export CLUSTER_NAME=<gcp-example>
+Important:  To increase Docker Hub's rate limit, use your Docker Hub credentials when creating the
+cluster by setting the following flag on the nkp create cluster command.
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME} 
+--registry-mirror-password=${REGISTRY_PASSWORD}
+Create a GCP Cluster
+About this task
+Availability zones (AZs) are isolated locations within data center regions from which public cloud services
+originate and operate. Because all the nodes in a node pool are deployed in a single AZ, you may wish to
+create additional node pools to ensure your cluster has nodes deployed in multiple AZs.
+If you use these instructions to create a cluster on GCP using the NKP default settings without any edits
+to configuration files or additional flags, your cluster is deployed on a three control plane nodes, and four
+worker nodes.
+Note:  By default, the control-plane Nodes will be created in 3 different zones. However, the default worker
+Nodes will reside in a single zone. You might create additional node pools in other zones with the nkp
+create nodepool command.
+Note:  Google Cloud Platform does not publish images. You must first build the image using Nutanix Image
+Builder.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 217
+
+--- page 218 ---
+Procedure
+1. Create an image using Nutanix Image Builder (NIB) and then export the image name.
+export IMAGE_NAME=projects/${GCP_PROJECT}/global/images/<image_name_from_nib>
+2. Ensure your subnets do not overlap with your host subnet because they cannot be changed after
+cluster creation. If you need to change the Kubernetes subnets, you must do this at cluster creation.
+The default subnets used in NKP are.
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 10.96.0.0/12
+3. (Optional) Modify Control Plane Audit logs - Users can make modifications to the
+KubeadmControlplane cluster-api object to configure different kubelet options. See the following guide
+if you wish to configure your control plane beyond the existing options that are available from flags.
+4. (Optional) Determine what VPC Network to use. All GCP accounts come with a preconfigured VPC
+Network named default, which will be used if you do not specify a different network.
+To use a different VPC network for your cluster, create one by following these instructions for Create
+and Manage VPC Networks. Then specify the --network <new_vpc_network_name> option on the
+create cluster command below. More information is available on GCP Cloud Nat and network flag.
+5. Create a Kubernetes cluster.
+The following example shows a common configuration. See dkp create cluster gcp reference for
+the full list of cluster creation options.
+nkp create cluster gcp \
+--cluster-name=${CLUSTER_NAME} \
+--additional-tags=owner=$(whoami) \
+--project=${GCP_PROJECT} \
+--image=${IMAGE_NAME} \
+--self-managed
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+6. Wait for the cluster control-plane to be ready:
+kubectl wait --for=condition=Available=True "clusters/${CLUSTER_NAME}" --timeout=20m
+7. After the objects are created on the API server, the Cluster API controllers reconcile them. They create
+infrastructure and machines. As they progress, they update the Status of each object. NKP provides a
+command to describe the current status of the cluster:
+nkp describe cluster -c ${CLUSTER_NAME}
+Output:
+NAME                                                                      READY 
+ SEVERITY  REASON  SINCE  MESSAGE
+Cluster/gcp-example                                                       True       
+              52s
+##ClusterInfrastructure - GCPCluster/gcp-example
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 218
+
+--- page 219 ---
+##ControlPlane - KubeadmControlPlane/gcp-example-control-plane            True       
+              52s
+# ##Machine/gcp-example-control-plane-6fbzn                               True       
+              2m32s
+# # ##MachineInfrastructure - GCPMachine/gcp-example-control-plane-62g6s
+# ##Machine/gcp-example-control-plane-jf6s2                               True       
+              7m36s
+# # ##MachineInfrastructure - GCPMachine/gcp-example-control-plane-bsr2z
+# ##Machine/gcp-example-control-plane-mnbfs                               True       
+              54s
+#   ##MachineInfrastructure - GCPMachine/gcp-example-control-plane-s8xsx
+##Workers
+  ##MachineDeployment/gcp-example-md-0                                    True       
+              78s
+    ##Machine/gcp-example-md-0-68b86fddb8-8glsw                           True       
+              2m49s
+    # ##MachineInfrastructure - GCPMachine/gcp-example-md-0-zls8d
+    ##Machine/gcp-example-md-0-68b86fddb8-bvbm7                           True       
+              2m48s
+    # ##MachineInfrastructure - GCPMachine/gcp-example-md-0-5zcvc
+    ##Machine/gcp-example-md-0-68b86fddb8-k9499                           True       
+              2m49s
+    # ##MachineInfrastructure - GCPMachine/gcp-example-md-0-k8h5p
+    ##Machine/gcp-example-md-0-68b86fddb8-l6vfb                           True       
+              2m49s
+      ##MachineInfrastructure - GCPMachine/gcp-example-md-0-9h5vn
+•
+A self-managed cluster refers to one in which the CAPI resources and controllers that describe and
+manage it are running on the same cluster they are managing. As part of the underlying processing
+using the --self-managed flag, the NKP CLI:
+•
+creates a bootstrap cluster
+•
+creates a managed cluster
+•
+moves CAPI controllers from the bootstrap cluster to the managed cluster, making it self-
+managed
+•
+deletes the bootstrap cluster
+To understand how this process works step by step, you can find customizable steps in GCP
+Infrastructure under Custom Installation and Additional Infrastructure Tools.
+Cluster Verification
+If you want to monitor or verify the installation of your clusters, refer to: Cluster and NKP Installation
+Verification on page 1004 and Installing NKP on page 46.
+GCP: Installing Kommander
+This section provides installation instructions for the Kommander component of NKP in a non-air-gapped
+GCP environment.
+About this task
+Once you have installed the component of NKP, you will continue with the installation of the Kommander
+component that will bring up the UI dashboard.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the correct
+cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see Commands
+within a kubeconfig File on page 34.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 219
+
+--- page 220 ---
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install command
+to retry.
+Prerequisites:
+•
+Ensure you have reviewed all Prerequisites for Install.
+•
+Ensure you have a default StorageClass.
+•
+Note the name of the cluster where you want to install Kommander. If you do not know the cluster
+name, use kubectl get nkpclusters -A to display and find it.
+Create your Kommander Installation Configuration File
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} >> ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init > kommander.yaml 
+4. If required: Customize your kommander.yaml.
+See Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, External Load Balancer, GPU Utilization, and Rook Ceph
+customization for Pre-provisioned environments.
+5. Only required if your cluster uses a custom AWS VPC and requires an internal load-balancer; set the
+traefik annotation to create an internal-facing ELB.
+apps:
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true"
+GCP: Verifying your Installation and UI Log in
+Verify Kommander installation and log in to the Dashboard UI.
+About this task
+After you build the cluster and you install Kommander, verify your installation. It waits for all applications to
+be ready by default.
+Note:  If the Kommander installation fails or you wish to reconfigure applications, you can rerun the install
+command to retry the installation.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 220
+
+--- page 221 ---
+Procedure
+Check the installation status:
+kubectl -n kommander wait --for condition=Ready helmreleases --all --timeout 15m
+Note:  If you prefer the CLI to not wait for all applications to become ready, you can set the --wait=false
+flag.
+The command waits for each Helm chart to reach the Ready condition and returns output similar to the
+following:
+helmrelease.helm.toolkit.fluxcd.io/ai-navigator-app condition met
+helmrelease.helm.toolkit.fluxcd.io/centralized-grafana condition met
+...
+The output can include additional HelmRelease entries.
+Failed HelmReleases
+Procedure
+If an application fails to deploy, check the status of a HelmRelease using the command.
+kubectl -n kommander get helmrelease <HELMRELEASE_NAME>
+If you find any HelmReleases in a “broken” release state, such as “exhausted” or “another rollback/release
+in progress”, trigger a reconciliation of the HelmRelease using the commands.
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": true}]'
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": false}]'
+Log in to the UI
+Procedure
+1. By default, log in to the UI in Kommander with the following command:
+nkp open dashboard --kubeconfig=${CLUSTER_NAME}.conf
+2. Retrieve your credentials:
+kubectl -n kommander get secret dkp-credentials -o go-template='Username:
+ {{.data.username|base64decode}}{{ "\n"}}Password: {{.data.password|base64decode}}
+{{ "\n"}}'
+3. Retrieve the dashboard URL:
+kubectl -n kommander get svc kommander-traefik -o go-template='https://{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}/dkp/kommander/
+dashboard{{ "\n"}}'
+You should only use these static credentials to access the UI for configuring an external identity
+provider. Treat them as backup credentials rather than use them for normal access.
+a. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 221
+
+--- page 222 ---
+Are you sure you want to continue? [y/N]: y
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+b. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+For more information, see Rotating the NKP Dashboard Password on page 252.
+You can perform the following operations on Identity Providers:
+•
+Create an Identity Provider
+•
+Temporarily Disable an Identity Provider
+•
+Create Groups
+Dashboard UI Functions
+After installing the component and building a cluster as well as successfully installing Kommander and
+logging into the UI, you are now ready to customize configurations using the Day 2 Cluster Operations
+Management section of the documentation. The majority of this customization such as attaching
+clusters and deploying applications will take place in the dashboard or UI of NKP. The Day 2 section
+allows you to manage cluster operations and their application workloads to optimize your organization’s
+productivity.
+GCP: Creating Managed Clusters Using the NKP CLI
+This topic explains how to continue using the CLI to create managed clusters rather than switching to the
+UI dashboard.
+About this task
+After the initial cluster creation, you can create additional clusters from the CLI. In a previous step, the new
+cluster was created as Self-managed, which allows it to be a Management cluster or a stand-alone cluster.
+Subsequent new clusters are not self-managed, as they will likely be Managed or Attached clusters to this
+Management Cluster.
+Warning:  When creating Managed clusters, you do not need to create and move CAPI cluster objects or
+install the Kommander component. Those tasks are only done on Management clusters!
+Your new managed cluster needs to be part of a workspace under a management cluster. To make the new
+managed cluster a part of a Workspace, set that workspace environment variable.
+To make new managed cluster part of a workspace:
+Procedure
+1. If you have an existing Workspace name, run this command to find the name.
+Note:  If you need to create a new Workspace, follow the instructions to Create a New Workspace
+kubectl get workspace -A
+2. When you have the Workspace name, set the WORKSPACE_NAMESPACE environment variable.
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 222
+
+--- page 223 ---
+Name Your Cluster
+About this task
+Each cluster must have an original name.
+First, you must name your cluster. Then, you run the command to deploy it.
+Perform both steps to name the cluster:
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+In GCP it is critical that the name is unique, as no two clusters in the same GCP account can have the
+same name.
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+2. Set the environment variable.
+ export MANAGED_CLUSTER_NAME=<gcp-additional>
+Important:  To increase Docker Hub's rate limit, use your Docker Hub credentials when creating the
+cluster by setting the following flag on the nkp create cluster command.
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME} 
+--registry-mirror-password=${REGISTRY_PASSWORD}
+Create a new GCP Cluster
+About this task
+Availability zones (AZs) are isolated locations within data center regions from which public cloud services
+originate and operate. Because all the nodes in a node pool are deployed in a single AZ, you may wish to
+create additional node pools to ensure your cluster has nodes deployed in multiple AZs.
+If you use these instructions to create a cluster on GCP using the NKP default settings without any edits
+to configuration files or additional flags, your cluster is deployed on a three control plane nodes, and four
+worker nodes.
+Note:  By default, the control-plane Nodes will be created in 3 different zones. However, the default worker
+Nodes will reside in a single zone. You might create additional node pools in other zones with the nkp
+create nodepool command.
+Warning:  Google Cloud Platform does not publish images. You must first build the image using Nutanix
+Image Builder on page 55 (NIB).
+Note:  The instructions below tell you how to create a cluster and have it automatically attach to the
+workspace you set above. If you do not set a workspace, the cluster will be created in the default
+workspace, and you will need to take additional steps to attach to a workspace later. For instructions on how
+to do this, see Attach a Kubernetes Cluster.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 223
+
+--- page 224 ---
+Procedure
+1. Create an image using Nutanix Image Builder on page 55 (NIB) and then export the image name.
+export IMAGE_NAME=projects/${GCP_PROJECT}/global/images/<image_name_from_nib>
+2. Create a Kubernetes cluster. The following example shows a common configuration.
+Execute this command to create your additional Kubernetes cluster using any relevant flags. This will
+create a new non-self-managed cluster that can be managed by the management cluster you created in
+the previous section.
+For the full list of cluster creation options, see dkp create cluster gcp reference.
+nkp create cluster gcp \
+--cluster-name=${MANAGED_CLUSTER_NAME} \
+--additional-tags=owner=$(whoami) \
+--namespace ${WORKSPACE_NAMESPACE} \
+--project=${GCP_PROJECT} \
+--image=${IMAGE_NAME} \
+--kubeconfig=<management-cluster-kubeconfig-path>
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+Retrieving the kubeconfig and Exploring New GCP Cluster
+Procedure
+1. Fetch the kubeconfig file with the command:
+nkp get kubeconfig --cluster-name ${MANAGED_CLUSTER_NAME} --kubeconfig <management-
+cluster-kubeconfig-path> -n ${WORKSPACE_NAMESPACE} > ${MANAGED_CLUSTER_NAME}.conf
+2. List the nodes with the following command:
+kubectl --kubeconfig=${MANAGED_CLUSTER_NAME}.conf get nodes
+3. List the pods with the following command:
+Note:  Wait for the Status to move to Ready while calico-node pods are being deployed.
+kubectl --kubeconfig=${MANAGED_CLUSTER_NAME}.conf get pods -A
+Manually Attach an NKP CLI Cluster to the Management Cluster
+About this task
+Warning:  These steps are only applicable if you do not set a WORKSPACE_NAMESPACE when creating a
+cluster. If you already set a WORKSPACE_NAMESPACE, then you do not need to perform these steps since
+the cluster is already attached to the workspace.
+When you create a Managed Cluster with the NKP CLI, it attaches automatically to the Management
+Cluster after a few moments.
+However, if you do not set a workspace, the attached cluster will be created in the default workspace.
+To ensure that the attached cluster is created in your desired workspace namespace, follow these
+instructions:
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 224
+
+--- page 225 ---
+Procedure
+1.
+Confirm you have your MANAGED_CLUSTER_NAME variable set with the following command.
+echo ${MANAGED_CLUSTER_NAME}
+2.
+Retrieve your kubeconfig from the cluster you have created without setting a workspace.
+nkp get kubeconfig --cluster-name ${MANAGED_CLUSTER_NAME} >
+ ${MANAGED_CLUSTER_NAME}.conf
+3.
+You can now either attach it in the UI, link to attaching it to the workspace through UI that was earlier,
+or attach your cluster to the workspace you want in the CLI.
+Note:  This is only necessary if you never set the workspace of your cluster upon creation.
+4.
+Retrieve the workspace where you want to attach the cluster.
+kubectl get workspaces -A
+5.
+Set the WORKSPACE_NAMESPACE environment variable.
+export WORKSPACE_NAMESPACE=<workspace-namespace>
+6.
+You need to create a secret in the desired workspace before attaching the cluster to that workspace.
+Retrieve the kubeconfig secret value of your cluster.
+kubectl -n default get secret ${MANAGED_CLUSTER_NAME}-kubeconfig -o go-
+template='{{.data.value}}{{ "\n"}}'
+7.
+This will return a lengthy value. Copy this entire string for a secret using the template below as a
+reference. Create a new attached-cluster-kubeconfig.yaml file.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <your-managed-cluster-name>-kubeconfig
+  labels:
+    cluster.x-k8s.io/cluster-name: <your-managed-cluster-name>
+type: cluster.x-k8s.io/secret
+data:
+  value: <value-you-copied-from-secret-above>
+8.
+Create this secret in the desired workspace.
+kubectl apply -f attached-cluster-kubeconfig.yaml --namespace
+ ${WORKSPACE_NAMESPACE}
+9.
+Create this nkpcluster object to attach the cluster to the workspace.
+cat << EOF | kubectl apply -f -
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: ${MANAGED_CLUSTER_NAME}
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  capiClusterRef:
+    name: ${MANAGED_CLUSTER_NAME}
+    namespace: default
+  kommanderCluster:
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 225
+
+--- page 226 ---
+    spec:
+      kubeconfigRef:
+        name: ${MANAGED_CLUSTER_NAME}-kubeconfig
+      clusterRef:
+        capiCluster:
+          name: ${MANAGED_CLUSTER_NAME}
+EOF
+10. You can now view this cluster in your Workspace in the UI, and you can confirm its status by running
+the command below. It may take a few minutes to reach "Joined" status.
+kubectl get nkpclusters -A
+If you have several Pro Clusters and want to turn one of them into a Managed Cluster to be centrally
+administrated by a Management Cluster, see Platform Expansion: Conversion of an NKP Pro Cluster
+to an NKP Ultimate Managed Cluster on page 472.

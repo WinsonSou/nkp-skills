@@ -1,0 +1,162 @@
+########## nkp  --help ##########
+Usage:
+  nkp [command]
+
+Available Commands:
+  attach           Attach one of [cluster]
+  check            Check, one of [cluster]
+  cluster          Get cluster information
+  completion       Generate the autocompletion script for the specified shell
+  config           Manage Kommander configuration
+  create           Create one of [appdeployment, bootstrap, bootstrap-token, bundle, capi-components, catalog-app, catalog-bundle, cluster, image, metadata, nodepool, package-bundle, project, workspace]
+  delete           Delete one of [bootstrap (cluster), capi-components, cluster, nodepool]
+  describe         Describe one of [cluster]
+  detach           Detach one of [cluster]
+  diagnose         Generate a support bundle
+  edit             Edit a resource on the server
+  experimental     Experimental one of [catalog, gitops]
+  generate         Generate one of [catalog-repository]
+  get              Get one of [appdeployments, clusters, dashboard, kubeconfig, nodepools, projects, workspaces]
+  help             Help about any command
+  import           Import images from an image bundle into Containerd
+  install          Install one of [kommander]
+  move             Move one of [capi-resources]
+  open             Open one of [dashboard]
+  push             Push one of [bundle, image-archive]
+  rotate           commands to rotate credentials
+  scale            Scale one of [nodepool]
+  serve            Serve image or Helm chart bundles from an OCI registry
+  update           Update one of [bootstrap (cluster), cluster, controlplane, nodepool]
+  upgrade          Upgrade one of [addons, catalog-app, cluster, kommander, platform-apps]
+  upload           Upload image artifacts to remote hosts
+  validate         Validate one of [catalog-repository]
+  version          Print version information
+
+Flags:
+  -h, --help          Help for nkp
+  -v, --verbose int   Output verbosity
+
+Use "nkp [command] --help" for more information about a command.
+
+########## nkp create --help ##########
+Create one of [appdeployment, bootstrap, bootstrap-token, bundle, capi-components, catalog-app, catalog-bundle, cluster, image, metadata, nodepool, package-bundle, project, workspace]
+
+Usage:
+  nkp create [command]
+
+Available Commands:
+  appdeployment   Create an AppDeployment
+  bootstrap       Create bootstrap cluster
+  bootstrap-token Create a bootstrap token for the NKP host agent
+  bundle          Create a bundle containing container images and/or Helm charts
+  capi-components Create the CAPI components in the cluster
+  catalog-app     Create a catalog application or collection in project or workspace namespace
+  catalog-bundle  Bundle up the catalog application(s) including container images & any OCI artifacts
+  cluster         Cluster one of [aks, aws, azure, eks, gcp, metal, nutanix, preprovisioned, vsphere]
+  image           Create Operating System image for one of [aws, azure, gcp, nutanix, preprovisioned, vsphere]
+  metadata        Create a infrastructure metadata, one of [nutanix]
+  nodepool        Nodepool one of [aks, aws, azure, eks, gcp, metal, nutanix, preprovisioned, vsphere]
+  package-bundle  Create Operating System package bundle for one of [oracle-8.9, oracle-9.4, rhel-8.10, rhel-9.6, rhel-9.8, rocky-9.8, ubuntu-22.04, ubuntu-24.04]
+  project         Create a Project
+  workspace       Create a Workspace
+
+Flags:
+  -h, --help   Help for create
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp create [command] --help" for more information about a command.
+
+########## nkp create cluster --help ##########
+Cluster one of [aks, aws, azure, eks, gcp, metal, nutanix, preprovisioned, vsphere]
+
+Usage:
+  nkp create cluster [command]
+
+Available Commands:
+  aks            Create a Konvoy cluster in AKS
+  aws            Create a Konvoy cluster in AWS
+  azure          Create a Konvoy cluster in Azure
+  eks            Create a Konvoy cluster in EKS
+  gcp            Create a Konvoy cluster in GCP
+  metal          Create an NKP Metal cluster
+  nutanix        Create a Konvoy cluster in Nutanix
+  preprovisioned Create a Konvoy cluster on pre-provisioned infrastructure
+  vsphere        Create a Konvoy cluster in vSphere
+
+Flags:
+  -h, --help   Help for cluster
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp create cluster [command] --help" for more information about a command.
+
+########## nkp create bundle --help ##########
+Create a bundle containing container images and/or Helm charts
+
+Usage:
+  nkp create bundle [flags]
+
+Flags:
+      --all-platforms                Download images for all platforms specified in the image manifests
+      --helm-charts-file string      YAML file containing configuration of Helm charts to create bundle from
+  -h, --help                         Help for bundle
+      --image-pull-concurrency int   Image pull concurrency (default 1)
+      --images-file string           File containing list of images to create bundle from, either as YAML configuration or a simple list of images
+      --merge                        Merge new images into existing bundle file if it already exists
+      --oci-artifacts-file string    File containing list of oci artifacts to create bundle from, either as YAML configuration or a simple list of images
+      --output-file string           Output file to write bundle to (default "bundle.tar")
+      --overwrite                    Overwrite bundle file if it already exists
+      --platform platformSlice       platforms to download images for (required format: <os>/<arch>[/<variant>]) (default [linux/amd64])
+  -v, --verbose int                  Output verbosity
+
+
+########## nkp get --help ##########
+Get one of [appdeployments, clusters, dashboard, kubeconfig, nodepools, projects, workspaces]
+
+Usage:
+  nkp get [command]
+
+Available Commands:
+  appdeployments Get AppDeployments from a Workspace, Project, or all Workspaces and Projects
+  clusters       Get clusters from specified Workspace
+  dashboard      Show the UI URL and credentials
+  kubeconfig     Retrieve cluster kubeconfig and modify local kubeconfig file
+  nodepools      Get nodepools for a given cluster
+  projects       Get Projects from a Workspace or all Workspaces
+  workspaces     Get Workspaces
+
+Flags:
+  -h, --help   Help for get
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp get [command] --help" for more information about a command.
+
+########## nkp describe cluster --help ##########
+Describe a Kubernetes cluster status
+
+Usage:
+  nkp describe cluster [flags]
+
+Flags:
+  -c, --cluster-name name   Name used to prefix the cluster and all the created resources.
+  -h, --help                Help for cluster
+      --kubeconfig string   Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string    If present, the namespace scope for this CLI request. (default "default")
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp check cluster --help (head) ##########
+Check a cluster, one of [fips]
+
+Usage:
+  nkp check cluster [command]
+
+Available Commands:
+  fips        Validate the components in your cluster are FIPS compliant
+

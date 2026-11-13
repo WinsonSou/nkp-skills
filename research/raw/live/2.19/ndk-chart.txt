@@ -1,0 +1,93 @@
+# NDK 2.3.0 in the NKP 2.19.0 bundle (read-only)
+# Source: ~/nkp-v2.19.0/container-images/nkp-nutanix-product-catalog-image-bundle-2.19.tar on the lab bastion, 2026-11-03.
+# Method: tar -tf and tar -xOf of registry blobs (no write on the bastion). The chart tgz was copied to a temp dir on the
+# operator laptop and read with `helm template --set dryRun=true` (client only, no cluster). Nothing scrubbed: no site data.
+# NDK is NOT installed on the lab (Starter). These are bundle facts, not runtime facts.
+
+=== Bundle repositories (bundle-images.txt) ===
+mesosphere/charts/ndk:2.3.0
+nutanix-cloud-native/nkp-nutanix-product-catalog/collection:2.19   (nkp-layout.yaml: applications: ndk 2.3.0 only)
+nutanix-cloud-native/nkp-nutanix-product-catalog/ndk:2.3.0
+nutanix/kube-rbac-proxy:v0.22.1  nutanix/kubectl:1.36.3  nutanix/ndk-infra-manager:2.3.0  nutanix/ndk-job-scheduler:2.3.0
+nutanix/ndk-manager:2.3.0  nutanix/ndk-ui:2.3.0
+NOT in the bundle: the recipes image (ndk/recipes, async failover jobs), the ndkcli binary, the recipe job YAML files.
+
+=== Catalog app ndk:2.3.0 (artifact type catalog-application, created 2026-10-15) ===
+metadata.yaml: displayName "Nutanix Data Services for Kubernetes"; nkpVersionSupport ">=2.18.0 <2.20.0";
+  licensing [Pro, Ultimate]; dependencies [cert-manager]; scope [workspace]; allowMultipleInstances false;
+  certifications [nutanix-supported, airgapped]. Overview: "supported only on NKP clusters backed by Nutanix Infrastructure";
+  needs cert-manager >= v1.13.0 and csi >= v3.7.1. "TLS will be disabled by default."
+.bloodhound.yml (catalog validation): k8s_versions 1.34.0, 1.35.0, 1.36.0.
+release/ndk.yaml:
+  OCIRepository ${releaseName}-${appVersion}-chart  url oci://ghcr.io/mesosphere/charts/ndk  tag 2.3.0
+  HelmRelease ndk (namespace ${releaseNamespace}) chartRef -> that OCIRepository; install/upgrade crds: CreateReplace;
+    remediation retries 30; createNamespace false ("ntnx-system is already created during csi installation");
+    releaseName ndk; targetNamespace ntnx-system;
+    valuesFrom: only ConfigMap ${releaseName}-${appVersion}-defaults (no <app-id>-overrides slot).
+release/cm.yaml (ConfigMap ${releaseName}-${appVersion}-defaults, values.yaml):
+  image repositories docker.io/nutanix/ndk-manager, ndk-infra-manager, ndk-job-scheduler, ndk-ui, kube-rbac-proxy (v0.22.1),
+    kubectl (1.36.3); pullPolicy IfNotPresent
+  prometheus.enable false
+  tls.webhook.mode SELF_SIGNED; tls.server.enable false; tls.server.enableMTLS false; tls.server.mode SELF_SIGNED
+  config.secret.name nutanix-csi-credentials
+release/extra-images.txt: docker.io/nutanix/ndk-ui:2.3.0
+
+=== Chart ndk 2.3.0 values.yaml (chart defaults, before the catalog defaults) ===
+imageCredentials.imagePullSecretName: ndk-image-pull-secret (the Deployment always lists it in imagePullSecrets);
+  imageCredentials.credentials.{registry https://index.docker.io/v1/, username, password, email}: the chart makes the
+  Secret only when credentials.username is set (pre-install/pre-upgrade hook).
+intercomService: type LoadBalancer, ports [port 2021 TCP targetPort 2021], useKubevipDhcp false, loadBalancerClass, loadBalancerIP
+config.ndkServerConfig.port: 2021. No port 347 anywhere in the chart. UI Service ndk-ui: port 80 -> targetPort 4010, ClusterIP.
+tls.server: enable true (chart) / false (catalog), mode SELF_SIGNED, secretName ndk-server-cert, certMountLocation /etc/certs
+config.secret.name: ntnx-pc-secret (chart) / nutanix-csi-credentials (catalog)
+pulseTelemetry.enabled: false. ui.enable: false.
+deployment.tolerations [] / nodeSelector {}.
+
+=== Chart templates ===
+Deployment ndk-controller-manager, containers: manager, infra-manager, kube-rbac-proxy, job-scheduler.
+Services: ndk-intercom-service (LoadBalancer), ndk-controller-manager-metrics-service, ndk-webhook-service,
+  ndk-scheduler-webhook-service. Webhooks: one Mutating, one Validating.
+Prechecks (fail the install): CSIDriver csi.nutanix.com version >= 3.7.1 (labels), the PC secret exists in the release
+  namespace with key "key" = "<host>:<port>:<user>:<password>" (basic auth) or host/port/auth_type/key_value/key_type
+  (service auth), a TLS precheck, an HAA precheck. dryRun=true skips them.
+manager-config.yaml: tls.server.mode SECRET + tls.server.clusterName set -> install fails:
+  "For NDK installation in mode 'SECRET', clusterName cannot be provided. The DNS subject alternative name (SAN) provided
+  in the certificate secret will be used". (The NKP guide p.341 example sets both.)
+cert-manager.yaml: tls.server.enable true with mode SELF_SIGNED or ISSUER and no clusterName -> install fails
+  ".Values.tls.server.clusterName is required."
+controller-manager-metrics-monitor.yaml: with prometheus.enable true it reads .Values.serviceMonitor.customLabels (top level,
+  not prometheus.serviceMonitor.customLabels). helm template with prometheus.enable=true and no top-level serviceMonitor:
+  "nil pointer evaluating interface {}.customLabels". With --set-json 'serviceMonitor={"customLabels":{}}' it renders
+  one ServiceMonitor.
+crd-upgrade-hook.yaml: a pre-upgrade Job.
+NOTES.txt prints "NDK Pulse Telemetry enabled: <bool>" and the server TLS mode; SELF_SIGNED and DISABLED print a
+  "not for production" notice.
+
+=== CRDs (chart crds/, all v1alpha1) ===
+Kind (scope, short names): printer columns
+Application (Namespaced, app): Active, Last-Status-Update. spec: applicationSelector{namespaceSelectors.includeNamespaces,
+  resourceLabelSelectors[]{labelSelector, includeResources[]{group,kind}, excludeResources[]{group,kind}}}, start, useExistingConfig
+ApplicationSnapshot (Namespaced, as): Ready-To-Use, Bound-SnapshotContent, Consistency-Type. spec: source.applicationRef.name,
+  expiresAfter ("required for out-of-band snapshots", immutable), forceDeleteFilesSnapshot
+ApplicationSnapshotContent (Cluster, asc)
+ApplicationSnapshotReplication (Namespaced, appsnaprep): Available, Progress, Progressing-Reason. spec: applicationSnapshotName, replicationTargetName
+ApplicationSnapshotRestore (Namespaced, asr): Completed. spec: applicationSnapshotName (required), applicationSnapshotNamespace; spec immutable
+AppProtectionPlan (Namespaced, appplan): Available, Degraded. spec: applicationName, protectionPlanNames[], labels, annotations
+ProtectionPlan (Namespaced, pplan): Available, Degraded, Protection-Type. spec immutable. protectionType enum sync|async|nearSyncDR;
+  scheduleName; retentionPolicy{retentionCount, labelSelector}; replicationConfigs[]{replicationTargetName}; rpo (nearSyncDR only, immutable)
+JobScheduler (scheduler.nutanix.com, Namespaced): LastActivation, NextActivation. spec: interval.minutes, daily.time,
+  weekly{days,time}, monthly{dates,time}, cronSchedule, startTime, timeZoneName
+Remote (Cluster, remote): Address, Port, Available, Reason, Cluster-Name. spec: clusterName, ndkServiceIp, ndkServicePort,
+  tlsConfig{caBundle, skipTLSVerify, enableMTLS, mTLSClientConfig{secretName, secretNamespace}}
+ReplicationTarget (Namespaced): Remote-Name, Remote-Namespace, Available, Reason. spec: namespaceName, remoteName, serviceAccountName
+StorageCluster (Cluster): Available. spec: storageServerUuid, managementServerUuid
+HAApplication (Namespaced, haa) and HAApplicationContent (Cluster, haac): Serving, Synchronized, Independent
+AppNearSyncProtection (Namespaced, nsp) and ...Content (Cluster, nspc): Role (Initiator|Recipient), Protected, Consistency
+AppPlannedFailover (Namespaced, pfo) and AppUnplannedFailover (Namespaced, upfo): spec.applicationName; Completed, Completed-Reason
+FileServerReplicationRelationships (Cluster, fsrr), FilesReplicationPolicy (Namespaced, frp)
+
+=== Related live cluster facts (other files) ===
+CRD referencegrants.gateway.networking.k8s.io v1beta1 from Helm release kommander/gateway-api-crds (bundle-version v1.3.0)
+  (node-registry.txt). gateway-api-crds is in attached.prerequisites.defaultApps (observability-skill.txt).
+Secret ntnx-system/nutanix-csi-credentials exists, one data key "key" (storage-skill.txt). CSI 3.9.0.
+cert-manager ClusterApp 1.20.3 (clusterapps.txt). No event-exporter app in the ClusterApps.

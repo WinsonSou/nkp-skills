@@ -1,0 +1,536 @@
+
+--- page 36 ---
+•
+(For advanced users only): Use a kubeconfig file to configure access to multiple clusters using
+contexts
+It is possible to set up a kubeconfig file to manage access to several clusters. For more information,
+refer to https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-clusters/.
+You can also set your environment variable to multiple kubeconfig files by merging them. For more
+information, refer to https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-
+kubeconfig/.
+Storage
+This document describes the model used in Kubernetes for managing persistent, cluster-scoped storage
+for workloads requiring access to persistent data.
+A workload on Kubernetes typically requires the following types of storage:
+•
+Ephemeral Storage
+•
+Persistent Volume
+•
+Objects
+Ephemeral Storage
+Ephemeral storage, by its name, is ephemeral because it is cleaned up when the workload is deleted
+or the container crashes. For example, the following are examples of ephemeral storage provided by
+Kubernetes:
+Table 13: Types of Ephemeral Storage
+Ephemeral Storage Type
+Location
+EmptyDir volume
+Managed by kubelet under /var/lib/kubelet
+Container logs
+Typically under /var/logs/containers
+Container image layers
+Managed by container runtime (for example, under /var/lib/
+containerd)
+Container writable layers
+Managed by container runtime (e.g., under /var/lib/containerd)
+Kubernetes automatically manages ephemeral storage and typically does not require explicit settings.
+However, you might need to express capacity requests for temporary storage so that kubelet can use that
+information to ensure that each node has enough.
+Persistent Volume
+Persistent Volumes are storage resources that can be used by the cluster. Persistent Volumes are volume
+plug-ins that have lifecycle capabilities that are independent of any Kubernetes Pod or Deployment. A
+Kubernetes persistent volume (PV) is an object that allows pods to access persistent storage on a storage
+device and defined via a Kubernetes StorageClass. Unlike regular volumes, which are transient in nature,
+PVs are persistent, supporting stateful application use cases.
+You may have stateful workloads requiring persistent storage whose lifecycle is longer than that of Pods
+or containers. For instance, a database server needs to recover database files after it crashes. For those
+cases, the workloads need to use PersistentVolumes (PV).
+Nutanix Kubernetes Platform | Getting Started with NKP | 36
+
+--- page 37 ---
+Persistent Volumes are resources that represent storage in the cluster that has been provisioned by an
+administrator or dynamically provisioned using Storage Classes. Unlike ephemeral storage, the lifecycle of
+a PersistentVolume is independent of that of the workload that uses it.
+The Persistent Volume API objects capture the details of the implementation of the storage, be that
+NFS, iSCSI, or a cloud-provider-specific storage system. In order to use a Persistent Volume (PV), your
+application needs to invoke a Persistent Volume Claim (PVC).
+Persistent Volume Claim
+A persistent volume claim (PVC) is a storage request. A workload that requires persistent volumes uses a
+persistent volume claim (PVC) to express its request for persistent storage. A PVC can request a specific
+size and Access Modes (for example, they can be mounted after read/write or many times read-only).
+Any workload can specify a PersistentVolumeClaim. For example, a Pod may need a volume that is at
+least 4Gi large or a volume mounted under /data in the container’s filesystem. If a PersistentVolume (PV)
+satisfies the specified requirements in the PersistentVolumeClaim (PVC), it will be bound to the PVC before
+the Pod starts.
+Related Information:
+•
+Storage for Applications on page 646 in the Kommander component
+•
+Kubernetes Storage: https://kubernetes.io/docs/concepts/storage/
+•
+Kubernetes persistent storage design document: https://github.com/kubernetes/design-proposals-
+archive/tree/main/storage
+•
+Default Storage Providers on page 37
+Default Storage Providers
+When deploying Nutanix Kubernetes Platform (NKP) using a supported cloud provider (AWS, Azure, or
+GCP), NKP automatically configures native storage drivers for the target platform. In addition, NKP deploys
+a default storage class for provisioning dynamic volumes creation. For more information, see Storage
+Classes and Dynamic Volume Provisioning
+The following table lists the driver and default StorageClass for each supported cloud provisioner:
+Table 14: Default StorageClass for Supported Cloud Provisioners
+Cloud
+Provisioner
+Version
+Driver
+Default Storage Class
+Nutanix
+3.9.0
+nutanix-csi-driver
+nutanix-volume
+AWS
+1.62
+aws-ebs-csi-driver
+ebs-sc
+Azure
+1.34.4
+azuredisk-csi-driver
+azuredisk-sc
+Pre
+provisioned
+2.8.0
+local-static-provisioner
+localvolumeprovisioner
+vSphere
+3.4.0
+vsphere-csi-driver
+vsphere-raw-block-sc
+GCP
+1.15.4
+gcp-compute-persistent-disk-
+csi-driver
+csi-gce-pd
+Note:  NKP uses the local static provisioner as the default storage provider for pre-provisioned clusters.
+However, localvolumeprovisioner is not suitable for production use. Use a Kubernetes CSI that is
+compatible with storage that is suitable for production.
+Nutanix Kubernetes Platform | Getting Started with NKP | 37
+
+--- page 38 ---
+You can choose from any storage option available for Kubernetes. For more information,
+see Types of Volumes. To disable the default that NKP deploys, set the default StorageClass
+localvolumeprovisioner as non-default. Then, set the newly created StorageClass to default
+by following the commands in the Changing the default StorageClass topic in the Kubernetes
+documentation. For more information, see Default Storage Class.
+When a default StorageClass is specified, you can create PVCs without specifying the
+StorageClass. For instance, to request a volume using the default provisioner, create a PVC with
+the following configurations:
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-pv-claim
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 4Gi
+To start the provisioning of a volume, launch a pod that references the PVC:
+...
+    volumeMounts:
+    - mountPath: /data
+      name: persistent-storage
+...
+  volumes:
+  - name: persistent-storage
+    persistentVolumeClaim:
+      claimName: my-pv-claim
+Note:  To specify a StorageClass that references a storage policy when making a PVC and specify a name
+in storageClassName. If left blank, the default StorageClass is used. For more information, see Class.
+Enabling Expansion of Storage Volumes
+You can enable the ability to expand storage volumes in a Kubernetes Cluster to increase the storage
+space as per your requirements.
+About this task
+You can configure the allowVolumeExpansion setting in a StorageClass to enable the expansion of
+storage volume. This value is set to true by default for NKP on Nutanix AHV. This value is set to false
+by default for providers other than Nutanix. To expand expansion of storage volumes, change the value of
+allowVolumeExpansion to true.
+To configure the value of allowVolumeExpansion, follow these steps:
+Procedure
+1. View the StorageClass:
+konvoy@ubuntu:$ kubectl get sc --kubeconfig=$KUBECONFIG
+The default StorageClass nutanix-volume is displayed.
+NAME                       PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE     
+ ALLOWVOLUMEEXPANSION   AGE
+Nutanix Kubernetes Platform | Getting Started with NKP | 38
+
+--- page 39 ---
+nutanix-volume (default)   csi.nutanix.com   Delete          WaitForFirstConsumer  
+ true                   20d
+2. View the details of the StorageClass in YAML:
+kubectl get sc nutanix-volume -o yaml --kubeconfig=$KUBECONFIG
+The value of allowVolumeExpansion is false.
+allowVolumeExpansion: false                
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  creationTimestamp: "2024-11-14T19:24:13Z"
+  name: nutanix-volume
+  resourceVersion: "1598"
+  uid: 9f14bf9f-0bbe-41c1-b572-e5ac47163512
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/controller-expand-secret-namespace: ntnx-system
+  csi.storage.k8s.io/fstype: ext4
+  csi.storage.k8s.io/node-publish-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/node-publish-secret-namespace: ntnx-system
+  csi.storage.k8s.io/provisioner-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: ntnx-system
+  description: CSI StorageClass nutanix-volume for $CLUSTER_NAME
+  flashMode: DISABLED
+  hypervisorAttached: ENABLED
+  storageContainer: ${STORAGE_CONTAINER_NAME}
+  storageType: NutanixVolumes
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+3. Update the value of allowVolumeExpansion to true:
+kubectl patch sc nutanix-volume -p '{"allowVolumeExpansion":true}' --kubeconfig=
+$KUBECONFIG
+4. Verify if the value of allowVolumeExpansion is updated to true:
+kubectl get sc nutanix-volume -o yaml --kubeconfig=$KUBECONFIG
+If the value of allowVolumeExpansion is true in YAML, volume expansion is enabled for the
+StorageClass. The YAML configuration file is displayed as follows:
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true"
+  creationTimestamp: "2024-11-14T19:24:13Z"
+  name: nutanix-volume
+  resourceVersion: "1598"
+  uid: 9f14bf9f-0bbe-41c1-b572-e5ac47163512
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/controller-expand-secret-namespace: ntnx-system
+  csi.storage.k8s.io/fstype: ext4
+  csi.storage.k8s.io/node-publish-secret-name: nutanix-csi-credentials
+Nutanix Kubernetes Platform | Getting Started with NKP | 39
+
+--- page 40 ---
+  csi.storage.k8s.io/node-publish-secret-namespace: ntnx-system
+  csi.storage.k8s.io/provisioner-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: ntnx-system
+  description: CSI StorageClass nutanix-volume for $CLUSTER_NAME
+  flashMode: DISABLED
+  hypervisorAttached: ENABLED
+  storageContainer: ${STORAGE_CONTAINER_NAME}
+  storageType: NutanixVolumes
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+konvoy@ubuntu:$
+5. Update corresponding value of allowExpansionin the Cluster Resource to be consistent with the value
+of the allowVolumeExpansion setting in the StorageClass.
+kubectl edit clusters $CLUSTER_NAME -o yaml --kubeconfig=$KUBECONFIG
+Change or Manage Multiple StorageClasses
+The default StorageClass provisioned with Nutanix Kubernetes Platform (NKP) is suitable for production
+but if your workload has different requirements, you can create additional StorageClass types with
+specific configurations. You can change the default StorageClass by referring to the Change the default
+StorageClass section in Kubernetes web site.
+Driver Information
+Below is infrastructure provider CSI driver specifics.
+Amazon Elastic Block Store (EBS) CSI Driver
+NKP EBS default StorageClass:
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true" # This tells kubernetes to make
+ this the default storage class
+  name: ebs-sc
+provisioner: ebs.csi.aws.com
+reclaimPolicy: Delete  # volumes are automatically reclaimed when no longer in use and
+ PVCs are deleted
+volumeBindingMode: WaitForFirstConsumer #  Physical volumes will not be created until a
+ pod is created that uses the PVC, required to use CSI's Topology feature
+parameters:
+  csi.storage.k8s.io/fstype: ext4
+  type: gp3 # General Purpose SSD
+NKP deploys with gp3 (general purpose SSDs) EBS volumes.
+•
+Driver documentation: aws-ebs-csi-driver
+•
+Volume types and pricing: volume types
+Nutanix CSI Driver
+NKP default storage class for Nutanix supports dynamic provisioning of block volumes.
+•
+Driver documentation: Nutanix CSI Driver Configuration
+•
+Nutanix Volumes documentation: Nutanix Creating a Storage Class - Nutanix Volumes
+Nutanix Kubernetes Platform | Getting Started with NKP | 40
+
+--- page 41 ---
+•
+Hypervisor Attached Volumes documentation: Nutanix Creating a Storage Class - Hypervisor Attached
+Volumes
+The CLI and UI allow you to enable or disable Hypervisor Attached volumes. The selection passes to the
+CSI driver's storage class. See Manage Hypervisor.
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+    name: default-hypervisorattached-storageclass
+parameters: 
+   csi.storage.k8s.io/fstype: file-system type
+   hypervisorAttached: ENABLED | DISABLED <========== Enabled by Default
+   flashMode: ENABLED | DISABLED
+   storageContainer: storage-container-name
+   storageType: NutanixVolumes
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete | Retain
+mountOptions:
+   -option1
+   -option2 
+Azure CSI Driver
+NKP deploys with StandardSSD_LRS for Azure Virtual Disks.
+•
+Driver documentation: azuredisk-csi-driver
+•
+Volume types and pricing: volume types
+•
+Specifics for Azure using Pre-provisioning can be found here: Pre-provisioned Azure-only
+Configurations
+vSphere CSI Driver
+NKP default storage class for vSphere supports dynamic provisioning and static provisioning of block
+volumes.
+•
+Driver documentation: VMware vSphere Container Storage Plug-in Documentation
+•
+Specifics for using vSphere storage driver: Using vSphere Container Storage Plug-in
+Pre-provisioned CSI Driver
+In a Pre-provisioned environment, NKP will also deploy a CSI-compatible driver and configure a default
+StorageClass - localvolumeprovisioner. For more information, see Pre-provisioned Infrastructure on
+page 25.
+•
+Driver documentation: local-static-provisioner
+NKP uses (localvolumeprovisioner) as the default storage provider for a pre-provisioned environment.
+However, localvolumeprovisioner is not suitable for production use. Use an alternate compatible
+storage that is suitable for production. See local-static-provisioner and Kubernetes CSI.
+To disable the default that Konvoy deploys, set the default StorageClass localvolumeprovisioner
+as non-default. Then, set your newly created StorageClass by following the steps in the Kubernetes
+documentation: See Change the default StorageClass. You can choose from any of the storage options
+available for Kubernetes and make your storage choice the default storage. See Storage choice
+Ceph can also be used as CSI storage. For information on how to use Rook Ceph, see Rook Ceph in NKP
+on page 646.
+Nutanix Kubernetes Platform | Getting Started with NKP | 41
+
+--- page 42 ---
+GCP CSI Driver
+This driver allows volumes backed by Google Cloud Filestore instances to be dynamically created and
+mounted by workloads.
+•
+Driver documentation: gcp-filestore-csi-driver
+•
+Persistent volumes and dynamic provisioning: volume types
+Driver Information
+This topic details the default configuration for storage drivers used with NKP. This section also has links to
+driver documentation, if further customization is required.
+All default drivers implement the Container Storage Interface (CSI). For more information, see https://
+github.com/container-storage-interface/spec/blob/master/spec.md. The CSI provides a common
+abstraction to container orchestrators for interacting with storage subsystems of various types. Each driver
+has specific configuration parameters which effect PV provisioning.
+Note:  StorageClass parameters cannot be changed after creation. To use a different volume
+configuration, you must create a new StorageClass.
+Amazon Elastic Block Store (EBS) CSI Driver
+NKP EBS default StorageClass:
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "true" # This tells kubernetes to make
+ this the default storage class
+  name: ebs-sc
+provisioner: ebs.csi.aws.com
+reclaimPolicy: Delete  # volumes are automatically reclaimed when no longer in use and
+ PVCs are deleted
+volumeBindingMode: WaitForFirstConsumer #  Physical volumes will not be created until a
+ pod is created that uses the PVC, required to use CSI's Topology feature
+parameters:
+  csi.storage.k8s.io/fstype: ext4
+  type: gp3 # General Purpose SSD
+NKP deploys with gp3 (general purpose SSDs) EBS volumes.
+•
+Driver documentation: aws-ebs-csi-driver
+•
+Volume types and pricing: volume types
+Nutanix CSI Driver
+NKP default storage class for Nutanix supports dynamic provisioning of block volumes. NKP uses Nutanix
+Volumes for the default storage class by default. You can also use Files Storage.
+•
+Driver documentation: Nutanix CSI Driver Configuration
+•
+Nutanix Volumes documentation: Nutanix Creating a Storage Class - Nutanix Volumes
+•
+Hypervisor Attached Volumes documentation: Nutanix Creating a Storage Class - Hypervisor Attached
+Volumes
+The CLI and UI allow you to enable or disable Hypervisor Attached volumes. The selection passes to the
+CSI driver's storage class. See Manage Hypervisor.
+allowVolumeExpansion: true
+Nutanix Kubernetes Platform | Getting Started with NKP | 42
+
+--- page 43 ---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+    name: default-hypervisorattached-storageclass
+parameters: 
+   csi.storage.k8s.io/fstype: file-system type
+   hypervisorAttached: ENABLED | DISABLED <==========
+   flashMode: ENABLED | DISABLED
+   storageContainer: storage-container-name
+   storageType: NutanixVolumes
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete | Retain
+mountOptions:
+   -option1
+   -option2 
+Azure CSI Driver
+NKP deploys with StandardSSD_LRS for Azure Virtual Disks.
+•
+Driver documentation: azuredisk-csi-driver
+•
+Volume types and pricing: volume types
+•
+Specifics for Azure using Pre-provisioning can be found here: Pre-provisioned Azure-only
+Configurations
+vSphere CSI Driver
+NKP default storage class for vSphere supports dynamic provisioning and static provisioning of block
+volumes.
+•
+Driver documentation: VMware vSphere Container Storage Plug-in Documentation
+•
+Specifics for using vSphere storage driver: Using vSphere Container Storage Plug-in
+Pre-provisioned CSI Driver
+In a Pre-provisioned environment, NKP will also deploy a CSI-compatible driver and configure a default
+StorageClass - localvolumeprovisioner. For more information, see Pre-provisioned Infrastructure on
+page 25.
+•
+Driver documentation: local-static-provisioner
+NKP uses (localvolumeprovisioner) as the default storage provider for a pre-provisioned environment.
+However, localvolumeprovisioner is not suitable for production use. Use an alternate compatible
+storage that is suitable for production. See local-static-provisioner and Kubernetes CSI.
+To disable the default that Konvoy deploys, set the default StorageClass localvolumeprovisioner
+as non-default. Then, set your newly created StorageClass by following the steps in the Kubernetes
+documentation: See Change the default StorageClass. You can choose from any of the storage options
+available for Kubernetes and make your storage choice the default storage. See Storage choice
+Ceph can also be used as CSI storage. For information on how to use Rook Ceph, see Rook Ceph in NKP
+on page 646.
+GCP CSI Driver
+This driver allows volumes backed by Google Cloud Filestore instances to be dynamically created and
+mounted by workloads.
+•
+Driver documentation: gcp-filestore-csi-driver
+Nutanix Kubernetes Platform | Getting Started with NKP | 43
+
+--- page 44 ---
+•
+Persistent volumes and dynamic provisioning: volume types
+Related Information
+•
+Kubernetes Storage: https://kubernetes.io/docs/concepts/storage/
+•
+Kubernetes CSI Storage Drivers: https://kubernetes-csi.github.io/docs/drivers.html
+•
+Kubernetes Local Persistent Volumes: https://kubernetes.io/blog/2019/04/04/kubernetes-1.14-local-
+persistent-volumes-ga/
+•
+Persistent Volumes: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#class-1
+Provisioning a Static Local Volume
+You can provision a static local volume for a Nutanix Kubernetes Platform (NKP) cluster.
+About this task
+You can choose from any of the storage options available for Kubernetes. To disable the default that NKP
+deploys, set the default StorageClass localvolumeprovisioner to non-default. Then, set the newly
+created StorageClass by following the steps in the Kubernetes documentation (see Change the Default
+Storage Class).
+For the Pre-provisioned infrastructure, the localvolumeprovisioner component uses the local volume
+static provisioner to manage persistent volumes for pre-allocated disks. For more information, see Local
+Static Provisioner. The volume static provisioner does this by watching the /mnt/disks folder on each host
+and creating persistent volumes in the localvolumeprovisioner storage class for each disk it discovers
+in this folder.
+For additional NKP documentation regarding StorageClass, see Default Storage Providers on page 37.
+Note:  When creating a pre-provisioned infrastructure cluster, NKP uses localvolumeprovisioner as
+the default storage provider. However, localvolumeprovisioner is not suitable for production use. Use
+Kubernetes CSI to check for compatible storage suitable for production. For more information, see Types of
+volumes.
+Before starting, verify the following:
+•
+You can access a Linux, macOS, or Windows computer with a supported OS version.
+•
+You have a provisioned NKP cluster that uses the localvolumeprovisioner platform application but
+has not added any other NKP applications to the cluster yet.
+This distinction between provisioning and deployment is important because some applications depend
+on the storage class provided by the localvolumeprovisioner component and can fail to start if not
+configured.
+To provision the cluster and a volume, perform the following steps:
+Procedure
+1. Create a pre-provisioned cluster by following the steps outlined in the pre-provisioned infrastructure
+topic.
+As volumes are created or mounted on the nodes, the local volume provisioner detects each volume
+in the /mnt/disks directory. It adds it as a persistent volume with the localvolumeprovisioner
+StorageClass. For more information, see the documentation regarding Kubernetes Local Storage.
+Nutanix Kubernetes Platform | Getting Started with NKP | 44
+
+--- page 45 ---
+2. Create at least one volume in /mnt/disks on each host.
+For example, mount a tmpfs volume.
+mkdir -p /mnt/disks/example-volume && mount -t tmpfs example-volume /mnt/disks/
+example-volume
+3. Verify the persistent volume by running the following command.
+kubectl get pv
+The command displays output similar to the following:
+NAME                CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM  
+ STORAGECLASS             REASON   AGE
+local-pv-4c7fc8ba   3986Mi     RWO            Delete           Available          
+ localvolumeprovisioner            2s
+4. Claim the persistent volume using a PVC by running the following command.
+cat <<EOF | kubectl create -f -
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: example-claim
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 100Mi
+  storageClassName: localvolumeprovisioner
+EOF
+5. Reference the persistent volume claim in a pod by running the following command.
+cat <<EOF | kubectl create -f -
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-with-persistent-volume
+spec:
+  containers:
+    - name: frontend
+      image: nginx
+      volumeMounts:
+        - name: data
+          mountPath: "/var/www/html"
+  volumes:
+    - name: data
+      persistentVolumeClaim:
+        claimName: example-claim
+EOF
+6. Verify the persistent volume claim using the command.
+kubectl get pvc
+The command displays output similar to the following:
+NAME            STATUS   VOLUME              CAPACITY   ACCESS MODES   STORAGECLASS  
+           AGE
+Nutanix Kubernetes Platform | Getting Started with NKP | 45

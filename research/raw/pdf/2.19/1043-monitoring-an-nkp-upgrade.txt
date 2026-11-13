@@ -1,0 +1,33 @@
+
+--- page 1043 ---
+1. The NKPCluster controller updates the CAPI Cluster topology.
+2. The controller rolls the control plane nodes to the new Kubernetes version and ClusterClass
+configuration.
+3. After the control plane is healthy, the controller rolls the worker nodes to the new configuration.
+4. The workload cluster is upgraded with the new Kubernetes version.
+After the GitOps migration and workload cluster upgrade are complete, you can optionally re-enable Flux
+pruning by setting prune: true on the Flux Kustomization, if it was disabled.
+Monitoring an NKP Upgrade
+Monitor upgrade stages, application readiness, progress, and errors of a workload cluster from the Nutanix
+Kubernetes Platform (NKP) UI or CLI.
+Before you begin
+Before monitoring an upgrade, verify the following requirements:
+•
+Ensure that you have the permission to view the workload cluster and its upgrade status.
+•
+Identify the name and namespace of the workload cluster.
+•
+For CLI monitoring, use the terminal in which you started the upgrade.
+About this task
+For a supported ClusterClass workload cluster, the upgrade first updates the platform applications. It then
+updates Kubernetes and the cluster infrastructure. The UI and interactive CLI display the progress reported
+by the cluster.
+A status in the UI can briefly lag behind the current cluster state. You can leave the upgrade page and
+return while the upgrade continues.
+Note:
+A warning can appear while a component is reconciling and can clear without user action.
+Investigate a warning that persists or a step that reports an error.
+The GitOps-driven upgrades do not generate UpgradePlan resources. As a result, the NKP UI
+does not track the upgrade status the way it tracks upgrades initiated directly through the UI or
+CLI.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1043

@@ -1,0 +1,854 @@
+
+--- page 629 ---
+•
+The metrics pipeline is healthy. For example, Prometheus plus a metrics adapter that exposes custom
+metrics to Kubernetes.
+•
+The target workload exposes a meaningful application metric for autoscaling decisions.
+•
+The deployment has resource requests and limits configured for stable scheduling behavior.
+•
+The node autoscaling policy is configured so that pod scale-up can be backed by cluster capacity when
+needed.
+For more information, see the Horizontal Pod Autoscaler section in the CNCF AI Conformance document.
+GPU Access Control
+Restrict GPU access by combining scheduling isolation, access control, resource governance, and
+admission policy.
+Restrict GPU access by combining scheduling isolation, access control, resource governance, and
+admission policy. A single control is not sufficient for production multi-tenant AI clusters.
+Restrict GPU access with these controls:
+•
+Node isolation: Use labels, taints, and tolerations to ensure that only approved workloads can run on
+GPU nodes.
+•
+Namespace boundaries: Separate teams or environments into dedicated namespaces.
+•
+Role-based access control (RBAC): Limit who can create or modify GPU-consuming workloads.
+•
+ResourceQuota and LimitRange: Enforce hard limits on GPU requests per namespace.
+•
+Admission policy: Reject workloads that request GPUs outside approved namespaces or without
+required labels.
+•
+Scheduler governance: Use queue or gang-scheduler quotas to prevent one tenant from monopolizing
+GPU capacity.
+For more information, see the Secure Accelerator Access section in the CNCF AI Conformance document.
+Monitoring and Alerts
+Using NKP you can monitor the state of the cluster and the health and availability of the processes running
+on the cluster. By default, Kommander provides monitoring services using a pre-configured monitoring
+stack based on the Prometheus open-source project and its broader ecosystem.
+The default NKP monitoring stack:
+•
+Provides in-depth monitoring of Kubernetes components and platform services.
+•
+Includes a default set of Grafana dashboards to visualize the status of the cluster and its platform
+services.
+•
+Supports predefined critical error and warning alerts. These alerts notify immediately if there is a
+problem with cluster operations or availability.
+By incorporating Prometheus, Kommander visualizes all the metrics that are exposed from your different
+nodes, Kubernetes objects, and platform service applications running in your cluster. The default
+monitoring stack also enables you to add metrics from any of your deployed applications, making those
+applications part of the overall Prometheus metrics stream.
+Recommendations
+Recommended settings for monitoring and collecting metrics for Kubernetes, platform services, and
+applications deployed on the cluster
+Nutanix Kubernetes Platform | Cluster Operations Management | 629
+
+--- page 630 ---
+Nutanix conducts routine performance testing of Kommander. The following table provides recommended
+settings, based on cluster size and increasing workloads, that maintain a healthy Prometheus monitoring
+deployment.
+Note:  The resource settings reflect some settings but do not represent the exact structure to be used in the
+platform service configuration.
+Nutanix Kubernetes Platform | Cluster Operations Management | 630
+
+--- page 631 ---
+Table 59: Prometheus
+Cluster Size
+Number of Pods
+Number of Services
+Resource settings
+10
+1k
+250
+resources:
+  limits:
+    cpu: 500m
+    memory: 2192Mi
+  requests:
+    cpu: 100m
+    memory: 500Mi
+storage: 35Gi
+25
+1k
+250
+resources:
+  limits:
+    cpu: 2
+    memory: 6Gi
+  requests:
+    cpu: 1
+    memory: 3Gi
+storage: 60Gi
+50
+1.5k
+500
+resources:
+  limits:
+    cpu: 7
+    memory: 28Gi
+  requests:
+    cpu: 2
+    memory: 8Gi
+storage: 100Gi
+100
+3k
+1k
+resources:
+  limits:
+    cpu: 12
+    memory: 50Gi
+  requests:
+    cpu: 10
+    memory: 48Gi
+storage: 100Gi
+200
+10k
+3k
+resources:
+  limits:
+    cpu: 20
+    memory: 80Gi
+  requests:
+    cpu: 15
+    memory: 50Gi
+storage: 100Gi
+300
+15k
+6k
+resources:
+  limits:
+    cpu: 35
+    memory: 150Gi
+  requests:
+    cpu: 25
+    memory: 120Gi
+storage: 100Gi
+Nutanix Kubernetes Platform | Cluster Operations Management | 631
+
+--- page 632 ---
+Grafana Dashboards
+With Grafana, you can query and view collected metrics in easy-to-read graphs. Kommander ships with a
+set of default dashboards, including:
+•
+Kubernetes Components: API Server, Nodes, Pods, Kubelet, Scheduler, StatefulSets and Persistent
+Volumes
+•
+Kubernetes USE method: Cluster and Nodes
+•
+Calico
+•
+etcd
+•
+Prometheus
+Find the complete list of default-enabled dashboards on GitHub. For more information, see https://
+github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack/templates/
+grafana/dashboards-1.14.
+Disabling Default Dashboards
+About this task
+To disable all of the default dashboards, follow these steps to define an overrides ConfigMap:
+Procedure
+1. Create a file named kube-prometheus-stack-overrides.yaml and paste the following YAML code
+into it to create the overrides ConfigMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: <your-workspace-namespace>
+data:
+ values.yaml: |
+   ---
+   grafana:
+     defaultDashboardsEnabled: false
+2. Use the following command to apply the YAML file.
+kubectl apply -f kube-prometheus-stack-overrides.yaml
+3. Edit the kube-prometheus-stack AppDeployment to replace the spec.configOverrides.name value
+with kube-prometheus-stack-overrides.
+To deploy an application with a custom configuration, see Customizing an Application Per Cluster on
+page 323. When your editing is complete, the AppDeployment will resemble this code sample.
+apiVersion: apps.kommander.d2iq.io/v1alpha2
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: <your-workspace-namespace>
+spec:
+  appRef:
+    name: kube-prometheus-stack-your-kube-prometheus-stack-version
+    kind: ClusterApp
+  configOverrides:
+Nutanix Kubernetes Platform | Cluster Operations Management | 632
+
+--- page 633 ---
+    name: kube-prometheus-stack-overrides
+To access the Grafana UI, browse to the landing page and then search for the Grafana dashboard, for
+example, https://<CLUSTER_URL>/dkp/grafana.
+Adding Custom Dashboards
+About this task
+In Kommander, you can define your own custom dashboards. You can use a few methods to import
+dashboards to Grafana. For more information, see https://github.com/grafana/helm-charts/tree/main/charts/
+grafana#import-dashboards.
+Procedure
+1. One method is to use ConfigMaps to import dashboards. Below are steps on how to create a
+ConfigMap with your dashboard definition.
+For more information, see https://github.com/grafana/helm-charts/tree/main/charts/grafana#sidecar-for-
+dashboards.
+For simplicity, this section assumes the desired dashboard definition is in json format.
+{
+    "annotations": {
+        "list": []
+    },
+    "description": "etcd sample Grafana dashboard with Prometheus",
+    "editable": true,
+    "gnetId": null,
+    "hideControls": false,
+    "id": 6,
+    "links": [],
+    "refresh": false,
+    ...
+}
+2. After creating your custom dashboard json, insert it into a ConfigMap and save it as etcd-custom-
+dashboard.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: etcd-custom-dashboard
+  labels:
+    grafana_dashboard: "1"
+data:
+  etcd.json: |
+    {
+        "annotations": {
+            "list": []
+        },
+        "description": "etcd sample Grafana dashboard with Prometheus",
+        "editable": true,
+        "gnetId": null,
+        "hideControls": false,
+        "id": 6,
+        "links": [],
+        "refresh": false,
+        ...
+Nutanix Kubernetes Platform | Cluster Operations Management | 633
+
+--- page 634 ---
+    }
+Apply the ConfigMap, which automatically gets imported to Grafana using the Grafana dashboard
+sidecar (see https://github.com/grafana/helm-charts/tree/main/charts/grafana#sidecar-for-dashboards).
+kubectl apply -f etcd-custom-dashboard.yaml
+Cluster Metrics
+The kube-prometheus-stack is deployed by default on the management cluster and attached clusters.
+This stack deploys the following Prometheus components to expose metrics from nodes, Kubernetes units,
+and running apps:
+•
+prometheus-operator: orchestrates various components in the monitoring pipeline.
+•
+prometheus: collects metrics, saves them in a time series database, and serves queries.
+•
+alertmanager: handles alerts sent by client applications such as the Prometheus server.
+•
+node-exporter: deployed on each node to collect the machine hardware and OS metrics.
+•
+kube-state-metrics: simple service that listens to the Kubernetes API server and generates metrics
+about the state of the objects.
+•
+grafana: monitors and visualizes metrics.
+•
+service monitors: collects internal Kubernetes components.
+Note:  NKP has a listener on the metrics.k8s.io/v1beta1/nodes resource, which updates your
+backend store when that value changes. We then poll that backend store every 5 seconds, so the metrics
+are updated in real time every 5 seconds without the need to refresh your view.
+For a detailed description of the exposed metrics, see https://github.com/kubernetes/kube-state-metrics/
+tree/main/docs#exposed-metrics. The service-monitors collect internal Kubernetes components but can
+also be extended to monitor customer applications.
+Alerts Using AlertManager
+To keep your clusters and applications healthy and drive productivity forward, you need to stay informed of
+all events occurring in your cluster. Nutanix Kubernetes® Platform (NKP) helps you stay informed of these
+events by using the alertmanager of the kube-prometheus-stack.
+Important:
+•
+Before you configure email or Slack alert notifications, enable the Prometheus Monitoring
+application in the NKP UI. For more information, see the topic for your licence type: Ultimate:
+Enabling an Application Using the UI on page 278 or Pro: Enabling an Application Using the
+UI on page 281
+•
+The NKP Starter license does not include this application. For the license tiers that support it,
+see Feature Support Matrix on page 26.
+Kommander is configured with predefined alerts to monitor four specific events. You receive alerts related
+to:
+•
+State of your nodes
+•
+System services managing the Kubernetes cluster
+•
+Resource events from specific system services
+•
+Prometheus expressions exceeding some predefined thresholds
+Nutanix Kubernetes Platform | Cluster Operations Management | 634
+
+--- page 635 ---
+Some examples of the currently available alerts are:
+•
+CPUThrottlingHigh
+•
+TargetDown
+•
+KubeletNotReady
+•
+KubeAPIDown
+•
+CoreDNSDown
+•
+KubeVersionMismatch
+For a complete list of all the predefined alerts on GitHub, see Prometheus Rules.
+Configuring Alert Rules
+You can enable, disable, or add custom alert rules for the kube-prometheus-stack by defining an
+overrides ConfigMap.
+About this task
+Use an overrides ConfigMap to configure alert rules.
+You can enable or disable the default alert rules by providing the configuration in an overrides ConfigMap.
+To turn off the default node alert rules, follow these steps to define an overrides ConfigMap:
+Before you begin
+1. Determine the name of the workspace where you want to configure the alert rules:
+nkp get workspaces
+The command lists the workspace names and their corresponding namespaces.
+2. Set the WORKSPACE_NAMESPACE environment variable to the namespace of the workspace where the
+cluster is attached:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+Procedure
+1. Create a file named kube-prometheus-stack-overrides.yaml and paste the following YAML code
+into it to create the override ConfigMap:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+ values.yaml: |
+   ---
+   defaultRules:
+     rules:
+       node: false
+2. Apply the YAML file:
+kubectl apply -f kube-prometheus-stack-overrides.yaml
+Nutanix Kubernetes Platform | Cluster Operations Management | 635
+
+--- page 636 ---
+3. Edit the kube-prometheus-stack AppDeployment to replace the spec.configOverrides.name value
+with kube-prometheus-stack-overrides.
+nkp edit appdeployment -n ${WORKSPACE_NAMESPACE} kube-prometheus-stack
+After you complete the edits, the AppDeployment resembles the following example:
+apiVersion: apps.kommander.d2iq.io/v1alpha2
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-your-kube-prometheus-stack-version
+    kind: ClusterApp
+  configOverrides:
+    name: kube-prometheus-stack-overrides
+4. To disable all the rules, create an overrides ConfigMap with the following YAML code:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+ values.yaml: |
+   ---
+   defaultRules:
+     create: false
+5. Alert rules for the Velero platform service are turned off by default. You can enable them with the
+following overrides ConfigMap, but only if the velero platform service is enabled:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    mesosphereResources:
+      rules:
+        velero: true
+If platform services are disabled, disable the alert rules to avoid alert misfires.
+6. To add a custom alert rule named my-rule-name, create an overrides ConfigMap with the following
+YAML code:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    additionalPrometheusRulesMap:
+      my-rule-name:
+        groups:
+Nutanix Kubernetes Platform | Cluster Operations Management | 636
+
+--- page 637 ---
+        - name: my_group
+          rules:
+          - record: my_record
+            expr: 100 * my_record
+After you set up your alerts, you can manage each alert using the Prometheus web console to mute or
+unmute firing alerts, and perform other operations. For more information on configuring alertmanager,
+see https://prometheus.io/docs/alerting/latest/configuration/.
+To access the Prometheus Alertmanager UI, go to the landing page and then search for the
+Prometheus Alertmanager dashboard, for example https://<CLUSTER_URL>/dkp/alertmanager
+Configuring Prometheus Alerts in Slack
+About this task
+To hook up the Prometheus alertmanager notification system, you need to overwrite the existing
+configuration.
+Procedure
+1. The following file, named alertmanager.yaml, configures alertmanager to use the Incoming
+Webhooks feature of Slack (slack_api_url: https://hooks.slack.com/services/<HOOK_ID>) to
+fire all the alerts to a specific channel #MY-SLACK-CHANNEL-NAME.
+global:
+  resolve_timeout: 5m
+  slack_api_url: https://hooks.slack.com/services/<HOOK_ID>
+route:
+  group_by: ['alertname']
+  group_wait: 2m
+  group_interval: 5m
+  repeat_interval: 1h
+  # If an alert isn't caught by a route, send it to slack.
+  receiver: slack_general
+  routes:
+    - match:
+        alertname: Watchdog
+      receiver: "null"
+receivers:
+  - name: "null"
+  - name: slack_general
+    slack_configs:
+      - channel: '#MY-SLACK-CHANNEL-NAME'
+        icon_url: https://avatars3.githubusercontent.com/u/3380462
+        send_resolved: true
+        color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
+        title: '{{ template "slack.default.title" . }}'
+        title_link: '{{ template "slack.default.titlelink" . }}'
+        pretext: '{{ template "slack.default.pretext" . }}'
+        text: '{{ template "slack.default.text" . }}'
+        fallback: '{{ template "slack.default.fallback" . }}'
+        icon_emoji: '{{ template "slack.default.iconemoji" . }}'
+templates:
+  - '*.tmpl'
+Nutanix Kubernetes Platform | Cluster Operations Management | 637
+
+--- page 638 ---
+2. The following file, named notification.tmpl, is a template that defines a pretty format for the fired
+notifications.
+{{ define "__titlelink" }}
+{{ .ExternalURL }}/#/alerts?receiver={{ .Receiver }}
+{{ end }}
+{{ define "__title" }}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}
+{{ end }}] {{ .GroupLabels.SortedPairs.Values | join " " }}
+{{ end }}
+{{ define "__text" }}
+{{ range .Alerts }}
+{{ range .Labels.SortedPairs }}*{{ .Name }}*: `{{ .Value }}`
+{{ end }} {{ range .Annotations.SortedPairs }}*{{ .Name }}*: {{ .Value }}
+{{ end }} *source*: {{ .GeneratorURL }}
+{{ end }}
+{{ end }}
+{{ define "slack.default.title" }}{{ template "__title" . }}{{ end }}
+{{ define "slack.default.username" }}{{ template "__alertmanager" . }}{{ end }}
+{{ define "slack.default.fallback" }}{{ template "slack.default.title" . }} |
+ {{ template "slack.default.titlelink" . }}{{ end }}
+{{ define "slack.default.pretext" }}{{ end }}
+{{ define "slack.default.titlelink" }}{{ template "__titlelink" . }}{{ end }}
+{{ define "slack.default.iconemoji" }}{{ end }}
+{{ define "slack.default.iconurl" }}{{ end }}
+{{ define "slack.default.text" }}{{ template "__text" . }}{{ end }}
+3. Finally, apply these changes to alertmanager as follows. Set ${WORKSPACE_NAMESPACE} to the
+workspace namespace that kube-prometheus-stack is deployed in.
+kubectl create secret generic -n ${WORKSPACE_NAMESPACE} \
+  alertmanager-kube-prometheus-stack-alertmanager \
+  --from-file=alertmanager.yaml \
+  --from-file=notification.tmpl \
+  --dry-run=client --save-config -o yaml | kubectl apply -f -
+Configuring Prometheus Alerts in Emails
+Configure the Prometheus alertmanager notification system to email you whenever an alert triggers, so
+you can act on cluster issues without checking the dashboard.
+About this task
+To configure the Prometheus alertmanager notification system to send an email for alerts, you need to
+overwrite the existing configuration. The steps below configure Alertmanager to send all configured alerts
+to a Gmail account. For example, test@gmail.com.
+Procedure
+1. Create a file named alertmanager.yaml with the following contents:
+global:
+  resolve_timeout: 5m
+inhibit_rules: []
+receivers:
+- name: "null"
+- name: test_gmail
+  email_configs:
+  - to: test@gmail.com
+Nutanix Kubernetes Platform | Cluster Operations Management | 638
+
+--- page 639 ---
+    from: test@gmail.com
+    auth_username: test@gmail.com
+    auth_password: password
+    send_resolved: true
+    require_tls: true
+    smarthost: smtp.gmail.com:587
+route:
+  receiver: test_gmail
+  group_by:
+  - namespace
+  group_interval: 5m
+  group_wait: 30s
+  repeat_interval: 12h
+  routes:
+  - matchers:
+    - alertname =~ "InfoInhibitor|Watchdog"
+    receiver: "null"
+templates:
+- /etc/alertmanager/config/*.tmpl
+2. Identify the namespace in which kube-prometheus-stack is deployed:
+kubectl get helmrelease -A | grep kube-prometheus-stack
+Note the namespace from the output. This namespace is typically kommander for a standalone or
+management cluster, but it can differ for a managed cluster.
+3. Apply these changes to alertmanager:
+kubectl create secret generic -n ${WORKSPACE_NAMESPACE} \
+  alertmanager-kube-prometheus-stack-alertmanager \
+  --from-file=alertmanager.yaml \
+  --dry-run=client --save-config -o yaml | kubectl apply -f -
+Set ${WORKSPACE_NAMESPACE} to the namespace that you identified in the previous step.
+Wait for the configuration to take effect.
+4. Verify the Alertmanager configuration:
+kubectl exec -it alertmanager-kube-prometheus-stack-alertmanager-0 -n
+ ${WORKSPACE_NAMESPACE} -- cat /etc/alertmanager/config_out/alertmanager.env.yaml
+For more information on configuring email alerting, see Alertmanager configuration in the Prometheus
+documentation.
+Centralized Monitoring
+Monitor clusters, created with Kommander, on any attached cluster
+Kommander provides centralized monitoring, in a multi-cluster environment, using the monitoring stack
+running on any attached clusters. Centralized monitoring is provided by default in every managed or
+attached cluster.
+Managed or attached clusters are distinguished by a monitoring ID. The monitoring ID corresponds to the
+kube-system namespace UID of the cluster. To find a cluster’s monitoring ID, you can go to the Clusters
+tab on the NKP UI (in the relevant workspace), or go to the Clusters page in the Global workspace:
+https://<CLUSTER_URL>/dkp/kommander/dashboard/clusters
+Select the View Details link on the attached cluster card, and then select the Configuration tab, and find
+the monitoring ID under Monitoring ID (clusterId).
+You might also search or filter by monitoring IDs on the Clusters page, linked above.
+Nutanix Kubernetes Platform | Cluster Operations Management | 639
+
+--- page 640 ---
+You can also run this kubectl command, using the correct cluster’s context or kubeconfig, to look up the
+cluster’s kube-system namespace UID to determine which cluster the metrics and alerts correspond to:
+kubectl get namespace kube-system -o jsonpath='{.metadata.uid}'
+Adding Custom Dashboards
+About this task
+You can also define custom dashboards for centralized monitoring on Kommander. There are a few
+methods to import dashboards to Grafana. For more information, see https://github.com/mesosphere/
+charts/tree/master/stable/grafana#import-dashboards.
+Procedure
+1. For simplicity, assume the desired dashboard definition is in json format.
+{
+    "annotations":
+    ...
+    # Complete json file here
+    ...
+    "title": "Some Dashboard",
+    "uid": "abcd1234",
+    "version": 1
+}
+2. After creating your custom dashboard json, insert it into a ConfigMap and save it as some-
+dashboard.yaml.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: some-dashboard
+  labels:
+    grafana_dashboard_kommander: "1"
+data:
+  some_dashboard.json: |
+    {
+      "annotations":
+      ...
+      # Complete json file here
+      ...
+      "title": "Some Dashboard",
+      "uid": "abcd1234",
+      "version": 1
+    }
+3. Apply the ConfigMap, which will automatically get imported to Grafana through the Grafana dashboard
+sidecar.
+kubectl apply -f some-dashboard.yaml
+Centralized Metrics
+Managed and attached clusters, collects and presents metrics from all attached clusters remotely using
+Thanos. You can visualize these metrics in Grafana using a set of provided dashboards.
+The Thanos Query (see https://thanos.io/v0.5/components/query/#query) component is installed on
+attached and managed clusters. Thanos Query queries the Prometheus instances on the attached
+clusters, using a Thanos sidecar running alongside each Prometheus container. Grafana is configured
+Nutanix Kubernetes Platform | Cluster Operations Management | 640
+
+--- page 641 ---
+with Thanos Query as its data source and comes with pre-installed dashboards for a global view of all
+attached clusters. The Thanos Query dashboard is also installed, by default, to monitor the Thanos Query
+component.
+Note:  Cluster metrics are read remotely from Kommander; they are not backed up. If an attached cluster
+goes down, Kommander no longer collects or presents its metrics, including past data.
+You can access the centralized Grafana UI at:
+https://<CLUSTER_URL>/dkp/kommander/monitoring/grafana
+Note:  This is a separate Grafana instance from the one installed on all attached clusters. It is dedicated
+specifically to components related to centralized monitoring.
+Optionally, if you want to access the Thanos Query UI (essentially the Prometheus UI), the UI is accessible
+at:
+https://<CLUSTER_URL>/dkp/kommander/monitoring/query/
+You can also check that the attached cluster’s Thanos sidecars are successfully added to Thanos Query
+by going to:
+https://<CLUSTER_URL>/dkp/kommander/monitoring/query/stores
+The preferred method to view the metrics for a specific cluster is to go directly to that cluster’s Grafana UI.
+Centralized Alerts
+A centralized view of alerts from attached clusters, is provided using an alert dashboard called Karma (see
+https://github.com/prymitive/karma). Karma aggregates all alerts from the Alertmanagers running in the
+attached clusters, allowing you to visualize these alerts on one page. Using the Karma dashboard, you can
+get an overview of each alert and filter by alert type, cluster, and more.
+Note:  Silencing alerts using the Karma UI is currently not supported.
+You can access the Karma dashboard UI at:
+https://<CLUSTER_URL>/dkp/kommander/monitoring/karma
+Note:  When there are no attached clusters, the Karma UI displays an error message Get https://
+placeholder.invalid/api/v2/status: dial tcp: lookup placeholder.invalid on
+10.0.0.10:53: no such host. This is expected, and the error disappears when clusters are connected.
+Cost Monitoring
+OpenCost is an open source cost monitoring tool for cloud native environments. OpenCost helps you
+to optimize resource usage for Kubernetes workloads. When you integrate OpenCost with Nutanix
+Kubernetes Platform (NKP) Kommander, it provides cost monitoring across all attached clusters. By default
+NKP enables OpenCost in the management cluster and offers a unified view of Kubernetes resource
+consumption across environments.
+OpenCost integrates directly with the Kubernetes API and cloud billing APIs to provide real-time visibility
+into Kubernetes spending and cost allocation. It continuously monitors resource usage across clusters to:
+•
+Detect and prevent overspend caused by mis-configurations, bugs, or overlooked workloads.
+•
+Understand the true cost of Kubernetes resources and improve utilization.
+•
+Reuse over-provisioning by aligning resource requests with actual usage.
+For more information, see OpenCost.
+Nutanix Kubernetes Platform | Cluster Operations Management | 641
+
+--- page 642 ---
+Monitoring Cost Using OpenCost
+Nutanix Kubernetes Platform (NKP) Ultimate provides built#in cost observability with OpenCost, enabling
+real#time cluster#level cost monitoring. OpenCost monitors costs for individual clusters and retains metrics
+for the configuration defined in the upstream helm chart at https://github.com/opencost/opencost-helm-chart/
+blob/main/charts/opencost/values.yaml.
+About this task
+In earlier NKP versions, Kubecost provides cost visibility for individual clusters. Starting with NKP 2.17,
+OpenCost replaces Kubecost and the NKP UI provides robust cost observability features, ensuring a
+seamless transition when you upgrade from version 2.16.
+NKP enables OpenCost in the management cluster and collects cost metrics remotely from each workload
+cluster. The NKP UI displays the costs from the last day and the last seven days across each clusters,
+workspaces, and projects.
+To launch the OpenCost application in the NKP UI:
+Procedure
+1. Log in to the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. In the cluster widget, click View Details.
+4. On the General Cluster Information page, open the Enabled Applications tab.
+5. Navigate to OpenCost and click Dashboard.
+NKP launches the OpenCost application, which provides the following views:
+•
+Cost Allocation tab: Displays the allocation of cloud resource costs to your NKP cluster. Costs are
+broken down by cluster, node, namespace, controller kind, controller, service, pod, and container
+over the past seven days.
+•
+Cloud Costs tab: Displays actual billing data from your public cloud provider using their billing and
+pricing APIs. OpenCost supports multiple cloud providers and requires configuration of billing data
+access. In some cases, the default pricing from your cloud infrastructure provider might not reflect
+your actual rates. To ensure accurate reporting, you can override provider pricing by updating the
+local OpenCost Helm values file. The override must match the name of the cloud provider you are
+customizing. For more information, see Cloud Costs.
+•
+External Costs tab: Provides visibility into external expenses that are not directly tied to Kubernetes
+resources but are relevant to overall cost reporting.
+6. (Optional) To make the cost data accurate, provide a custom pricing model, see Providing Custom
+Pricing Overrides for OpenCost on page 642.
+Providing Custom Pricing Overrides for OpenCost
+OpenCost supports accessing cloud costs across multiple accounts and providers, including on-premises
+environments. Each cloud service provider has unique configuration requirements, but OpenCost can
+aggregate costs from all providers into a single view.
+About this task
+In some cases, the default pricing from your cloud provider might not reflect your actual rates. For
+example, you might:
+•
+Negotiate custom pricing with your cloud infrastructure provider.
+Nutanix Kubernetes Platform | Cluster Operations Management | 642
+
+--- page 643 ---
+•
+Act as an intermediary with rates that differ from list prices.
+To ensure accurate reporting, you can override cloud infrastructure provider pricing by updating the local
+OpenCost Helm values file. The override must match the name of the cloud provider you are customizing.
+To provide a custom overrides pricing model, follow these steps:
+Procedure
+1.
+Create an override with the custom pricing model for your cloud infrastructure provider:
+opencost:
+  customPricing:
+    enabled: true
+    provider: custom
+    costModel:
+      description: <Modified prices based on your actual pricing>
+      CPU: 1.25
+      RAM: 0.50
+      storage: 0.25
+      GPU: 1.9
+For more information, see Custom Pricing.
+2.
+Log in to the Nutanix Kubernetes Platform (NKP) UI dashboard.
+3.
+In the workspace header drop-down list, select your target workspace.
+4.
+In the cluster widget, click View Details.
+5.
+On the General Cluster Information page, open the Enabled Applications tab.
+6.
+Navigate to OpenCost and click View Details.
+7.
+In the OpenCost application page, click the Configuration tab.
+8.
+In the top right corner, click Edit.
+9.
+In the Workspace Application Configuration Override field, paste the custom pricing model for your
+cloud infrastructure provider.
+10. Click Save.
+NKP accurately calculates and displays the Kubernetes resource consumption of your cloud
+infrastructure in the OpenCost dashboard.
+Transitioning from Kubecost to OpenCost in NKP
+In earlier versions of Nutanix Kubernetes Platform (NKP), clusters use Kubecost with an NKP Ultimate
+license enabled to monitor costs for individual clusters. In NKP 2.17 and later, Kubecost is no longer
+available in the NKP UI, and OpenCost is available as the cost monitoring solution.
+About this task
+To transition existing clusters to use OpenCost, follow these steps:
+Nutanix Kubernetes Platform | Cluster Operations Management | 643
+
+--- page 644 ---
+Procedure
+1. Upgrade the NKP Kommander and all the platform applications in the management cluster to NKP
+version 2.17.
+When you upgrade to NKP 2.17, the default behavior of the NKP CLI is:
+•
+If no active, non#trial Kubecost license is found, the NKP CLI uninstalls Kubecost from all clusters.
+•
+If an active Kubecost license is detected, the upgrade aborts automatically to prevent disruption.
+2. To proceed with an upgrade when a valid Kubecost license exists, you must orphan all the Kubecost
+resources from NKP by adding the flags in the nkp upgrade kommander command.
+For more information, see Kubecost Resources Preservation in Upgrading Kommander on page 1017.
+Application Monitoring using Prometheus
+Before attempting to monitor your own applications, you must be familiar with the Prometheus conventions
+for exposing metrics. In general, there are two key recommendations:
+•
+You must expose metrics using an HTTP endpoint named /metrics.
+•
+The metrics you expose must be in a format that Prometheus can consume.
+By following these conventions, you ensure that your application metrics can be consumed by Prometheus
+itself or by any Prometheus-compatible tool that can retrieve metrics, using the Prometheus client
+endpoint.
+The kube-prometheus-stack for Kubernetes provides easy monitoring definitions for Kubernetes services
+and deployment and management of Prometheus instances. It provides a Kubernetes resource called
+ServiceMonitor.
+By default, the kube-prometheus-stack provides the following service monitors to collect internal
+Kubernetes components:
+•
+kube-apiserver
+•
+kube-scheduler
+•
+kube-controller-manager
+•
+etcd
+•
+kube-dns/coredns
+•
+kube-proxy
+The operator is in charge of iterating over all of these ServiceMonitor objects and collecting the metrics
+from these defined components.
+The following example illustrates how to retrieve application metrics. In this example, there are:
+•
+Three instances of a simple app named my-app
+•
+The sample app listens and exposes metrics on port 8080
+•
+The app is assumed to already be running
+To prepare for monitoring of the sample app, create a service that selects the pods that have my-app as the
+value defined for their app label setting.
+Nutanix Kubernetes Platform | Cluster Operations Management | 644
+
+--- page 645 ---
+The service object also specifies the port on which the metrics are exposed. The ServiceMonitor has a
+label selector to select services and their underlying endpoint objects. For example:
+kind: Service
+apiVersion: v1
+metadata:
+  name: my-app
+  namespace: my-namespace
+  labels:
+    app: my-app
+spec:
+  selector:
+    app: my-app
+  ports:
+  - name: metrics
+    port: 8080
+This service object is discovered by a ServiceMonitor, which defines the selector to match the labels with
+those defined in the service. The app label must have the value my-app.
+In this example, in order for kube-prometheus-stack to discover this ServiceMonitor, add a specific
+label prometheus.kommander.d2iq.io/select: "true" in the yaml:
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: my-app-service-monitor
+  namespace: my-namespace
+  labels:
+    prometheus.kommander.d2iq.io/select: "true"
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  endpoints:
+  - port: metrics
+In this example, you can modify the Prometheus settings to have the operator collect metrics from the
+service monitor by appending the following configuration to the overrides ConfigMap:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    prometheus:
+      additionalServiceMonitors:
+        - name: my-app-service-monitor
+          selector:
+            matchLabels:
+              app: my-app
+          namespaceSelector:
+            matchNames:
+              - my-namespace
+          endpoints:
+            - port: metrics
+              interval: 30s
+Official documentation about using a ServiceMonitor to monitor an app with the Prometheus-operator on
+Kubernetes can be found on the GitHub repository.
+Nutanix Kubernetes Platform | Cluster Operations Management | 645

@@ -1,0 +1,63 @@
+# VPC facts for skill nkp-vpc (read-only lab checks, 2026-11-03)
+# Lab: NKP 2.19.0 management cluster <mgmt-cluster> (AHV, Starter, k8s v1.36.2), nodes on a Flow VPC overlay subnet.
+# Scrubbed: IPs -> <ovl-ip-N> (VPC overlay), <ext-ip-N> (external network, floating IPs), names -> <mgmt-cluster>.
+# Commands: kubectl get -o jsonpath, kubectl config view --minify (server only), curl -sk (HTTP code only),
+# openssl s_client | x509 -ext subjectAltName (public cert), ip -o link / ip route get, docker network inspect. No change. No dry run.
+
+=== Topology seen ===
+Node InternalIPs: overlay range (<ovl-...>). NIC MTU 1442 (also in networking-skill.txt).
+NKPCluster clusterConfig.nutanix.controlPlaneEndpoint:
+  {"host":"<ext-ip-1>","port":6443,"virtualIP":{"configuration":{"address":"<ovl-ip-1>","port":6443},"provider":"KubeVIP"}}
+  -> host = a floating IP on the external network; the kube-vip VIP = an overlay IP. host != virtualIP address.
+  This is what --control-plane-external-endpoint gives (nkp-help-cluster.txt: "may be a Floating IPv4 address that maps to the control plane endpoint IP").
+extraAPIServerCertSANs: not set (empty). So --extra-sans was not used.
+kubeadm-config ClusterConfiguration: controlPlaneEndpoint: <ext-ip-1>:6443 (the floating IP, not the VIP).
+  apiServer.certSANs: two loopback/any addresses and localhost only.
+API server certificate (openssl, public): SANs = kubernetes DNS names, the machine name, 10.96.0.1, the node IP,
+  <ext-ip-1> (the floating IP), loopback addresses. The overlay VIP <ovl-ip-1> is NOT in the SANs.
+Kubeconfig on the operator host: server uses <ext-ip-1> (the floating IP).
+kube-vip pod env: vip_arp=true, address=<ovl-ip-1> (Layer 2 ARP in the overlay).
+
+Ingress:
+  NKPCluster spec.kommanderCluster.spec.ingress = {"hostname":"<ext-ip-2>"} (a second floating IP).
+  KommanderCluster spec.ingress.hostname = <ext-ip-2>; condition IngressAddressReady True.
+  svc kommander/kommander-traefik status.loadBalancer.ingress = [{"ip":"<ovl-ip-2>","ipMode":"VIP"}] (overlay), externalTrafficPolicy Cluster.
+  Certificate kommander-traefik-tls spec.ipAddresses = ["<ext-ip-2>"] (the floating IP, not the overlay LB IP).
+  MetalLB IPAddressPool metallb spec.addresses = ["<ovl-ip-2>-<ovl-ip-2>"] (a range of one overlay IP).
+  ServiceL2Status: kommander-traefik announced by one worker; Traefik pods run on two workers.
+=> Two floating IPs: <ext-ip-1> -> CP VIP (API), <ext-ip-2> -> first MetalLB IP (UI). This is the TN-2207 two-floating-IP recipe.
+
+Operator host (bastion) of this lab: on the external network, NOT in the VPC (ens3 MTU 1500, docker0 and the kind
+  network MTU 1500, no /etc/docker/daemon.json). ip route get <ovl-ip-2> -> via the default gateway.
+  curl https://<ovl-ip-1>:6443/version -> timeout (the overlay VIP is not reachable from outside the VPC).
+  curl https://<ext-ip-1>:6443/version -> 200, 6 of 6 tries.
+  curl https://<ext-ip-2>/ -> 404 (Traefik default), 6 of 6 tries; /dkp/kommander/dashboard -> 302 to /dex/auth on <ext-ip-2>.
+  How this lab cluster was created (from a host inside the VPC or not) is not known.
+
+Cilium on this VPC overlay: bpf-lb-mode = dsr (default, not changed). The UI LoadBalancer IP answered through its
+  floating IP 6 of 6 times, with Traefik on two workers and externalTrafficPolicy Cluster. One test, one cluster (N-01 partly).
+
+Prism Central onboarding: konnector-agent pod in ntnx Running (onboarding works with nodes on an overlay subnet).
+No bootstrap container on the operator host (docker ps: no "bootstrap").
+
+=== Who uses the external endpoint (2026-11-03, second check) ===
+CAPI Cluster spec.controlPlaneEndpoint = {"host":"<ext-ip-1>","port":6443} (the floating IP).
+kube-public/cluster-info kubeconfig server = https://<ext-ip-1>:6443 (the floating IP; kubeadm join uses it).
+DaemonSet cilium env KUBERNETES_SERVICE_HOST=<ext-ip-1>, KUBERNETES_SERVICE_PORT=6443.
+=> With --control-plane-external-endpoint, the nodes and Cilium reach the API server through the floating IP.
+   The VPC must route the overlay to its own floating IP (hairpin through the VPC router). It works on this lab:
+   all 5 nodes Ready.
+
+=== Dry runs (2026-11-03) ===
+Webhook check: every validating and mutating webhook on the cluster has sideEffects None or NoneOnDryRun.
+1. NKPCluster merge patch spec.kommanderCluster.spec.ingress.hostname = <the current floating IP> --dry-run=server -> accepted.
+2. NKPCluster merge patch spec.kommanderCluster.spec.ingress.hostname = nkp.example.com --dry-run=server -> accepted.
+KommanderCluster ownerReferences kind: NKPCluster. So the ingress hostname is set on the NKPCluster
+  (skill nkp-networking ingress-certs.md I3), not with a direct KommanderCluster patch as in TN-2207.
+Other: kubectl explain nutanixcluster.spec / nutanixmachinetemplate: no floating IP or VPC field (only subnet).
+  No CRD for VPC, subnet, or floating IP of Prism Central. Docker bridge network MTU 1500 on this operator host.
+3. NKPCluster JSON patch clusterConfig.nutanix.controlPlaneEndpoint.host -> 192.0.2.10 (TEST-NET) --dry-run=server -> accepted.
+4. NKPCluster JSON patch clusterConfig.nutanix.controlPlaneEndpoint.virtualIP.configuration.address -> 192.0.2.11 --dry-run=server -> accepted.
+5. CAPI Cluster merge patch spec.controlPlaneEndpoint.host -> 192.0.2.10 --dry-run=server -> accepted.
+   The API does not block a change of the external endpoint after the create. The effect (API cert SANs, kubeconfigs,
+   cilium KUBERNETES_SERVICE_HOST, node join) is not tested. Not for the skills as a procedure (N-42).

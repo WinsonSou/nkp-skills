@@ -1,0 +1,129 @@
+
+--- page 662 ---
+        s3: "http://rook-ceph-rgw-nkp-object-store.${CEPH_NAMESPACE}.svc:80/nkp-loki"
+These overrides can be applied from the UI directly while substituting the  ${CEPH_NAMESPACE}
+appropriately.
+2. If you are using CLI, follow these steps:
+Set NAMESPACE to project namespace and CEPH_NAMESPACE to Ceph install namespace.
+Note:  Run these commands if you are using CLI.
+export CEPH_NAMESPACE=rook-ceph
+export NAMESPACE=my-project
+3. Create a ConfigMap to apply the configuration overrides.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+data:
+  values.yaml: |
+    loki:
+      structuredConfig:
+        storage_config:
+          aws:
+            s3: "http://rook-ceph-rgw-nkp-object-store.${CEPH_NAMESPACE}.svc:80/proj-
+loki-${NAMESPACE}"
+kind: ConfigMap
+metadata:
+  name: project-grafana-loki-v3-ceph
+  namespace: ${NAMESPACE}
+EOF
+4. Create the AppDeployment with a reference to the above ConfigMap.
+Note:  The clusterSelector can be adjusted according to your needs.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: project-grafana-loki-v3
+  namespace: ${NAMESPACE}
+spec:
+  appRef:
+    kind: ClusterApp
+    name: project-grafana-loki-v3-3.6.7
+  clusterSelector: {}
+  configOverrides:
+    name: project-grafana-loki-v3-ceph
+EOF
+The project level Grafana Loki creates an ObjectBucketClaim and assumes that the Ceph operator is
+monitoring the project namespace, so there is no need to create ObjectBucketClaim manually.
+Pulse Telemetry in NKP
+Pulse telemetry collects data to improve and optimize Nutanix Kubernetes Platform (NKP). When you
+enable Pulse, you share data about your application usage with Nutanix. The information collected helps
+Nutanix understand how you are using NKP to help us improve the product.
+For more information on the data that Pulse gathers from NKP see NKP Data share with Nutanix on
+page 664.
+Nutanix Kubernetes Platform | Cluster Operations Management | 662
+
+--- page 663 ---
+Nutanix processes data that Pulse sends in a manner consistent with your agreement with Nutanix and,
+where applicable, by the Nutanix Privacy Statement. For more information, see Nutanix Privacy Statement.
+You can review Pulse settings in NKP. For more information, see Configuring Pulse on page 663.
+Configuring Pulse
+Enable or disable Pulse as per your requirement. Pulse requires access to https://insights.nutanix.com at
+Port 443 to successfully send its data. For more information, see Required Domains on page 53.
+About this task
+Enabling and Disabling Pulse in NKP.
+Procedure
+•
+For enabling Pulse, see Enabling Pulse on page 663.
+•
+For disabling Pulse, see Disabling Pulse on page 663.
+Enabling Pulse
+When you log into NKP for the first time, you will see the Pulse modal with an option to enable the same.
+Pulse, when enabled, lets you share data about your application usage with Nutanix.
+About this task
+Enabling Pulse in NKP.
+Note:
+•
+The Pulse tab is visible only to the global admin user.
+•
+You see the Pulse tab only if you are using the following licenses: Starter, Pro and Ultimate.
+Procedure
+1. Log in to NKP UI dashboard.
+2. In the workspace header drop-down, select Global.
+3. In the sidebar menu, select Settings > Pulse. Screen to enable Pulse is displayed.
+4. Select Enable. A message confirms that the Pulse enablement is in progress.
+The Pulse Status will be displayed after a few minutes.
+Note:  If the Pulse enablement fails, disable and re-enable the Pulse.
+Disabling Pulse
+The Pulse modal lets you disable the Pulse option.
+About this task
+To disable Pulse in NKP using UI.
+Procedure
+1. Log in to NKPUI dashboard.
+2. In the workspace header drop-down, select Global.
+Nutanix Kubernetes Platform | Cluster Operations Management | 663
+
+--- page 664 ---
+3. In the sidebar menu, select Settings > Pulse.
+4. Click Disable Pulse A message is displayed confirming that the Pulse disablement is in progress.
+Pulse is disabled after a few minutes.
+NKP Data share with Nutanix
+This topic lists the entities and the data shared from NKP with Nutanix through Pulse telemetry. Nutanix
+processes the data, that Pulse sends, in accordance with your agreement with Nutanix, and wherever
+applicable.
+For more information, see Nutanix Privacy Statement. This topic lists the entities and the data shared from
+NKP with Nutanix through Pulse telemetry.
+Table 62:
+Category
+Description
+NKP Information
+Version of NKP, License type (example NKP
+Starter, NKP Pro, NKP Ultimate)
+NKP Kubernetes Cluster Information
+Kubernetes version of the cluster, type of NKP
+cluster (example Management, Managed or
+Attached), infrastructure provider (example NKP,
+EKS or AKS)
+Nodepool Information
+Number of nodes (ready, available, etc)
+Operating System on the node
+Number of CPU’s on the node
+Memory on the node
+Node Information
+Containerd, Kubelet and Kube-proxy version
+running on this node
+NKP Applications
+Name and version of application enabled from NKP
+application catalog
+CSI Drivers
+CSI driver version, name, and the kinds of volumes
+the CSI driver supports
+GPU
+NVIDIA GPU driver version, memory and capacity

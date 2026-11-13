@@ -1,0 +1,2671 @@
+
+--- page 271 ---
+Procedure
+1. Locate the required file in the MacOS Finder or Windows File Explorer.
+2. Drag and drop an image of the appropriate file type into the shaded area to see a preview of the image
+and display the file name.
+You can select X on the upper-right or Remove on the lower-right to clear the image, if needed.
+3. Click Save.
+Warning:  You cannot select a file for drag-and-drop if it does not have a valid image format.
+Adding Your Organization’s Logo Using the Upload Option
+Upload a logo image to the header by browsing your file.
+Procedure
+1. Select Browse Files.
+2. To clear the image, select X or click the Remove link, if needed.
+3. Click Save.
+Applications
+This section includes information on the applications you can deploy in NKP. When installing NKP, an
+AppDeployment resource is created for each enabled Platform Application.
+You can customize an application or change how a specific application is deployed. For workspace
+applications, you can also enable and customize them on a per-cluster basis.
+For details on applications deployment see:
+•
+AppDeployment Resources on page 271
+•
+Customizing Your Application on page 272
+•
+Printing and Reviewing the Current State of an AppDeployment Resource on page 273
+AppDeployment Resources
+Use AppDeployments to deploy and customize platform, NKP catalog, and custom applications.
+An AppDeployment is a custom resource (see Custom Resource in https://kubernetes.io/docs/concepts/
+extend-kubernetes/api-extension/custom-resources/ created by NKP with the purpose of deploying
+applications (platform, NKP catalog and custom applications) in the management cluster, managed
+clusters, or both. Customers of both Pro and Ultimate products use AppDeployments, regardless of their
+setup (air-gapped, non-air-gapped, etc.), and their infrastructure provider.
+When installing NKP, an AppDeployment resource is created for each enabled Platform Application. This
+AppDeployment resource references a ClusterApp, which then references the repository that contains
+a concrete declarative and preconfigured setup of an application, usually in the form of a HelmRelease.
+ClusterApps are cluster-scoped so that these platform applications are deployable to all workspaces or
+projects.
+In the case of NKP catalog and custom applications, the AppDeployment references an App instead of a
+ClusterApp, which also references the repository containing the installation and deployment information.
+Apps are namespace-scoped and are meant to only be deployable to the workspace or project in which
+they have been created.
+Nutanix Kubernetes Platform | Cluster Operations Management | 271
+
+--- page 272 ---
+For example, this is the default AppDeployment for the Kube Prometheus Stack platform application:
+apiVersion: apps.kommander.nutanix.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-82.13.6
+    kind: ClusterApp
+Customizing Your Application
+If you want to customize an application or change how a specific application is deployed, you can create
+a ConfigMap to change or add values to the information that is stored in the HelmRelease. Override the
+default configuration of an application by setting the configOverrides field on the AppDeployment to that
+ConfigMap. This overrides the configuration of the app for all clusters within the workspace.
+About this task
+For workspace applications, you can also enable and customize them on a per-cluster basis. For
+instructions on how to enable and customize an application per cluster in a given workspace, see Cluster-
+scoped Application for Existing AppDeployments on page 321.
+Before you begin
+Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace where
+the cluster is attached:
+export WORKSPACE_NAMESPACE=<your_workspace_namespace>
+You can now copy the following commands without replacing the placeholder with your workspace
+namespace every time you run a command.
+Here's an example of how to customize the AppDeployment of Kube Prometheus Stack:
+Procedure
+1. Provide the name of a ConfigMap with the custom configuration in the AppDeployment.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-82.13.6
+    kind: ClusterApp
+  configOverrides:
+    name: kube-prometheus-stack-overrides-attached
+EOF
+2. Create the ConfigMap with the name provided in the previous step, which provides the custom
+configuration on top of the default configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+Nutanix Kubernetes Platform | Cluster Operations Management | 272
+
+--- page 273 ---
+  name: kube-prometheus-stack-overrides-attached
+data:
+  values.yaml: |
+    prometheus:
+      prometheusSpec:
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              resources:
+                requests:
+                  storage: 150Gi
+EOF
+Printing and Reviewing the Current State of an AppDeployment Resource
+If you want to know how the AppDeployment resource is currently configured, use the commands below
+to print a table of the declared information. If the AppDeployment is configured for several clusters in a
+workspace, a column will display a list of the clusters.
+About this task
+You can review all the AppDeployments in a workspace or a specific AppDeployments of an application in
+a workspace.
+Procedure
+You can run the following commands to review AppDeployments.
+»
+Review all AppDeployments in a workspace: To review the state of the AppDeployment resource for a
+specific workspace, run the get command with the name of your workspace. Here's as example:
+nkp get appdeployments -w kommander-workspace
+The output displays a list of all your applications:
+NAME APP CLUSTERS
+[...]
+kube-oidc-proxy                 kube-oidc-proxy-0.3.8           management
+kube-prometheus-stack           kube-prometheus-stack-82.13.6    management
+[...]
+»
+Review a Specific AppDeployment of an application in a workspace: To review the state of a specific
+AppDeployment of an application, run the get command with the name of the application and your
+workspace. Here's an example:
+nkp get appdeployment kube-prometheus-stack -w kommander-workspace
+The output is as follows:
+NAME APP CLUSTERS
+kube-prometheus-stack kube-prometheus-stack-82.13.6 management
+Note:  For more information on how to create, or get an AppDeployment, see the CLI documentation.
+Deployment Scope
+In a single-cluster environment with a Starter license, AppDeployments do not allow for any customization.
+In a single-cluster environment with a Pro license, AppDeployments enable customizing any platform
+application.
+In a multi-cluster environment with an Ultimate license, you can customize AppDeployments to enable
+resource requirements, project applications, and cluster-scoped applications for existing AppDeployments.
+Nutanix Kubernetes Platform | Cluster Operations Management | 273
+
+--- page 274 ---
+For more information on how to create, or get an AppDeployment, see the CLI documentation.
+Logging Stack Application Sizing Recommendations
+Sizing recommendations for Logging Stack applications.
+For information on how you customize your AppDeployments, see AppDeployment Resources on
+page 271.
+Note:  When configuring storage for logging-operator-logging-overrides, ensure that you create a
+ConfigMap in your workspace namespace for every cluster in that workspace.
+Keep in mind that you can configure logging-operator-logging-overrides only through the
+CLI.
+Nutanix Kubernetes Platform | Cluster Operations Management | 274
+
+--- page 275 ---
+Table 20: Table
+No. of Worker
+Nodes
+Log Generating
+Load
+Application
+Suggested Configuration
+Logging Operator Logging
+Override Config
+values.yaml: |-
+  clusterOutputs:
+    - name: loki
+      spec:
+        loki:
+          # change
+ ${WORKSPACE_NAMESPACE} to
+ the actual value of your
+ workspace namespace
+          url: http://grafana-
+loki-loki-distributed-gateway.
+${WORKSPACE_NAMESPACE}.svc.cluster.local:8
+         
+ extract_kubernetes_labels:
+ true
+         
+ configure_kubernetes_labels:
+ true
+          buffer:
+            disabled: true
+            retry_forever:
+ false
+            retry_max_times: 5
+            flush_mode:
+ interval
+            flush_interval:
+ 10s
+           
+ flush_thread_count: 8
+          extra_labels:
+            log_source:
+ kubernetes_container
+  fluentbit:
+    inputTail:
+      Mem_Buf_Limit: 512MB
+  fluentd:
+    bufferStorageVolume:
+      emptyDir:
+        medium: Memory
+    disablePvc: true
+    scaling:
+      replicas: 10
+    resources:
+      requests:
+        memory: 1000Mi
+        cpu: 1000m
+      limits:
+        memory: 2000Mi
+        cpu: 1000m
+50
+1.4 MB/s
+Loki
+ingester:
+  replicas: 10
+distributor:
+  replicas: 2
+Logging Operator Logging
+Override Config
+values.yaml: |-
+  clusterOutputs:
+    - name: loki
+      spec:
+        loki:
+          # change
+${WORKSPACE NAMESPACE} to
+100
+8.5 MB/s
+Nutanix Kubernetes Platform | Cluster Operations Management | 275
+
+--- page 276 ---
+Rook Ceph Cluster Sizing Recommendations
+Recommended OSD count and PVC sizes for the Rook Ceph Cluster by worker-node count.
+The default layout is 4 OSDs of 40 GiB (160 GiB raw). Erasure coding leaves about 120 GiB usable. The
+120Gi value in the 50-worker example is the recommended size of each OSD PVC, not the default usable
+capacity. For durability details, see Rook Ceph: Storage Configuration on page 650.
+To apply these values, copy the full storageClassDeviceSets list from rook-ceph-
+cluster-appVersion-config-defaults into an AppDeployment override ConfigMap. Then change
+count or volumeClaimTemplates.spec.resources.requests.storage. Do not edit the defaults
+ConfigMap. For the procedure, see Increasing Rook Ceph Storage Capacity on page 651. For
+AppDeployment overrides, see Customizing Your Application on page 272.
+Nutanix Kubernetes Platform | Cluster Operations Management | 276
+
+--- page 277 ---
+Table 21: Rook Ceph Cluster Sizing by Worker Count
+No. of Worker Nodes
+Application
+Suggested Configuration
+50
+Rook Ceph Cluster
+cephClusterSpec:
+  labels:
+    monitoring:
+      prometheus.kommander.d2iq.io/select:
+ "true"
+  storage:
+    storageClassDeviceSets:
+      - name: rook-ceph-osd-set1
+        count: 4
+        portable: true
+        encrypted: false
+        placement:
+          topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey:
+ topology.kubernetes.io/zone # The
+ nodes in the same rack have the same
+ topology.kubernetes.io/zone label.
+            whenUnsatisfiable:
+ ScheduleAnyway
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-osd
+                    - rook-ceph-osd-
+prepare
+          - maxSkew: 1
+            topologyKey: kubernetes.io/
+hostname
+            whenUnsatisfiable:
+ ScheduleAnyway
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-osd
+                    - rook-ceph-osd-
+prepare
+        volumeClaimTemplates:
+          # If there are some faster
+ devices and some slower devices, it is
+ more efficient to use
+          # separate metadata, wal, and
+ data devices.
+          # Refer https://rook.io/docs/
+rook/v1.10/CRDs/Cluster/pvc-cluster/
+#dedicated-metadata-and-wal-device-for-
+osd-on-pvc
+          - metadata:
+              name: data
+            spec:
+              resources:
+                requests:
+                  storage: 120Gi
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce
+100
+Rook Ceph Cluster
+dkp:
+  grafana-loki:
+    additionalConfig:
+Nutanix Kubernetes Platform | Cluster Operations Management | 277
+
+--- page 278 ---
+Application Management Using the UI
+Choose your license type for instructions on how to enable and customize an application and then verify it
+has been deployed correctly.
+To ensure that the applications are deployed successfully, review them carefully before customizing. There
+may be dependencies between the applications, which are listed in Platform Applications Dependencies
+For All Clusters on page 298.
+Ultimate: Application Management Using the UI
+Use the Nutanix Kubernetes® Platform (NKP) UI to deploy and uninstall platform and catalog applications
+across Ultimate managed clusters. The NKP UI provides a centralized interface to select applications,
+configure deployment parameters, and monitor installation status.
+Note:  To use the NKP CLI to deploy or uninstall applications, see Deploying Platform Applications Using
+CLI on page 297.
+Ultimate: Enabling an Application Using the UI
+This topic describes how to enable your platform applications from the UI.
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. From the sidebar, browse through the available applications from your configured repositories, and
+select Applications.
+4. Select the three-dot button of the desired application card > Enable.
+5. If available, select a version from the dropdown list.
+The dropdown list is only visible if there are more than one versions to choose from.
+6. Select the clusters where you want to deploy the application.
+7. For customizations only: to override the default configuration values, follow these steps:
+Note:  If there are customization Overrides at the workspace and cluster level, they are combined for
+implementation. Cluster-level Overrides take precedence over Workspace Overrides.
+a. To customize an application for all clusters in a workspace, copy your customized values into the
+text editor under Workspace Application Configuration or upload your YAML file that contains the
+values.
+someField: someValue
+b. To add a customization per cluster, copy the customized values into the text editor of each cluster
+under Cluster Application Configuration Override or upload your YAML file that contains the
+values.
+someField: someValue
+Nutanix Kubernetes Platform | Cluster Operations Management | 278
+
+--- page 279 ---
+8. Verify that the details are correct and select Enable.
+Warning:  There may be dependencies between the applications, which are listed in Platform
+Applications Dependencies For All Clusters on page 298. Review them carefully before
+customizing to ensure that the applications are deployed successfully.
+Ultimate: Customizing an Application Using the UI
+You can enable an application and customize it using the UI.
+About this task
+Note:  If you want to enable an application for the first time and customize it, see Ultimate: Enabling an
+Application Using the UI on page 278.
+To customize the applications that are deployed to a workspace’s cluster using the UI:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. From the sidebar, browse through the available applications from your configured repositories, and
+select Applications.
+3. In the Application card you want to customize, select the three dot menu and Edit.
+4. To override the default configuration values, follow these steps:
+Note:  If there are customization Overrides at the workspace and cluster levels, they are combined for
+implementation. Cluster-level Overrides take precedence over Workspace Overrides.
+a. To customize an application for all clusters in a workspace, copy your customized values into the
+text editor under Workspace Application Configuration or upload your YAML file that contains the
+values.
+someField: someValue
+b. To add a customization per cluster, copy the customized values into the text editor of each cluster
+under Cluster Application Configuration Override or upload your YAML file that contains the
+values.
+someField: someValue
+5. Verify that the details are correct and select Save.
+Ultimate: Customizing an Application For a Specific Cluster
+You can also customize an application for a specific cluster from the Clusters view:
+Procedure
+1. From the sidebar menu, select Clusters.
+2. Select the target cluster.
+3. Select the Applications tab.
+Nutanix Kubernetes Platform | Cluster Operations Management | 279
+
+--- page 280 ---
+4. Navigate to the target Applications card.
+5. Select the triple dot vertical icon > Edit.
+Ultimate: Verifying an Application using the UI
+The application has now been enabled.
+About this task
+To verify that the application is deployed correctly:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select the cluster you want to verify.
+a. Select Management Cluster if your target cluster is the Management Cluster Workspace.
+b. Otherwise, select Clusters, and choose your target cluster.
+3. Select the Applications tab and navigate to the application you want to verify.
+4. If the application was deployed successfully, the status Deployed appears in the application card.
+Otherwise, hover over the failed status to obtain more information on why the application failed to
+deploy.
+Note:  It can take several minutes for the application to deploy completely. If the Deployed or Failed
+status is not displayed, the deployment process is not finished.
+Ultimate: Disabling an Application Using the UI
+You can disable an application using the UI.
+About this task
+Follow these steps to disable an application with the UI:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. From the sidebar, browse through the available applications from your configured repositories, and
+select Applications.
+3. Select the three-dot button of the desired application card and select Disable.
+4. Follow the instructions on the confirmation pop-up message and select Disable Application.
+Pro: Application Management Using the UI
+You can enable an application and customize it using the UI.
+You can deploy and uninstall an application using the UI.
+Note:  To use the CLI to deploy or uninstall applications, see Deploying Platform Applications Using CLI
+on page 297.
+Nutanix Kubernetes Platform | Cluster Operations Management | 280
+
+--- page 281 ---
+Pro: Enabling an Application Using the UI
+About this task
+To enable your platform applications from the UI in Kommander:
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. From the sidebar to browse through the available applications from your configured repositories, select
+Applications.
+4. Select the three-dot button of the desired application card > Enable.
+5. If available, select a version from the dropdown list. This dropdown list is only visible if there is more
+than one version to choose from.
+6. For customizations only: to override the default configuration values, follow these steps:
+a. To customize an application for all clusters in a workspace, copy your customized values into the
+text editor under Workspace Application Configuration or upload your YAML file that contains the
+values.
+someField: someValue
+7. Confirm the details are correct and then select Enable.
+Warning:  There may be dependencies between the applications, which are listed in Platform
+Applications Dependencies For All Clusters on page 298. Review them carefully before
+customizing to ensure that the applications are deployed successfully.
+Pro: Customizing an Application Using the UI
+About this task
+Note:  If you want to enable an application for the first time and customize it, see Ultimate: Enabling an
+Application Using the UI on page 278.
+To customize the applications that are deployed to your Management Cluster cluster using the UI:
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. From the sidebar, browse through the available applications from your configured repositories and
+select Applications
+4. In the Application card you want to customize, select the three dot menu and Edit.
+Nutanix Kubernetes Platform | Cluster Operations Management | 281
+
+--- page 282 ---
+5. To override the default configuration values, follow these steps:
+Note:  If there are customization Overrides at the workspace and cluster level, they are combined for
+implementation. Cluster-level Overrides take precedence over  Workspace Overrides.
+a. To customize an application for all clusters in a workspace, copy your customized values into the
+text editor under Workspace Application Configuration or upload your YAML file that contains the
+values.
+someField: someValue
+6. Verify that the details are correct and select Save.
+Pro: Verifying an Application using the UI
+The application has now been enabled.
+About this task
+To ensure that the application is deployed correctly:
+Procedure
+1. From the sidebar, select Management Cluster.
+2. Select the Applications tab and navigate to the application you want to verify.
+3. If the application was deployed successfully, the status Deployed appears in the application card.
+Otherwise, hover over the failed status to obtain more information on why the application failed to
+deploy.
+Note:  It can take several minutes for the application to deploy completely. If the Deployed or Failed
+status is not displayed, the deployment process is not finished.
+Pro: Disabling an Application Using the UI
+About this task
+To disable an application with the UI:
+Procedure
+1. From the sidebar, browse through the available applications from your configured repositories and
+select Applications
+2. Select the three-dot button of the desired application card and select Disable.
+3. Follow the instructions on the confirmation pop-up message, and select Disable Application.
+Deploying Harbor on a Management Cluster
+This topic provides instructions for deploying the Harbor container registry on a NKP management cluster.
+Harbor is an open-source cloud-native container registry that stores, signs, and scans container images.
+Deploying Harbor ensures secure and efficient image management for your containerized applications.
+Before you begin
+Ensure you complete the following:
+Nutanix Kubernetes Platform | Cluster Operations Management | 282
+
+--- page 283 ---
+•
+Deploy CloudNativePG.
+•
+Enable the CloudNativePG application on a NKP cluster.
+•
+Get access to any of the following S3-compatible object storage options:
+•
+Nutanix Objects: Nutanix Objects are well-integrated with Nutanix and managed by the COSI Driver
+for Nutanix. Nutanix Objects include a built-in lifecycle management for storage and manages the
+entire bucket lifecycle.
+•
+S3 storage from other providers such as AWS, Azure, GCP, or any enterprise-grade S3 storage. The
+lifecycle management of external buckets are managed separately.
+•
+Integrated Rook Ceph: You can set up integrated Rook Ceph as an S3 bucket within your
+infrastructure. You can install the Rook Ceph on the same NKP cluster. However, Rook Ceph shares
+storage with other internal applications which may cause space limitations.
+It is recommended you choose an S3-compatible object storage based on the your requirements:
+•
+For production environments, choose either enterprise-grade S3 storage or Nutanix Object Storage,
+because these provide better scalability and lifecycle management.
+•
+To avoid external dependency, choose integrated Rook Ceph instead of Nutanix Objects.
+•
+Install and configure the Kubernetes CLI kubectl to interact with your cluster.
+•
+Appropriate user credentials with permissions to create and manage resources.
+•
+Ensure that storage requirements are according to Storage Requirements for Harbor  on page 285.
+To deploy Harbor on a management cluster, follow these steps:
+Procedure
+1.
+From the top menu bar, select Management Cluster Workspace.
+2.
+Search for the required application:
+»
+From the sidebar, select Applications, then browse through the available applications,and
+navigate to the General section.
+»
+In the Filter by Name field, enter CloudNativePG, Harbor, or COSI Driver For Nutanix.
+CloudNativePG, Harbor, or COSI Driver For Nutanix are displayed.
+3.
+Enable CloudNativePG.
+a. In the search field, enter CloudNativePG, select the triple dot vertical icon on the CloudNativePG
+application card.
+b. Click Enable.
+c. (Optional) Enter application overrides as per the environment.
+For example, you can enter replicaCount: 2.
+4.
+In the search field, enter Harbor, select the triple dot vertical icon on the Harbor application card, and
+click Enable.
+Nutanix Kubernetes Platform | Cluster Operations Management | 283
+
+--- page 284 ---
+5.
+In the Enable Workspace Platform Application page, under S3 Configuration > S3 Objects Store
+drop-down list, select one of the following options:
+•
+Nutanix Objects: You do not have to provide additional information after selecting Nutanix
+Objects.
+Note:  Ensure that you pre-install and configure the COSI Driver for Nutanix application. For more
+information, see Configuring and Enabling COSI Driver for Nutanix in an NKP Cluster on
+page 288.
+•
+Rook Ceph: You do not have to provide additional information after selecting Rook Ceph.
+Note:  Ensure that you have enable the Rook Ceph Cluster application.
+•
+Manual Bucket Configuration: Provide the necessary URL and credentials for accessing the S3-
+compatible storage as follows:
+•
+Endpoint: The endpoint URL for the S3-compatible object storage.
+•
+Access Key: The key used to access the S3-compatible storage.
+•
+Secret Key: The secret associated with the access key.
+•
+Region: The geographical region where the bucket is hosted.
+•
+Bucket: The name of the specific bucket where you store the container images.
+6.
+Click Enable.
+7.
+In the Platform Applications page, click the Configuration tab and verify the Harbor application
+details.
+8.
+Retrieve the Harbor registry URL:
+echo "https://$(kubectl get kommandercluster -A -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].status.ingress.address}'):5000"
+9.
+Retrieve default password for Harbor admin:
+kubectl get secrets -n ncr-system harbor-admin-password -o
+ jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d
+10. Create a custom user for Harbor:
+Harbor has its own user management system, and the UI login credentials are validated by Harbor's
+authentication services. You can create separate accounts such as machine accounts for pulling
+images and human accounts for UI access. For more information on Harbor user management, see
+Managing Users.
+a. Log in to Harbor UI with default credentials:
+‘admin/<retrieved-password>’
+b. Select Administration > Users > NEW USER.
+c. Enter information in all the fields and save.
+d. (Optional) To assign an administration role to a newly created user, select the custom user and
+click SET AS ADMIN.
+An end users can use this user credentials for administration tasks instead of the default user
+generated by Harbor.
+Nutanix Kubernetes Platform | Cluster Operations Management | 284
+
+--- page 285 ---
+What to do next
+On completion of the steps above, you can perform the following steps to deploy harbor:
+•
+Preparing a Local Registry Mirror on page 713
+•
+Pushing Images to the Registry on page 714
+Storage Requirements for Harbor
+Ensure that storage requirements are according to the following recommendations.
+•
+It is recommended you have 100 GB storage space for most use cases.
+•
+To use Harbor as an Open Container Initiative (OCI) registry for charts and other artifacts, ensure that
+you have sufficient storage based on the size of the artifacts and charts.
+•
+To use Harbor as a pull-through cache for temporarily storing images, ensure that you have sufficient
+storage based on the number of images you need to cache.
+•
+To use integrated Rook Ceph, increase the available storage. Integrated Rook Ceph provides about 120
+GB of usable space by default, and that space is shared with logging and backups. Rook Ceph uses
+erasure coding, so you can use only 75 percent of the raw space. If you add 100 GB, you can store
+about 75 GB of data. Apply the change through an AppDeployment override. Do not edit the defaults
+ConfigMap. For the procedure, see Increasing Rook Ceph Storage Capacity on page 651. For sample
+layouts, see Rook Ceph Cluster Sizing Recommendations on page 276.
+The following override scales out from the default 4 x 40 GiB to 8 x 40 GiB. Copy the full
+storageClassDeviceSets entry from the defaults ConfigMap before you change count:
+cephClusterSpec:
+  labels:
+    monitoring:
+      prometheus.kommander.d2iq.io/select: "true"
+  storage:
+    storageClassDeviceSets:
+      - name: rook-ceph-osd-set1
+        count: 8 # Refers to the number of PVs
+        portable: true
+        encrypted: false
+        placement:
+          topologySpreadConstraints:
+          - maxSkew: 1
+            topologyKey: topology.kubernetes.io/zone # The nodes in the same rack
+ have the same topology.kubernetes.io/zone label.
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-osd
+                    - rook-ceph-osd-prepare
+          - maxSkew: 1
+            topologyKey: kubernetes.io/hostname
+            whenUnsatisfiable: ScheduleAnyway
+            labelSelector:
+              matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                    - rook-ceph-osd
+Nutanix Kubernetes Platform | Cluster Operations Management | 285
+
+--- page 286 ---
+                    - rook-ceph-osd-prepare
+        volumeClaimTemplates:
+          - metadata:
+              name: data
+            spec:
+              resources:
+                requests:
+                  storage: 40Gi # Size of each PV
+              volumeMode: Block
+              accessModes:
+                - ReadWriteOnce
+Authentication types for launching workloads
+Configure Certificate authority (CA) certificates to ensure the following:
+•
+Secure TLS connections and cluster-wide credentials for management and workload clusters.
+•
+Enabling secure and streamlined access to Harbor.
+•
+Authenticated and encrypted communication between NKP clusters and the registry.
+•
+Protection of sensitive image data.
+•
+Simplify deployments.
+Configure the CA certificate only if the NKP cluster where you install Harbor is installed is using an ingress
+TLS certificate that was signed by a CA that is not included in the OS trust bundles (private CA).
+The authentication is different for Nutanix infrastructure and non-Nutanix infrastructure.
+Authentication for Nutanix Providers
+You can configure NKP clusters using the Nutanix provider with multiple image registries, including
+authentication and the CA certificate setup. You can configure through the CLI or UI. However, there are
+limited options through the UI only when launching a new NKP cluster. NKP clusters with Nutanix provider
+can be configured with a registry mirror.
+Configuring Through NKP UI
+Configure the Harbor registry of the management cluster as a private registry when launching a managed
+cluster. You can configure this through the NKP UI
+•
+Image Registry Mirror: This is a general registry for pulling images from public registries. The NKP
+platform application images will be pulled from this registry. If you don’t have a registry mirror, provide
+docker.io credentials here to avoid DockerHub registry pull limits.
+•
+Private Registry: Enter information about the Harbor registry :
+URL:
+Specify the location where the Harbor registry is running.
+Username and Password:
+Specify the username and password. The username and password are required for cluster-wide
+authentication of the newly launched cluster.
+CA Certificate:
+Provide a custom CA certificate if Harbor is running on an NKP cluster with ingress TLS certificate
+that was signed by a private CA.
+Nutanix Kubernetes Platform | Cluster Operations Management | 286
+
+--- page 287 ---
+You cannot change this configuration using the UI. For reconfiguring private image registries, reconfigure
+through CLI.
+Configuring Through CLI
+Use CLI to configure additional image registries on NKP Nutanix clusters after the initial cluster launch. You
+can adjust configuration on management and managed clusters. It is recommended to create a dedicated
+Harbor user or a Harbor robot user and provide a dedicated set of credentials for each NKP cluster.
+Create a secret with credentials and CA certificate that will be used by containerd.
+REGISTRY_USERNAME="username"
+REGISTRY_PASSWORD="password"
+kubectl create secret generic harbor-registry-credentials \
+ --from-literal username=$REGISTRY_USERNAME \
+ --from-literal password=$REGISTRY_PASSWORD \
+ --from-file=ca.crt=<(kubectl -n kommander get nkpcluster -l 'kommander.d2iq.io/
+host=true' -o jsonpath='{.items[0].kommanderCluster.status.ingress.caBundle}' | base64
+ -d)
+•
+Include username and password only if cluster-wide authentication is required.
+•
+Include ca.crt if Harbor is installed on cluster with a TLS certificate that is signed by a private CA
+•
+You can create a secret with ca.crt without providing a username and password.
+•
+If you include the username and password in the secret, the registry is authenticated at the cluster level.
+•
+If only the ca.crt value will be present in the secret then the containerd will be able establish verified
+TLS connections to the private registry but won’t be able to pull images from Harbor projects that
+require authentication. A Kubernetes imagePullSecret can be then used to provide credentials per
+workload.
+•
+Get the address of Harbor installed on management cluster:
+echo "https://$(kubectl -n kommander get nkpcluster -l 'kommander.d2iq.io/host=true'
+ -o jsonpath='{.items[0].kommanderCluster.status.ingress.address}'):5000"
+•
+Modify the NKP cluster resource and add new image registry configuration to the
+.spec.capiCluster.topolgy.variables.imageRegistries section and replace the
+HARBOR_ADDRESS with the address from the previous step.
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: <NAME>
+  namespace: kommander
+spec:
+  capiCluster:
+    topology:
+      variables:
+        - name: clusterConfig
+          value:
+            imageRegistries:
+            - url: <HARBOR_ADDRESS>
+              credentials:
+                secretRef:
+                  name: harbor-registry-credentials
+Changing the image registry configuration will result in a rolling upgrade of all nodes in a cluster.
+Nutanix Kubernetes Platform | Cluster Operations Management | 287
+
+--- page 288 ---
+Configuring through Harbor
+Harbor supports multiple authentication modes, including database, LDAP/AD, and OpenID Connect
+(OIDC), which should be selected during initial deployment. Once user accounts are created in database
+mode, switching to another authentication method is not allowed. For more information, see Configuring
+Authentication.
+You can install Harbor within the management cluster using catalog applications. After you install, you
+must ensure you have the correct authorizations for image access. You can use Harbor to store and scan
+images from both management and managed clusters. Therefore, you must manage authorizations as per
+your requirements.
+Limitations for non-Nutanix Infrastructure Providers
+For non-Nutanix infrastructure providers such as AWS, vSphere, or GCP, you can provide Harbor
+configuration only as a single cluster-wide registry mirror. Therefore, each image pulled to the cluster will
+be first attempted with the registry mirror, even for container images that are hosted in public registries like
+docker.io which can increase the load on Harbor.
+The limitations of non-Nutanix infrastructure providers are as follows:
+•
+You can configure and apply Harbor settings only during the initial creation of the cluster.
+•
+You can only use Harbor as a registry mirror which you can use as a local cache for images pulled from
+a remote registry.
+•
+After you launch the cluster, you cannot change the Harbor configuration. You cannot modify the
+registry URL, credentials, or any other related settings.
+Configuring and Enabling COSI Driver for Nutanix in an NKP Cluster
+This topic provides the instructions to configure the COSI Driver for Nutanix on an NKP cluster to enable
+seamless integration with Nutanix Object Storage.
+About this task
+To configure the COSI Driver for Nutanix on an NKP cluster, follow these steps:
+Procedure
+1. Configure Nutanix Object Storage in Prism Central, if not configured already.
+a. Enable Objects in Nutanix Marketplace.
+For more information, see Enabling Objects.
+b. Create an Object Store from Prism Central.
+For more information, see Creating or Deploying an Object Store on Prism Central.
+Nutanix Kubernetes Platform | Cluster Operations Management | 288
+
+--- page 289 ---
+2. Configure the COSI Driver for Nutanix in the NKP UI.
+a. Log in to the NKP Management Cluster UI.
+b. Select Management Cluster Workspace from the dropdown menu.
+c. On the left navigation page, select Applications as the storage provider.
+d. Search for COSI Driver for Nutanix.
+e. Select the triple dot vertical icon on the application card and click Enable.
+f.
+In the Enable Workspace Platform Application dialog box, enter the following details:
+•
+Prism Central Endpoint: Enter the PC endpoint URL as https://<PRISM_CENTRAL_IP>:9440
+•
+Prism Central Username: Enter the PC administrator username.
+•
+Prism Central Password: Enter the PC administrator password.
+•
+Enable TLS Validation: You can provide the Prism Central CA (Certificate Authority) certificate.
+This is a recommended but optional step. This certificate is used to validate the TLS connection
+and ensure secure communication between the NKP Cluster and Prism Central.
+To provide the certificate, select the Enable TLS Validation checkbox. Then, you can either
+select the Upload File button to import the CA certificate, or paste the certificate into the text
+field.
+•
+Nutanix Object Storage Endpoint: Enter the Nutanix Object Storage Endpoint URL: http://
+<nutanix-object-endpoint-ip/fqdn>:<port-number> or https://<nutanix-object-
+endpoint-ip/fqdn>:<port-number>
+•
+The Nutanix Object Storage Endpoint URL is referred as Public Network static IPs in
+Nutanix Objects.
+•
+If you do not enter a port number , then port 80 is configured as the default port.
+•
+Enable TLS Validation: You can provide the Nutanix Object Storage CA (Certificate Authority)
+certificate. This is a recommended but optional step. This certificate is used to validate the
+TLS connection and ensure secure communication between the NKP Cluster and Nutanix
+Object Storage .
+To provide the certificate, select the Enable TLS Validation checkbox. Then, you can either
+select the Upload File button to import the CA certificate, or paste the certificate into the text
+field.
+•
+Nutanix Object Access Key
+•
+Nutanix Object Secret Key
+Note:  TLS requires a secure connection. Please ensure the URL starts with https:// when you
+enable TLS.
+g. Click Enable.
+The COSI Driver for Nutanix application is enabled.
+Using Harbor on an NKP Cluster
+This topic provides instructions for using Harbor as an additional private image registry as an NKP
+management cluster on Nutanix infrastructure. You can configure your clusters to securely pull container
+images from Harbor, enhancing security, reliability, and efficiency in managing container images across
+NKP environments.
+Nutanix Kubernetes Platform | Cluster Operations Management | 289
+
+--- page 290 ---
+Before you begin
+Ensure you complete the following:
+•
+Install NKP Management or Workload Cluster running on Nutanix infrastructure.
+•
+Access to the NKP UI with administrative privileges.
+•
+Install and configure the Kubernetes CLI kubectl to interact with your cluster.
+•
+Access to Kubernetes cluster with the necessary permissions to create secrets and modify cluster
+configurations.
+•
+Deploy and enable Harbor.
+•
+Create Harbor registry credentials.
+•
+Install Docker on your local machine.
+For more information, see Managing Users.
+•
+A valid container image to push to Harbor.
+•
+Network connectivity between the cluster nodes and Harbor.
+To use Harbor on an NKP management cluster on Nutanix infrastructure, follow these steps:
+Procedure
+1. Use admin credentials to create a robot account for every cluster.
+For more information on how to create a robot account , see Create Project Robot Accounts.
+2. Create a secret in Kubernetes for Harbor authentication using the robot account credentials you created
+in the previous step.
+3. Modify the managed cluster resource:
+kubectl edit nkpcluster -n kommander <WORKLOAD_CLUSTER_NAME>
+4. Update the imageRegistries:
+imageRegistries:
+- url: https://<HARBOR_ADDRESS>:5000
+  credentials:
+    secretRef:
+      name: harbor-registry-credentials
+Save and verify the changes.
+5. Export the Harbor registry address:
+export HARBOR_ADDRESS="$(kubectl -n kommander get kommandercluster -l
+ 'kommander.d2iq.io/host=true' -o jsonpath='{.items[0].status.ingress.address}')"
+This authenticates Docker with Harbor.
+6. Modify deployment configuration to use Harbor:
+spec:
+  containers:
+    - name: my-app
+Nutanix Kubernetes Platform | Cluster Operations Management | 290
+
+--- page 291 ---
+      image: <HARBOR_ADDRESS>:5000/library/my-app:latest
+a. Deploy the application:
+kubectl apply -f my-app-deployment.yaml
+b. Verify the deployment:
+kubectl get pods -n <namespace>
+7. (Optional) Configure authentication for NKP clusters that need to access images for launching
+workloads:
+a. Log on to Harbor, navigate to the dashboard, and create a new username and password.
+b. In the management cluster, create a secret ("harbor-registry-credentials" ) to store your Harbor
+credentials ("username"/"password")
+This Harbor registry credentials allow the Management cluster to pull images from Harbor on the
+Management Cluster to deploy an app.
+c. After the deployment, fetch the Ingress TLS certificate (TLS certificate) in case it is generated.
+kubectl get kommandercluster -n kommander -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].status.ingress.caBundle}' | base64 -d > ca.crt
+Store the ca.crt for future configuration.
+d. To enable secure access to Harbor, update the registry configuration by creating a secret.
+REGISTRY_USERNAME="username"
+REGISTRY_PASSWORD="password"
+kubectl create secret generic harbor-registry-credentials \
+--from-literal username=$REGISTRY_USERNAME \
+--from-literal password=$REGISTRY_PASSWORD \
+--from-file=ca.crt=<(kubectl -n kommander get kommandercluster -o
+ jsonpath='{.status.ingress.caBundle}' | base64 -d)
+Note:  Include the ca.crt only if the Harbor installation uses a private CA signed certificate.
+Using Harbor as a Mirror Registry or a Private Registry for Clusters
+This topic provides instructions for configuring Harbor running on the NKP management cluster as a mirror
+registry for NKP clusters. Using Harbor as a mirror registry ensures that clusters pull images from a local
+registry, reducing latency, external dependencies, and security risks. This topic described the process to
+configure Harbor as a mirror registry or a private registry through the NKP UI.
+About this task
+Note:  You can deploy Harbor as mirror registry for clusters across all infrastructure providers.
+Before you begin
+•
+NKP Management or Workload Cluster installed and running on your infrastructure.
+•
+Access to the NKP UI with administrative privileges.
+•
+The Kubernetes CLI kubectl is installed and configured to interact with your cluster.
+•
+Access to Kubernetes cluster with the necessary permissions to create secrets and modify cluster
+configurations.
+Nutanix Kubernetes Platform | Cluster Operations Management | 291
+
+--- page 292 ---
+•
+Deploy and enable Harbor.
+•
+Create Harbor registry credentials.
+•
+Install Docker on your local machine.
+To use Harbor as a mirror registry or a private registry on an NKP cluster, follow these steps:
+Procedure
+1. Deploy Harbor as described in Deploying Harbor on a Management Cluster on page 282.
+2. Log into the Harbor UI using the following credentials.
+•
+Username: admin
+•
+Password: Retrieve the password.
+kubectl get secrets -n ncr-system harbor-admin-password -o
+ jsonpath='{.data.HARBOR_ADMIN_PASSWORD}' | base64 -d
+3. Go to Users  > New User and complete the following fields:
+Use robot accounts for machine or cluster authentication. For more information on how to create a robot
+account , see Create Project Robot Accounts.
+•
+Username: <custom_user>
+•
+Email
+•
+First and last name
+•
+Password: <secure_password>
+•
+Confirm Password
+a. Click OK.
+b. To provide administrator privileges for users, select the check box of the corresponding user and
+click SET AS ADMIN.
+4. Create a secret in Kubernetes for Harbor authentication using the robot account credentials you created
+in the previous step.
+5. To configure the NKP management cluster to use Harbor, retrieve the Harbor address.
+echo "https://$(kubectl -n kommander get kommandercluster -l 'kommander.d2iq.io/
+host=true' -o jsonpath='{.items[0].status.ingress.address}'):5000"
+a. Modify the cluster resource through the NKP UI.
+Select Clusters > Create Cluster > Image Registries
+b. Enter details. of Harbor.
+c. In the CA Certificate section, click Upload File to upload the ca.crt certificate.
+Nutanix Kubernetes Platform | Cluster Operations Management | 292
+
+--- page 293 ---
+6. To deploy a managed cluster with Harbor mirror registry.
+a. Navigate to Clusters > Create New Cluster.
+b. Under Private Registry, select Harbor Mirror Registry.
+c. Upload the ca.crt file.
+d. Verify the managed cluster configuration:
+kubectl get nkpclusters -A
+kubectl get nkpcluster -n <WORKSPACE_NAMESPACE> <NKPCLUSTER_NAME> -o yaml
+7. To deploy and validate the image usage from the Harbor mirror registry, push and pull an image to the
+Harbor mirror registry.
+docker pull alpine
+docker tag alpine $HARBOR_ADDRESS:5000/library/alpine
+docker push $HARBOR_ADDRESS:5000/library/alpine
+a. Deploy a pod from the Harbor mirror registry:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: image-registry-test
+spec:
+  containers:
+    - name: alpine
+      image: $HARBOR_ADDRESS:5000/library/alpine
+      command: ["/bin/sh", "-c", "sleep 100000"]
+kubectl apply -f image-registry-pod-test.yaml
+8. To validate the registry configuration on a managed cluster, check the secret on the managed cluster.
+kubectl get secret -n <WORKSPACE_NAMESPACE> <NKPCLUSTER_NAME>-image-registry-
+credentials -o yaml
+    
+Pushing a Container Image to Harbor
+You can push a container image to Harbor.
+About this task
+To push a container image to Harbor, follow these steps:
+Procedure
+1. Configure TLS trust.
+For more information, see Configuring Docker with a Harbor TLS Certificate  on page 294.
+2. Authenticate the local docker daemon.
+Ensure that you have the HARBOR_ADDRESS environment variable before running the commands in
+this procedure. You can configure this when Harbor is running on a management cluster.
+export HARBOR_ADDRESS="$(kubectl -n kommander get kommandercluster nkp-cluster -o
+ jsonpath='{.status.ingress.address}')"
+Nutanix Kubernetes Platform | Cluster Operations Management | 293
+
+--- page 294 ---
+3. Push a container image to Harbor:
+a. Pull a sample image from Docker Hub:
+docker pull alpine:latest
+b. Tag the image to match the address of Harbor:
+docker tag alpine:latest $HARBOR_ADDRESS:5000/library/alpine:latest
+c. Push the image to Harbor:
+docker push $HARBOR_ADDRESS:5000/library/alpine:latest
+d. Verify if the image is available in the Harbor UI.
+Configuring Docker with a Harbor TLS Certificate
+If Harbor is running in an NKP cluster that uses an ingress TLS certificate that is from a private Certificate
+Authority or a self-signed certificate, then configure the Docker daemon to trust the ingress certificate.
+About this task
+Perform this procedure on the user machine where the docker CLI is used to push and pull from the Harbor
+registry.
+To configure the Docker daemon to trust the ingress certificate, follow these steps:
+Procedure
+1. Verify if the cluster is using a custom certificate:
+kubectl get nkpcluster -n kommander -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].kommanderCluster.status.ingress.caBundle}'
+2. Switch to a privileged user as sudo -s and configure the Docker daemon to trust the ingress certificate.
+sudo mkdir -p /etc/docker/certs.d/$HARBOR_ADDRESS:5000/
+kubectl -n kommander get nkpcluster -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].kommanderCluster.status.ingress.caBundle}' | base64 -d | sudo
+ tee /etc/docker/certs.d/$HARBOR_ADDRESS:5000/ca.crt > /dev/null
+3. (Optional) If you use MacOS, save these certificates to the ~/.docker/certs.d/ directory. For more
+information, see Directory structures for certificates
+4. Restart Docker Desktop after making any certificate configuration changes.
+Platform Applications
+When attaching a cluster, Nutanix Kubernetes Platform (NKP) deploys certain platform applications on the
+newly attached cluster. Operators can use the NKP UI to customize which platform applications to deploy
+to the attached clusters in a given workspace. For more information and to check the defaults and their
+current versions, see NKP Release Notes on the Nutanix Support Portal.
+For more information on the applications supported for management and workload clusters, see Supported
+Platform Applications on page 295.
+It is important to note the platform dependencies when customizing the platform applications to ensure
+that your applications are deployed to the clusters. For more information, see Platform Applications
+Dependencies For All Clusters on page 298.
+Nutanix Kubernetes Platform | Cluster Operations Management | 294
+
+--- page 295 ---
+Supported Platform Applications
+This topic contains all the applications that are currently for use with Nutanix Kubernetes Platform (NKP).
+Table 22: Supported Applications per NKP Licenses
+NKP Starter
+NKP Pro
+NKP Ultimate
+Applications
+Management
+Cluster
+Workload
+Cluster
+Management
+Cluster
+Workload
+Cluster
+Management
+Cluster
+Workload
+Cluster
+AI Navigator
+App
+X
+X
+AI Navigator
+Cluster Info
+Agent
+X
+X
+AI Navigator
+RAG
+X
+X
+Centralized
+Grafana
+X
+Cert Manager X
+X
+X
+X
+X
+X
+Cilium
+Hubble Relay
+Traefik
+X
+X
+X
+X
+Cloudnative
+PG
+X
+X
+X
+X
+COSI Driver
+Nutanix
+X
+X
+X
+X
+Dex
+X
+X
+X
+Dex K8s
+Authenticator
+X
+X
+X
+External DNS
+X
+X
+X
+X
+External
+Secrets
+X
+X
+X
+Fluent Bit
+X
+X
+X
+X
+Flux
+X
+X
+X
+X
+X
+X
+Gatekeeper
+X
+X
+X
+X
+X
+X
+Gateway API
+CRDs
+X
+X
+X
+X
+X
+X
+Git Operator
+X
+X
+X
+Grafana
+Logging
+X
+X
+X
+X
+Grafana Loki
+X
+X
+X
+X
+Nutanix Kubernetes Platform | Cluster Operations Management | 295
+
+--- page 296 ---
+NKP Starter
+NKP Pro
+NKP Ultimate
+Applications
+Management
+Cluster
+Workload
+Cluster
+Management
+Cluster
+Workload
+Cluster
+Management
+Cluster
+Workload
+Cluster
+Harbor
+X
+X
+Istio Helm
+X
+X
+X
+X
+Jaeger
+X
+X
+X
+X
+Karma
+X
+Kiali
+X
+X
+X
+X
+Knative
+X
+X
+X
+X
+Kube OIDC
+Proxy
+X
+X
+X
+X
+X
+X
+Kube
+Prometheus
+Stack
+X
+X
+X
+X
+OpenCost
+X
+X
+Kubernetes
+Dashboard
+X
+X
+X
+X
+Kubetunnel
+X
+X
+X
+X
+Logging
+Operator
+X
+X
+X
+X
+NKP Insights
+X
+X
+NKP Insights
+Management
+X
+NKP Pulse
+Management
+X
+X
+X
+NKP Pulse
+Workspace
+X
+X
+X
+NVIDIA GPU
+Operator
+X
+X
+X
+X
+AMD GPU
+Operator
+X
+X
+X
+X
+AMD KMM
+Operator
+X
+X
+X
+X
+Project
+Grafana
+Logging
+X
+X
+Project
+Grafana Loki
+X
+X
+Project
+Logging
+X
+X
+Nutanix Kubernetes Platform | Cluster Operations Management | 296
+
+--- page 297 ---
+NKP Starter
+NKP Pro
+NKP Ultimate
+Applications
+Management
+Cluster
+Workload
+Cluster
+Management
+Cluster
+Workload
+Cluster
+Management
+Cluster
+Workload
+Cluster
+Prometheus
+Adapter
+X
+X
+X
+X
+Reloader
+X
+X
+X
+X
+X
+X
+Rook Ceph
+X
+X
+X
+X
+Rook Ceph
+Cluster
+X
+X
+X
+X
+Thanos
+X
+Traefik
+X
+X
+X
+X
+X
+X
+Traefik
+ForwardAuth
+X
+X
+X
+Traefik
+Forward Auth
+Mgmt
+X
+X
+X
+Velero
+X
+X
+X
+X
+vGPU Token
+Operator
+X
+X
+X
+X
+Deploying Platform Applications Using CLI
+This topic describes how to use the CLI to enable an application to deploy to managed and attached
+clusters in a workspace.
+Before you begin
+Before you begin, you must have:
+•
+A running cluster with Kommander installed.
+•
+An existing Kubernetes cluster attached to Kommander (see Attaching an Existing Kubernetes Cluster
+on page 426).
+•
+Determine the name of the workspace where you wish to perform the deployments. You can use
+the nkp get workspaces command to view the list of workspace names and their corresponding
+namespaces.
+•
+Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace where
+the cluster is attached:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+•
+Set the WORKSPACE_NAME environment variable to the name of the workspace where the cluster is
+attached:
+export WORKSPACE_NAME=<workspace_name>
+Warning:  From the CLI, you can enable applications to deploy in the workspace. Verify that the application
+has successfully deployed through the CLI.
+Nutanix Kubernetes Platform | Cluster Operations Management | 297
+
+--- page 298 ---
+To create the AppDeployment, enable a supported application to deploy to your existing attached or
+managed cluster with an AppDeployment resource (see AppDeployment Resources on page 271).
+Procedure
+1. Obtain the APP ID and Version of the application. For more information, see NKP Release Notes on
+the Nutanix Support Portal.
+You must add them in the <APP-ID>-<Version> format, for example, kiali-2.24.0.
+2. Run the following command and define the --app flag to specify which platform application and version
+will be enabled.
+nkp create appdeployment kiali --app kiali-2.24.0 --workspace ${WORKSPACE_NAME}
+Note:
+•
+The --app flag must match the APP NAME from the list of available platform applications.
+•
+Observe that the nkp create command must be run with the WORKSPACE_NAME instead of
+the WORKSPACE_NAMESPACE flag.
+This instructs Kommander to create and deploy the AppDeployment to the KommanderClusters in the
+specified WORKSPACE_NAME.
+Verifying the Deployed Platform Applications
+You must verify the status of your platform applications after the platform applications are deployed.
+Procedure
+Connect to the attached cluster and watch the HelmReleases to verify the deployment. In this example, we
+are checking whether kiali is deployed correctly.
+kubectl get helmreleases kiali -n ${WORKSPACE_NAMESPACE} -w
+HelmRelease must be marked as Ready.
+NAMESPACE               NAME        READY   STATUS                             AGE
+workspace-test-vjsfq    kiali       True    Release reconciliation succeeded   7m3s
+Some supported applications have dependencies on other applications. For more information, see Platform
+Applications Dependencies For All Clusters on page 298.
+Platform Applications Dependencies For All Clusters
+Platform applications deployed to management and workspace-attached clusters often depend on each
+other. When you customize these platform applications, identify and document their dependencies to
+ensure their successful deployment across clusters.
+As you deploy or troubleshoot platform applications, understand how they interact and rely on other
+applications as dependencies. If a required dependency of a platform application fails to deploy, any
+dependent application also fails to deploy. For more information on the applications supported per license
+for management and workload clusters, see Supported Platform Applications on page 295.
+1. To view the applications that are enabled or disabled in each category, verify their status:
+kubectl get apps,clusterapps,appdeployments -A 
+Nutanix Kubernetes Platform | Cluster Operations Management | 298
+
+--- page 299 ---
+2. After enabling the applications, deploy the HelmReleases.
+To check whether the HelmReleases are deployed, connect to the attached cluster and monitor their
+status. In this example, check if kiali is deployed successfully:
+kubectl get helmreleases kiali -n ${WORKSPACE_NAMESPACE} -w
+You must see the HelmRelease marked as Ready:
+NAMESPACE               NAME        READY   STATUS                             AGE
+workspace-test-vjsfq    kiali       True    Release reconciliation succeeded   7m3s
+Foundational Applications
+Provides the foundation for all platform application capabilities and deployments on management and
+managed clusters. You must enable the foundational applications for any platform applications to work
+properly.
+The foundational applications comprise of the following platform applications:
+•
+flux: A tool that keeps Kubernetes clusters in sync with sources of configuration such as Git
+repositories, and automates updates to configuration when there is new code to deploy. For more
+information, see Flux.
+•
+reloader: A Kubernetes controller that automatically reloads values for ConfigMaps and Secrets in
+Pods. For more information, see Reloader.
+•
+traefik: Provides an HTTP reverse proxy and load balancer. For more information, see Traefik.
+Table 23: Foundational Applications
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Flux
+[Applicable for both
+management and
+managed clusters]
+kommander-flux
+Yes
+N/A
+N/A
+Reloader
+[Applicable for both
+management and
+managed clusters]
+reloader
+No
+N/A
+N/A
+Traefik
+[Applicable for both
+management and
+managed clusters]
+traefik
+No
+N/A
+•
+cert-manager
+•
+reloader
+Logging
+Collects logs over time from Kubernetes and applications deployed on management and managed
+clusters. Logging enables you to visualize and query the aggregated logs.
+•
+fluent-bit: An open source and multi-platform log processor tool that is designed to be a generic
+Swiss knife for logs processing and distribution. For more information, see Fluent Bit documentation.
+Nutanix Kubernetes Platform | Cluster Operations Management | 299
+
+--- page 300 ---
+•
+grafana-logging: A logging dashboard to view the logs aggregated to Grafana Loki. For more
+information, see Grafana.
+•
+grafana-loki: A horizontally-scalable, highly-available, multi-tenant log aggregation system inspired
+by Prometheus. For more information, see Grafana Loki.
+•
+logging-operator: An operator automates the deployment and configuration of a Kubernetes logging
+pipelines. For more information, see Logging Operator.
+•
+project-grafana-logging: A logging dashboard to view the project logs aggregated to Grafana Loki.
+For more information, see Grafana.
+•
+project-grafana-loki: A horizontally-scalable, highly-available, multi-tenant log aggregation system
+inspired by Prometheus. For more information, see Grafana Loki.
+•
+project-logging: A Nutanix application that defines resources for the logging operator, which are
+used for directing project logs to its Loki application. For more information, see Logging operator.
+•
+rook-ceph-cluster: The Ceph cluster is managed by Rook Ceph operator and it provides storage
+services in cloud native environments. For more information, see Ceph Cluster Helm Chart.
+•
+rook-ceph: Rook orchestrates the Ceph storage solution, with a specialized Kubernetes operator to
+automate management. For more information, see Ceph Operator Helm Chart.
+Table 24: Logging
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional Dependency
+Fluent Bit
+[Applicable
+for both
+management
+and managed
+clusters]
+fluent-bit
+No
+N/A
+N/A
+Grafana Logging
+[Applicable
+for both
+management
+and managed
+clusters]
+grafana-logging
+No
+N/A
+grafana-loki
+Grafana Loki
+[Applicable
+for both
+management
+and managed
+clusters]
+grafana-loki
+No
+N/A
+rook-ceph-cluster
+Nutanix Kubernetes Platform | Cluster Operations Management | 300
+
+--- page 301 ---
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional Dependency
+Logging Operator
+[Applicable
+for both
+management
+and managed
+clusters]
+logging-operator
+No
+N/A
+N/A
+Project Grafana
+Logging
+[Applicable
+for both
+management
+and managed
+clusters]
+project-grafana-
+logging
+No
+N/A
+project-grafana-loki
+Project Grafana
+Loki
+[Applicable
+for both
+management
+and managed
+clusters]
+project-grafana-
+loki
+No
+N/A
+•
+project-logging
+•
+grafana-loki
+•
+logging-operator
+Project Logging
+[Applicable
+for both
+management
+and managed
+clusters]
+project-logging
+No
+N/A
+logging-operator
+Rook Ceph
+Cluster
+[Applicable
+for both
+management
+and managed
+clusters]
+rook-ceph-cluster
+No
+N/A
+rook-ceph
+Note:  You can
+override the
+configuration
+to remove the
+dependency, as
+needed.
+Rook Ceph
+[Applicable
+for both
+management
+and managed
+clusters]
+rook-ceph
+No
+N/A
+N/A
+Note:  By default, NKP deploys only the monitoring stack and not the logging stack.
+Nutanix Kubernetes Platform | Cluster Operations Management | 301
+
+--- page 302 ---
+Monitoring
+Enables you to collect performance and cost metrics for Kubernetes and applications deployed on
+clusters. Monitoring visualizes metrics and evaluates rule-based expressions to trigger alerts when specific
+conditions are met.
+•
+centralized-grafana: A dashboard that collects centralized metrics and provides visualization and
+alerting capabilities. For more information, see Grafana.
+•
+opencost: Provides real-time cost visibility and insights for Kubernetes workloads. OpenCost helps you
+to continuously reduce your cloud costs. For more information, see OpenCost.
+•
+karma: An alert dashboard for the Prometheus alertmanager. For more information, see Karma.
+•
+kube-prometheus-stack: A stack of applications that collect metrics to provide visualization and
+configuring alerts. For more information, see Kube Prometheus Stack.
+Note:  Kube Prometheus Stack includes Prometheus, Prometheus Alertmanager, and Grafana. For more
+information, see Prometheus, Alertmanager, and Grafana.
+•
+kubernetes-dashboard: A general purpose, web-based UI that enables you to manage applications
+deployed in the cluster, troubleshoot them, and manage the Kubernetes clusters. For more information,
+see Kubernetes Dashboard.
+•
+prometheus-adapter: Provides cluster metrics from Prometheus. For more information, see
+Prometheus Adapter.
+•
+thanos: An open-source, highly available Prometheus-compatible solution that offers unlimited data
+retention through object storage while remaining fully compatible with existing Prometheus tools. For
+more information, see Thanos.
+Table 25: Monitoring
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Centralized
+Grafana
+[Only applicable
+for management
+clusters]
+centralized-grafana
+Yes
+N/A
+N/A
+OpenCost
+[Applicable for both
+management and
+managed clusters]
+opencost
+No
+N/A
+kube-prometheus-
+stack
+Karma
+[Only applicable
+for management
+clusters]
+karma
+Yes
+karma-traefik
+N/A
+Nutanix Kubernetes Platform | Cluster Operations Management | 302
+
+--- page 303 ---
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Full Prometheus
+Monitoring Stack
+[Applicable for both
+management and
+managed clusters]
+kube-prometheus-
+stack
+No
+N/A
+N/A
+Kubernetes
+Dashboard
+[Applicable for both
+management and
+managed clusters]
+kubernetes-
+dashboard
+No
+N/A
+traefik
+Prometheus
+Adapter
+[Applicable for both
+management and
+managed clusters]
+prometheus-
+adapter
+No
+kube-prometheus-
+stack
+N/A
+Thanos
+[Only applicable
+for management
+clusters]
+thanos
+Yes
+N/A
+N/A
+Security
+Enables you to manage the security constraints and capabilities for the clusters.
+•
+cert-manager: Automates the management and issuance of TLS certificate from various issuing
+sources. For more information, see cert-manager.
+•
+external-secrets: External secrets operator is a Kubernetes operator that integrates external secret
+management systems such as AWS secrets manager, HashiCorp Vault, Google Secrets Manager,
+Azure Key Vault, IBM Cloud Secrets Manager, CyberArk Secrets Manager, Pulumi ESC, and so on. The
+external secrets operator reads information from external APIs and automatically injects the values into
+a Kubernetes secret. For more information, see External Secrets Operator.
+•
+gatekeeper: A customizable admission webhook for Kubernetes to enforce policies executed by open
+policy agent (OPA). For more information, see Gatekeeper.
+Table 26: Security
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Cert-Manager
+[Applicable for both
+management and
+managed clusters]
+cert-manager
+No
+N/A
+N/A
+Nutanix Kubernetes Platform | Cluster Operations Management | 303
+
+--- page 304 ---
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+External Secrets
+Operator
+[Applicable for both
+management and
+managed clusters]
+external-secrets
+No
+N/A
+N/A
+Gatekeeper
+[Applicable for both
+management and
+managed clusters]
+gatekeeper
+No
+N/A
+N/A
+Single Sign On (SSO)
+A group of platform applications that enable single sign on (SSO) integration on attached clusters. SSO
+provides a centralized system to securely connect the attached clusters to the centralized authority hosted
+on the managed cluster.
+•
+dex-k8s-authenticator: A helper web application that integrates with one or more Dex identity
+services and provides a unified web UI for managing one or more clusters. For more information, see
+Dex K8 Authenticator.
+•
+dex: An identity service that leverages openID connect (OIDC) to provide authentication for other
+applications. For more information, see Dex.
+•
+kube-oidc-proxy: A proxy that consistently authenticates the managed Kubernetes clusters on multi-
+cloud using openID connect (OIDC). For more information, see Kube-OIDC-Proxy.
+•
+traefik-forward-auth and traefik-forward-auth-mgmt: Installs a forward authentication service
+from Nutanix that provides Google OAuth based authentication for Traefik. For more information, see
+Traefik ForwardAuth.
+Table 27: SSO
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Dex K8s
+Authenticator
+[Only applicable
+for management
+clusters]
+dex-k8s-
+authenticator
+Yes
+•
+dex
+•
+kommander
+•
+traefik
+N/A
+Dex
+[Only applicable
+for management
+clusters]
+dex
+Yes
+N/A
+N/A
+Kube OIDC Proxy
+[Applicable for both
+management and
+managed clusters]
+kube-oidc-proxy
+Yes
+N/A
+•
+cert-manager
+•
+traefik
+Nutanix Kubernetes Platform | Cluster Operations Management | 304
+
+--- page 305 ---
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Traefik
+ForwardAuth
+[Only applicable for
+managed clusters]
+traefik-forward-auth
+Yes
+traefik
+N/A
+Traefik
+ForwardAuth Mgmt
+[Only applicable
+for management
+clusters]
+traefik-forward-
+auth-mgmt
+Yes
+•
+dex
+•
+kommander
+•
+traefik
+N/A
+Backup
+A platform application that assists you securely back up and restore your environment.
+•
+velero: An open source tool to safely back up and restore Kubernetes cluster resources, perform
+disaster recovery, and migrate resources and persistent volumes across Kubernetes cluster. For more
+information, see Velero.
+Table 28: Backup
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Velero
+[Applicable for both
+management and
+managed clusters]
+velero
+No
+N/A
+•
+rook-ceph-
+cluster
+•
+Velero is
+an optional
+dependency.
+You can
+override the
+configuration
+to remove the
+dependency, as
+needed.
+Review the resource requirements of workspace platform application and ensure that the attached clusters
+have sufficient resources. For more information, see Workspace Platform Application Defaults and
+Resource Requirements on page 700
+Platform applications are bundled and tested as a single unit. You must deploy or upgrade the entire
+bundle in one operation per workspace. As a result, all clusters within a workspace run the same set and
+version of the deployed platform applications.
+Service Mesh
+Enables service mesh deployment on clusters to manage microservices in cloud-native applications.
+Service mesh offers several benefits, including:
+•
+Observability into communication
+Nutanix Kubernetes Platform | Cluster Operations Management | 305
+
+--- page 306 ---
+•
+Secure connections
+•
+Automated retries and back-off for failed requests
+•
+istio-helm: Addresses the challenges faced with distributed or microservices architecture. For more
+information, see Istio.
+•
+jaeger: A distributed tracing system used for monitoring and troubleshooting microservices-based
+distributed systems. For more information, see Jaeger.
+•
+kiali: A management console for an Istio-based service mesh that provides dashboards, observability
+tools, and enables you to operate your service with robust configuration and validation. For more
+information, see Kiali.
+Table 29: Service Mesh
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Istio Helm
+[Applicable for both
+management and
+managed clusters]
+istio-helm
+No
+kube-prometheus-
+stack
+N/A
+Jaeger
+[Applicable for both
+management and
+managed clusters]
+jaeger
+No
+istio
+N/A
+Kiali
+[Applicable for both
+management and
+managed clusters]
+kiali
+No
+istio
+jaeger
+(optional for
+monitoring
+purposes)
+Nutanix Kubernetes Platform (NKP) AI Navigator
+Coupled with the AI Navigator, it analyses the data of your cluster to include live information on queries
+made through the AI Navigator chatbot.
+•
+ai-navigator-info-api: A chatbot with advanced artificial intelligence used for seamless Kubernetes
+cluster management and NKP environment optimization. The AI Navigator application is enabled by
+default and included in the AI Navigator.
+•
+ai-navigator-cluster-info-agent: Includes the cluster information agent and API service. The AI
+Navigator Cluster Info Agent collects information about the NKP cluster and sends it to the AI Navigator
+service.
+•
+ai-navigator-rag: A component that provides NKP AI Navigator with documentation and interfaces it
+with an external large language models (LLM).
+For more information, see AI Navigator on page 1073.
+Nutanix Kubernetes Platform | Cluster Operations Management | 306
+
+--- page 307 ---
+Table 30: NKP AI Navigator
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+AI Navigator App
+[Only applicable
+for management
+clusters]
+ai-navigator-app
+No
+N/A
+N/A
+AI Navigator
+Cluster Info Agent
+[Only applicable
+for management
+clusters]
+ai-navigator-cluster-
+info-agent
+No
+cloudnative-pg
+N/A
+AI Navigator RAG
+[Only applicable
+for management
+clusters]
+ai-navigator-rag
+No
+cloudnative-pg
+N/A
+NKP Insights
+Analyses the health of your health, detects current and future anomalies, and creates alerts that offer root
+cause analysis and recommended solutions.
+•
+nkp-insights: Also known as NKP Insights engine that collects events and metrics from your cluster
+and applies rule-based heuristics to detect potential anomalies of across different levels of severity.
+•
+nkp-insights-management: Also known as NKP Insights Management that collects anomaly alerts
+from one or more clusters and displays root cause analysis and recommended solutions in the UI.
+For more information, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Table 31: NKP Insights
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+NKP Insights
+[Applicable for both
+management and
+managed clusters]
+nkp-insights
+No
+•
+kube-
+prometheus-
+stack
+•
+cloudnative-pg
+N/A
+NKP Insights
+Management
+[Only applicable
+for management
+clusters]
+nkp-insights-
+management
+Yes
+kubefed
+N/A
+Nutanix Kubernetes Platform | Cluster Operations Management | 307
+
+--- page 308 ---
+General
+•
+cloudnative-pg: A comprehensive open source platform designed to seamlessly manage PostgreSQL
+databases within Kubernetes environments. For more information, see CloudNativePG.
+•
+cosi-driver-nutanix: An interface that seamlessly manage provisioning of object storage resources
+on Nutanix platforms within Kubernetes environments adhering to COSI standard. For more information,
+see COSI Driver Nutanix.
+•
+harbor: A cloud native registry used for storing, signing, and scanning container images. For more
+information, see Harbor.
+•
+knative: A Kubernetes-based platform to build, deploy, and manage modern serverless workloads. For
+more information, see Knative Technical Overview.
+•
+nvidia-gpu-operator: The NVIDIA GPU Operator manages the NVIDIA GPU resources in
+Kubernetes cluster and automates tasks related to bootstrapping the GPU nodes. For more information,
+see NVIDIA GPU Operator.
+•
+amd-gpu-operator: The AMD GPU Operator manages AMD GPU resources in a Kubernetes cluster,
+including driver build and load, DRA, metrics, and optional remediation.
+•
+amd-kmm-operator: The AMD KMM Operator provides the shared Kernel Module Management
+instance and private-registry integration used by the AMD GPU Operator.
+•
+vgpu-token-operator: A Kubernetes native way to handle VGPU tokens and license validation. For
+more information, see vGPU Token Operator.
+Table 32: General
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+CloudNativePG
+[Applicable for both
+management and
+managed clusters]
+cloudnative-pg
+No
+N/A
+N/A
+COSI Driver
+Nutanix
+[Applicable for both
+management and
+managed clusters]
+cosi-driver-nutanix
+No
+N/A
+N/A
+Harbor
+[Only applicable
+for management
+clusters]
+harbor
+No
+cloudnative-pg
+N/A
+Knative
+[Applicable for both
+management and
+managed clusters]
+knative
+No
+istio
+N/A
+Nutanix Kubernetes Platform | Cluster Operations Management | 308
+
+--- page 309 ---
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+NVIDIA GPU
+Operator
+[Applicable for both
+management and
+managed clusters]
+nvidia-gpu-operator
+No
+N/A
+N/A
+AMD GPU
+Operator
+[Applicable for both
+management and
+managed clusters]
+amd-gpu-operator
+No
+N/A
+amd-gpu-operator
+AMD KMM
+Operator
+[Applicable for both
+management and
+managed clusters]
+amd-kmm-operator
+No
+N/A
+N/A
+vGPU Token
+Operator
+[Applicable for both
+management and
+managed clusters]
+vgpu-token-
+operator
+No
+N/A
+N/A
+Tools
+•
+external-dns: ExternalDNS synchronizes the exposed Kubernetes services and ingresses with the
+DNS providers. For more information, see External DNS.
+Table 33: Tools
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+External DNS
+[Applicable for both
+management and
+managed clusters]
+external-dns
+No
+N/A
+N/A
+Networking
+Interna apps: - Need category, definition, and reference links for the following:
+•
+cilium-hubble-relay-traefik: Exposes the Cilium Hubble Relay gRPC service through Traefik with
+TLS passthrough enabled, since Hubble Relay handles mTLS termination.
+•
+gateway-api-crds: Gateway API is an interface that defines a set of Kubernetes resources and
+models service networking in Kubernetes. For more information, see Gateway API.
+Nutanix Kubernetes Platform | Cluster Operations Management | 309
+
+--- page 310 ---
+•
+kubetunnel: Enables access to the API server of a remote cluster without ingress by establishing
+a secure tunnel. For more information, see Cluster Attachment with Networking Restrictions on
+page 445
+Table 34: Networking
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+Cilium Hubble
+Relay Traefik
+[Applicable for both
+management and
+managed clusters]
+cilium-hubble-relay-
+traefik
+Yes
+traefik
+N/A
+Gateway API CRDs
+[Applicable for both
+management and
+managed clusters]
+gateway-api-crds
+Yes
+N/A
+N/A
+Kubetunnel
+[Applicable for both
+management and
+managed clusters]
+kubetunnel
+Yes
+N/A
+N/A
+NKP Pulse
+•
+nkp-pulse-management: An application or component within NKP that automatically sends telemetry
+data to improve diagnostics and product performance. NKP Pulse management simplifies Kubernetes
+lifecycle management by provisioning, scaling, and upgrades across hybrid and multi-cloud
+environments.
+•
+nkp-pulse-workspace: An application or component within NKP that handles pulse telemetry and
+potentially integrates with the pulse workspace.
+For more information, see Pulse Telemetry in NKP on page 662.
+Table 35: NKP Pulse
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+NKP Pulse
+Management
+[Only applicable
+for management
+clusters]
+nkp-pulse-
+management
+Yes
+N/A
+N/A
+Nutanix Kubernetes Platform | Cluster Operations Management | 310
+
+--- page 311 ---
+Platform
+Application
+APP ID
+Internal
+Required
+Dependency
+Optional
+Dependency
+NKP Pulse
+Workspace
+[Only applicable for
+managed clusters]
+nkp-pulse-
+workspace
+Yes
+N/A
+N/A
+External Secrets Operator
+The External Secrets Operator (ESO) is a Kubernetes operator that synchronizes secrets from external
+management systems, such as AWS Secrets Manager, HashiCorp Vault, and Azure Key Vault, directly
+into your Kubernetes clusters. By integrating with these external backends, ESO eliminates the need
+to manually manage or rotate credentials, edit Secret manifests, or hardcode credentials in YAML files,
+keeping your Kubernetes secrets secure, easy to manage, and compliant. For more information, see 
+External Secrets Operator.
+From NKP 2.17, the management cluster includes ESO pre-installed by default.
+The two key roles of ESO in NKP are:
+•
+Platform Operations: NKP uses ESO internally to manage critical platform secrets, including
+OCI registry credentials and certificates, ensuring secure propagation from management to workload
+clusters.
+•
+User Workloads: ESO can be enabled on workload clusters as a platform application to manage
+secrets for your own applications. This allows you to centralize sensitive data management outside of
+Kubernetes while ensuring your workloads have the credentials they need to run securely.
+Note:
+•
+Disabling configurations of ESO on the management cluster is not permitted, and the option is
+not available in the NKP UI.
+•
+The createPushSecrets and processPushSecrets keys in the charts are true by default,
+and must not be changed to false.
+Enable ESO on a Workload Cluster Using UI
+Enable ESO on a Workload Cluster using NKP UI.
+Procedure
+1. Log in to the NKP UI.
+2. Navigate to the Management Cluster Workspace dashboard.
+3. Select the Applications tab from the left navigation bar.
+4. Locate the External Secrets Operator or ESO card in the application catalog.
+5. Click Enable.
+6. Select the workload cluster to enable ESO on.
+Nutanix Kubernetes Platform | Cluster Operations Management | 311
+
+--- page 312 ---
+7. (Optional) Configure the Overrides
+•
+If you need to customize the installation (for example, change the target namespace or resource
+limits), edit the configuration YAML in the provided editor.
+•
+By default, ESO is deployed to the external-secrets namespace.
+8. Click Enable to begin the deployment.
+Migrate to The ESO Application
+For existing users with External Secrets Operator (ESO) already deployed using helm-charts on workload
+clusters (a brownfield scenario), you must complete the following procedure to migrate to the ESO Platform
+Application to manage your secrets. This will ensure existing secrets and credentials are not lost, and there
+are no Custom Resource Definition (CRD) conflicts and lifecycle management issues. On completion of the
+migration procedure, you can use the NKP UI for operating ESO or making any updates.
+Procedure
+1. Backup the resources and secrets referred to in these custom resources.
+kubectl get externalsecrets -n <namespace> -o yaml > backup/externalsecrets.yaml
+kubectl get pushsecrets -n <namespace> -o yaml > backup/pushsecrets.yaml
+kubectl get secretstores -n <namespace> -o yaml > backup/secretstores.yaml 
+kubectl get clustersecretstores --all-namespaces -o yaml > backup/
+clustersecretstores.yaml 
+kubectl get clusterPushSecrets --all-namespaces -o yaml > backup/
+clusterpushsecrets.yaml
+kubectl get clusterexternalsecrets --all-namespaces -o yaml > backup/
+clusterexternalsecrets.yaml 
+helm get values manual-eso -n custom-eso-ns > backup/values.yaml
+2. Uninstall the helm installed ESO.
+helm uninstall external-secrets
+  -n external-secrets \
+3. Enable ESO from the Kommander UI. During this process, you must use the values backed up in the
+values.yaml file that was created in Step 1 to retain the older configurations.
+4. To retain the values and apply the overrides that were configured earlier, use the .yaml file that was
+created in Step 1.
+For example:
+k apply -f externalsecrets_default.yaml
+externalsecret.external-secrets.io/my-first-es created
+k apply -f pushsecrets.yaml
+pushsecrets.external-secrets.io/push-secrets created
+k apply -f secretstores.yaml
+secretstores.external-secrets.io/my-secretstores created
+k apply -f clustersecretstores.yaml
+clustersecretstore.external-secrets.io/kubernetes-backend created
+ 
+k apply -f clusterPushSecrets.yaml
+clusterPushSecrets.external-secrets.io/cluster-push-secrets created
+k apply -f clusterexternalsecrets.yaml
+Nutanix Kubernetes Platform | Cluster Operations Management | 312
+
+--- page 313 ---
+clusterexternalsecrets.external-secrets.io/cluster-es created
+What to do next
+To verify the successful migration, use the command k get externalsecrets -n external-secrets. The
+‘ExternalSecret’ resource status displays Synced if the procedure is executed successfully.
+In this example, ClusterSecretStore is executed successfully and the status SecretSynced confirms it.
+k get externalsecrets -n external-secrets
+NAME          STORETYPE            STORE                REFRESH INTERVAL   STATUS      
+   READY
+my-first-es   ClusterSecretStore   kubernetes-backend   1m0s               SecretSynced
+   True
+Headlamp
+Headlamp is the Kubernetes web dashboard that NKP provides for cluster visibility on new NKP 2.19
+deployments.
+Headlamp is a Kubernetes web dashboard. From NKP 2.19, Headlamp replaces Kubernetes Dashboard
+for new deployments as the upstream Kubernetes Dashboard project is deprecated. Headlamp is
+deployed independently on each NKP cluster as a platform application. Users access Headlamp
+through NKP single sign-on, and the resources and operations available to them are controlled by their
+Kubernetes RBAC permissions. On a fresh deployment of NKP 2.19, Headlamp is enabled by default on
+the management and workload clusters. If you upgrade to NKP 2.19, Headlamp is not enabled by default
+and must be
+It displays the namespaces, workloads, services, configuration resources, cluster events, and other
+Kubernetes objects that the user is allowed to view based on the assigned role.
+Note:  Helm support, plugin management, and the plugin catalog, are disabled by default and cannot be
+configured.
+Headlamp is included with NKP Pro and NKP Ultimate licenses.
+To verify that Headlamp is deployed on the cluster, run the following commands:
+kubectl get appdeployments -A | grep headlamp
+kubectl get helmreleases -A | grep headlamp
+kubectl get pods -A -l app.kubernetes.io/name=headlamp
+Enabling Headlamp
+Enable the Headlamp platform application when a workspace does not already have Headlamp deployed.
+Before you begin
+Verify the following requirements:
+•
+The cluster runs NKP 2.19.
+•
+The license is NKP Pro or NKP Ultimate.
+•
+Ensure that you have permission to manage platform applications in the target workspace.
+•
+Ensure that your user has the Kubernetes permissions required to view or manage the resources you
+want to open in Headlamp.
+On a new NKP 2.19 installation, NKP deploys Headlamp by default. Use this procedure only when the
+Headlamp card is present and Headlamp is not yet deployed (in a brownfield scenario).
+Nutanix Kubernetes Platform | Cluster Operations Management | 313
+
+--- page 314 ---
+About this task
+When you enable Headlamp for a workspace, NKP deploys Headlamp to all the clusters in that workspace.
+You do not configure Headlamp separately on each cluster.
+Procedure
+1. Sign in to the NKP UI and select the workspace.
+2. From the sidebar, select Applications.
+3. On the Headlamp card, select the three-dot button, and then select Enable.
+4. On the Enable Workspace Platform Application page, keep the default configuration.
+Note:  Do not enable Helm operations or the Headlamp plugin catalog as they are disabled by default.
+5. Select Enable and wait until the Headlamp card shows that the application is deployed.
+Headlamp Service Account Token Authentication
+Headlamp uses a Kubernetes service account token to call the cluster API, and Kubernetes RBAC for that
+service account limits what you can view.
+After the Headlamp Helm chart is installed, open the Headlamp sign-in page and provide a Kubernetes
+service account token. Headlamp forwards that token to the Kubernetes API server. The API server
+authenticates you as that service account and authorizes each request using the Role or ClusterRole
+bindings for that account.
+You must create a service account for dashboard access, and bind it to a role that contains only the
+permissions you want to grant. The procedure to authenticate to headlamp with a Service Account
+token uses the built-in view ClusterRole. With that role, you can view resources such as namespaces,
+deployments, pods, and services. You cannot create or delete those resources.
+Important:  Use a service account with the minimum Kubernetes permissions required for the dashboard
+user. Do not use a cluster-admin token for routine Headlamp access.
+Authenticating to Headlamp with a Service Account Token
+Create a Kubernetes service account token and use it to sign in to Headlamp.
+About this task
+This procedure creates a service account named headlamp-viewer in the headlamp-viewer namespace
+and binds it to the built-in view ClusterRole. You can use other names. Use the same names in every
+step.
+Procedure
+1. Point kubectl at the cluster where Headlamp is installed.
+2. Create the service account and bind it to the view role.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: headlamp-viewer
+---
+Nutanix Kubernetes Platform | Cluster Operations Management | 314
+
+--- page 315 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: headlamp-viewer
+  namespace: headlamp-viewer
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: headlamp-viewer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: view
+subjects:
+- kind: ServiceAccount
+  name: headlamp-viewer
+  namespace: headlamp-viewer
+EOF
+To grant different permissions, bind the service account to another ClusterRole or Role. Headlamp
+displays and changes only the resources that this binding allows.
+For custom workspaces, you must create the Headlamp workspace view roles manually.
+3. Create a token for the service account.
+kubectl create token headlamp-viewer -n headlamp-viewer
+The command prints the token.
+When the token expires, you must create a new token and sign in again. To request a token with a
+longer lifetime, run:
+kubectl create token headlamp-viewer -n headlamp-viewer --duration xy
+Replace <xy> with the duration. For example, 4h.
+4. Get the Headlamp service namespace, name, and port.
+kubectl get svc -A | grep headlamp
+5. Forward a local port to the Headlamp service.
+kubectl get svc -A | grep -i headlamp kubectl port-forward -n <namespace> svc/
+<service-name> 4466:<service-port>
+Replace <namespace> and <service-port> with the values from the previous step. Leave this
+command running.
+6. In a browser on the same workstation, open the Headlamp sign-in page (http://127.0.0.1:4466).
+7. Paste the service account token into the token field, and submit the sign-in page.
+8. Verify that Headlamp lists namespaces, deployments, pods, and services that the view role can read.
+Headlamp is signed in as headlamp-viewer. What you can view matches the view role. A create or
+delete action returns 403 Forbidden because that role does not allow the action to be performed by the
+user.
+Setting PriorityClasses in NKP Applications
+In NKP, your workloads can be prioritized to ensure that your critical components stay running in any
+situation. PriorityClasses can be set for any application in NKP, including Platform Applications, Catalog
+applications, and even your own Custom Applications.
+Nutanix Kubernetes Platform | Cluster Operations Management | 315
+
+--- page 316 ---
+About this task
+By default, the PriorityClasses of Platform Applications are set by NKP.
+For more information about the default PriorityClasses for NKP applications, see the following pages:
+•
+Workspace Platform Application Defaults and Resource Requirements on page 700
+•
+Nutanix Kubernetes Platform Management Cluster Application Requirements on page 698
+•
+Project Platform Application Configuration Requirements on page 375
+This topic provides instructions on how to override the default PriorityClass of any application in NKP to a
+different one.
+The overrides for each application appear differently and depend on how the application’s Helm chart
+values are configured. For more information about the Helm chart values used in NKP, see the NKP
+Release Notes on the Nutanix Support Portal.
+To find how to set the PriorityClass for a component, search for the priorityClassName field in the
+application’s Helm chart values.
+The following PriorityClasses are available in NKP.
+Before you begin
+Table 36: PriorityClasses
+Class
+Value Name
+Value
+Description
+NKP High
+nkp-high-priority
+100001000
+This is the PriorityClass that
+is used for high priority NKP
+workloads.
+NKP Critical
+nkp-critical-priority
+100002000
+This is the highest PriorityClass
+that is used for critical priority
+NKP workloads.
+Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace where
+the cluster is attached:
+export WORKSPACE_NAMESPACE=<your_workspace_namespace>
+Setting this environment variable lets you run the following commands without replacing the placeholder
+with your workspace namespace every time.
+Procedure
+1. Create a ConfigMap with custom PriorityClass configuration values for Grafana Loki.
+Note:  In the following example, the priorityClassName field is nested under the ingester
+component. You can also set the PriorityClass for other components, such as distributor, ruler,
+and on a global level.
+The following example sets the PriorityClass of the ingester component to the NKP critical priority class:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: grafana-loki-v3-overrides
+Nutanix Kubernetes Platform | Cluster Operations Management | 316

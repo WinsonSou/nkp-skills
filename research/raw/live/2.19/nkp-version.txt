@@ -1,0 +1,22 @@
+catalog: v0.11.1
+diagnose: v0.14.0
+imagebuilder: v2.19.0
+kommander: v2.19.0
+konvoy: v2.19.0
+konvoy-cli: v2.19.0
+konvoybundlepusher: v2.19.0
+mindthegap: v1.26.1
+nkp: v2.19.0
+---
+Print version information
+
+Usage:
+  nkp version [flags]
+
+Flags:
+  -h, --help            Help for version
+      --long            If true, print additional version information.
+  -o, --output string   One of 'yaml' or 'json'.
+
+Global Flags:
+  -v, --verbose int   Output verbosity

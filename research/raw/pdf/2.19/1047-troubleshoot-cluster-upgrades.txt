@@ -1,0 +1,70 @@
+
+--- page 1047 ---
+  -l cluster.x-k8s.io/cluster-name=<cluster-name>
+The NKPCluster controller rolls the control plane nodes first, then rolls the worker nodes after the
+control plane is healthy.
+Troubleshoot Cluster Upgrades
+Resolve common issues that might occur during management cluster and platform application upgrades.
+This troubleshooting guide provides solutions for upgrade failures, HelmRelease issues, and configuration
+problems.
+Upgrade Failures and Timeouts
+The upgrade process might fail or time out during execution.
+Solution: Run the upgrade command with increased verbosity for detailed information about the failure:
+nkp upgrade kommander -v 6
+HelmRelease Issues in Management Cluster
+HelmReleases in the kommander namespace are stuck in broken states such as "exhausted" or "another
+rollback/release in progress".
+Solution: Trigger a reconciliation of the HelmRelease:
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": true}]' 
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": false}]'
+HelmRelease Issues in Workspace Clusters
+HelmReleases in workspace namespace clusters are stuck in broken states such as "exhausted" or "another
+rollback/release in progress".
+Solution: Set the workspace namespace environment variable and trigger HelmRelease reconciliation:
+1. Set the workspace namespace variable:
+export WORKSPACE_NAMESPACE=<workspace-namespace>
+2. Reconcile the HelmRelease:
+kubectl --kubeconfig -n ${WORKSPACE_NAMESPACE} patch helmrelease <HELMRELEASE_NAME>
+ --type='json' -p='[{"op": "replace", "path": "/spec/suspend", "value": true}]' 
+kubectl -n ${WORKSPACE_NAMESPACE} patch helmrelease <HELMRELEASE_NAME> --type='json'
+ -p='[{"op": "replace", "path": "/spec/suspend", "value": false}]'
+Note:  The --kubeconfig flag ensures that you set the context to the Attached or Managed cluster. For
+alternatives and recommendations around setting your context, see Commands within a kubeconfig File
+on page 34.
+Konnector-Agent Configuration Issues
+The upgrade process automatically enables the konnector-agent addon, but you might want to disable it
+during the upgrade.
+Solution: Manually modify the cluster configuration after the upgrade manifest is generated. For more
+information, see Disabling Automatic Onboarding During Cluster Upgrade on page 507.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1047
+
+--- page 1048 ---
+Flux Reconciliation Fails with Webhook Rejection
+After you upgrade Kommander, Flux reconciliation of cluster API Cluster resources fails with admission
+webhook error similar to the following:
+admission webhook "webhook.nkpcluster.child.kommander.mesosphere.io" denied the
+ request:
+spec.topology: Forbidden: CAPI Cluster topology spec is managed by NKPCluster ...
+The admission webhook prevents direct modifications to CAPI Cluster resources that the NKPCluster
+resources manage.
+Solution: Complete the GitOps migration to change the GitOps-managed resource from a CAPI Cluster
+to an NKPCluster. For more information, see Migrating the GitOps Repository and Upgrading Workload
+Clusters on page 1041.
+NKPCluster Stuck in Reconciling State
+The NKPCluster resource remains in a Reconciling state for an extended period during the GitOps
+migration and workload cluster upgrade.
+Gather diagnostic information to identify the root cause:
+kubectl get nkpcluster <cluster-name> -n <namespace> -o yaml
+kubectl get cluster <cluster-name> -n <namespace> -o yaml
+kubectl get machines -n <namespace> -l cluster.x-k8s.io/cluster-name=<cluster-name>
+Solution: Check the .status.conditions field of NKPCluster resources for specific error messages.
+Common causes include missing credential secrets or image references that are not available on the
+Nutanix infrastructure.
+Cluster Deletion During Migration
+The CAPI Cluster resource is deleted unexpectedly during the GitOps migration.
+If spec.prune was set to true on the Flux Kustomization and you removed the cluster.yaml file from Git
+without disabling pruning first, Flux attempts to delete the CAPI Cluster resource.
+Solution: Ensure that you disable Flux pruning before you upgrade the GitOps-managed workload clusters.
+For more information, see Disabling Flux Pruning on page 1037.

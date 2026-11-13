@@ -1,0 +1,90 @@
+
+--- page 65 ---
+10. (Optional) Create an image for GPU workloads:
+export GPU_ENABLED=true
+When GPU is enabled, the default instance type changes to g4dn.2xlarge (GPU-optimized instance).
+The AWS Image Builder installs the necessary GPU drivers in the OS image.
+For more information, see Creating GPU-Enabled Operating System Images on page 608.
+11. (Optional) Create a FIPS compliant image:
+export FIPS_ENABLED=true
+The AWS Image Builder creates a FIPS compliant OS image.
+For more information about supported operating systems for AWS, see Supported Infrastructure
+Operating Systems on page 13.
+Note:  For air-gapped FIPS images, ensure you have created a FIPS enabled OS package bundle.
+12. Create an NKP compatible OS image:
+nkp create image aws ${OS_TYPE} \
+      ${ARTIFACTS_DIRECTORY:+--artifacts-directory ${ARTIFACTS_DIRECTORY}} \
+      ${GPU_ENABLED:+--gpu} \
+      ${FIPS_ENABLED:+--fips} \
+      ${AWS_REGION:+--region ${AWS_REGION}} \
+      ${INSTANCE_TYPE:+--instance-type ${INSTANCE_TYPE}} \
+      ${SOURCE_AMI:+--source-ami ${SOURCE_AMI}} \
+      ${AMI_REGIONS:+--ami-regions ${AMI_REGIONS}}
+The NKP CLI command creates an NKP compatible OS image with the configuration and environment
+variables that you exported in AWS. This image can be used to create new NKP clusters.
+To view all the flags and their purpose, run the following command:
+nkp create image aws --help
+For the steps to create a cluster and more information, see Install Nutanix Kubernetes Platform on
+AWS Infrastructure on page 819.
+Building a Custom Image with Azure
+You can build your own customized image with Azure based on your requirements.
+About this task
+To create a custom OS image, you can use the nkp create image azure command with required flags,
+or follow the comprehensive procedure below to configure all options using the environment variables:
+Procedure
+1.
+Open the terminal with access to NKP CLI.
+2.
+Choose the operating system:
+export OS_TYPE=Operating System Type
+For more information, see Supported Infrastructure Operating Systems on page 13.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 65
+
+--- page 66 ---
+3.
+Provide Azure subscription ID:
+export AZURE_SUBSCRIPTION_ID=Azure subscription ID
+Replace Azure subscription ID with your Azure subscription ID. Alternatively, you can use the --
+subscription-id flag in the command.
+4.
+Provide Azure client ID:
+export AZURE_CLIENT_ID=Azure client ID
+Replace Azure client ID with the client ID of your Azure service principal. Alternatively, you can use
+the --client-id flag in the command.
+5.
+Provide Azure tenant ID:
+export AZURE_TENANT_ID=Azure tenant ID
+Replace Azure tenant ID with your tenant ID. Alternatively, you can use the --tenant-id flag in the
+command.
+6.
+Provide Azure client secret:
+export AZURE_CLIENT_SECRET=Azure client secret
+Replace Azure client secret with the client secret of your Azure service principal.
+Note:  The client secret must be provided via environment variable for security reasons.
+7.
+Choose the resource group name:
+export RESOURCE_GROUP_NAME=Resource group name
+Replace Resource group name with the name of the Azure resource group where the image will be
+created. If not specified, the default value is nkp.
+8.
+Choose the Azure location:
+export AZURE_LOCATION=Azure location
+Replace Azure location with the required location to create the image. For example, westus.
+If not specified, the default value is `westus`.
+9.
+(Optional) Specify custom gallery settings:
+export GALLERY_NAME=Gallery name
+export GALLERY_IMAGE_NAME=Image name
+export GALLERY_IMAGE_OFFER=Offer name
+export GALLERY_IMAGE_PUBLISHER=Publisher name
+Replace:
+•
+Gallery name with the name of the Azure Shared Image Gallery. The default is nkp.
+•
+Image name with the name of the gallery image. If not provided, a default name based on the OS
+and Kubernetes version will be used.
+•
+Offer name with the gallery image offer. The default is nkp.
+•
+Publisher name with the gallery image publisher. The default is nkp.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 66

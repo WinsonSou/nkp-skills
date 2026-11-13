@@ -1,0 +1,72 @@
+# Live troubleshooting facts (read-only), NKP 2.19.0 management cluster. Collected 2026-11-02 for skill nkp-troubleshooting.
+# Commands: get, explain, --help, logs selectors, nkp diagnose default-config (prints the config only), server-side dry runs (logged below).
+# Scrubbed: cluster name -> <mgmt-cluster>, IPs, UUIDs, home paths.
+
+=== Controller Deployments: namespace / name / container / selector ===
+capx-system/capx-controller-manager                          manager             cluster.x-k8s.io/provider=infrastructure-nutanix
+caren-system/cluster-api-runtime-extensions-nutanix          manager             app.kubernetes.io/name=cluster-api-runtime-extensions-nutanix
+capi-system/capi-controller-manager                          manager             cluster.x-k8s.io/provider=cluster-api
+capi-kubeadm-control-plane-system/capi-kubeadm-control-plane-controller-manager  manager  cluster.x-k8s.io/provider=control-plane-kubeadm
+capi-kubeadm-bootstrap-system/capi-kubeadm-bootstrap-controller-manager          manager  cluster.x-k8s.io/provider=bootstrap-kubeadm
+caaph-system/caaph-controller-manager                        manager             cluster.x-k8s.io/provider=helm
+kommander/nkp-cluster-controller-manager                     controller-manager  app.kubernetes.io/name=nkp-cluster
+kommander-flux/helm-controller                               manager             app=helm-controller
+kommander-flux/kustomize-controller                          manager             app=kustomize-controller
+kommander-flux/source-controller                             manager             app=source-controller
+kommander/kommander-appmanagement                            manager             app.kubernetes.io/name=kommander-appmanagement-chart
+
+=== Finalizers seen on live objects ===
+Cluster              ["cluster.cluster.x-k8s.io"]
+Machine              ["machine.cluster.x-k8s.io"]
+NutanixMachine       ["infrastructure.cluster.x-k8s.io/nutanixmachine"]
+NutanixCluster       ["infrastructure.cluster.x-k8s.io/nutanixcluster"]
+KubeadmControlPlane  ["kubeadm.controlplane.cluster.x-k8s.io"]
+MachineDeployment    ["cluster.x-k8s.io/machinedeployment","machinedeployment.topology.cluster.x-k8s.io"]
+NKPCluster           ["clusters.nkp.nutanix.com/capicluster-cleanup","clusters.nkp.nutanix.com/kommandercluster-cleanup"]
+KommanderCluster     17 finalizers (kommander.mesosphere.io/* and nkp.nutanix.com/*), e.g. kommander.mesosphere.io/kommander-cluster, nkp.nutanix.com/kommandercluster-appdeployments, kommander.mesosphere.io/kommandercluster-flux
+HelmRelease          ["finalizers.fluxcd.io"]
+Kustomization        ["finalizers.fluxcd.io"]
+AppDeployment        ["kommander.mesosphere.io/appdeployment"]
+HelmChartProxy       ["helmchartproxy.addons.cluster.x-k8s.io"]
+Namespace kommander  spec.finalizers ["kubernetes"]
+
+=== Conditions on a healthy cluster ===
+KCP:     Available=True CertificatesAvailable=True Initialized=True EtcdClusterHealthy=True ControlPlaneComponentsHealthy=True RollingOut=False Remediating=False ScalingDown=False ScalingUp=False MachinesReady=True MachinesUpToDate=True Paused=False Deleting=False
+MD:      Available=True RollingOut=False Remediating=False ScalingDown=False ScalingUp=False MachinesReady=True MachinesUpToDate=True Paused=False Deleting=False
+Machine: Available=True Ready=True UpToDate=True BootstrapConfigReady=True InfrastructureReady=True NodeHealthy=True NodeReady=True EtcdPodHealthy=True EtcdMemberHealthy=True APIServerPodHealthy=True ControllerManagerPodHealthy=True SchedulerPodHealthy=True HealthCheckSucceeded=True Updating=False Paused=False Deleting=False
+NutanixMachine: VMAddressesAssigned=True VMProvisioned=True
+NKPCluster: all .status.conditions True; phase Reconciled.
+Machine .status.addresses types: InternalIP, Hostname.
+kubectl get machines columns: NAMESPACE NAME CLUSTER NODE NAME READY AVAILABLE UP-TO-DATE PHASE AGE VERSION
+kubectl get helmreleaseproxies -A columns: NAMESPACE NAME CLUSTER READY REASON STATUS REVISION (in the cluster namespace on the management cluster, e.g. cilium-<mgmt-cluster>-<hash>)
+kubectl get helmchartproxies -A columns: NAMESPACE NAME READY REASON (ca-<uuid>, cilium-<uuid>, cosi-controller-<uuid>, ...)
+api-resources short names: cl (clusters), md, ma (machines), ms, mhc, kcp, hr, ks. NKPCluster has no short name.
+`kubectl get cluster-api -A` works but prints many CAPZ deprecation warnings.
+
+=== nkp --help (2.19.0) ===
+nkp diagnose default-config: no flags except -h / -v.
+nkp diagnose ssh path/to/inventory-file.yaml: --bundle-name-prefix, --redactors, --timeout (per node, default 5m0s).
+nkp delete bootstrap: --kind-cluster-name (default "konvoy-capi-bootstrapper"), --kubeconfig, --timeout (default 5m0s), --wait.
+nkp update bootstrap: subcommand credentials only.
+nkp get clusters: -w/--workspace, -A, -o table|yaml.
+
+=== nkp diagnose default-config (2.19.0, diagnose v0.14.0) ===
+kind SupportBundle, name dkp-diagnostics. Collectors: clusterInfo, clusterResources, allLogs (namespaces '*'),
+execCopyFromHost "node-diagnostics": image docker.io/mesosphere/dkp-diagnostics-node-collector:v0.14.0, imagePullPolicy IfNotPresent,
+pauseImage docker.io/mesosphere/pause-busybox:3.6, privileged true, hostIPC/hostNetwork/hostPID true, includeControlPlane true, timeout 600s,
+configMap (includeAllData: true, selector [""] = all namespaces), secret (selector [""]).
+Delta vs PDF p.1053-1054: the PDF names pause-alpine:3.2, nkp-diagnostics-node-collector, and a 30s timeout. Live is newer.
+
+=== Operator host after a successful --self-managed create ===
+~/.kube/config exists, 28 bytes, no contexts. Container image mesosphere/konvoy-bootstrap:v2.19.0 is loaded. No kind container runs. No `kind` binary.
+
+=== Server-side dry runs (2026-11-02). Webhooks checked first: all matching webhooks sideEffects=None ===
+Matching webhooks: capi validation.machinedeployment / default.machinedeployment, validation.kubeadmcontrolplane / default.kubeadmcontrolplane,
+gatekeeper validation/mutation, webhook.nkpcluster.kommander.mesosphere.io -> all sideEffects None.
+- merge patch MachineDeployment spec.rollout.after=<RFC3339 +1 day> --dry-run=server -> accepted; result spec.rollout has "after".
+- merge patch KubeadmControlPlane spec.rollout.after --dry-run=server -> accepted.
+- merge patch MachineDeployment spec.rolloutAfter (v1beta1 name, used in field notes) -> "Warning: unknown field spec.rolloutAfter"; dropped; no effect.
+- MachineDeployment managedFields: the capi-topology (Apply) manager does not own spec.rollout.
+- NKPCluster JSON patch add .../machineDeployments/0/deletion {"nodeDrainTimeoutSeconds":600} -> accepted, kept.
+- NKPCluster JSON patch add .../machineDeployments/0/rollout {"after":...} -> accepted, but "after" is pruned (topology rollout has only strategy).
+- Machine spec.deletion on a worker: {"nodeDeletionTimeoutSeconds":10}; MD spec.deletion empty (no drain timeout = drain without limit).

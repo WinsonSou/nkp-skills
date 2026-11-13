@@ -1,0 +1,108 @@
+=== find maxdepth 3 ===
+/home/ubuntu/nkp-v2.19.0
+/home/ubuntu/nkp-v2.19.0/NOTICES
+/home/ubuntu/nkp-v2.19.0/cli
+/home/ubuntu/nkp-v2.19.0/cli/NOTICES
+/home/ubuntu/nkp-v2.19.0/cli/nkp
+/home/ubuntu/nkp-v2.19.0/container-images
+/home/ubuntu/nkp-v2.19.0/container-images/kommander-image-bundle-v2.19.0.tar
+/home/ubuntu/nkp-v2.19.0/container-images/konvoy-image-bundle-v2.19.0.tar
+/home/ubuntu/nkp-v2.19.0/container-images/kubernetes-os-ubuntu-24.04-nkp-v2.19.0-v1.36.2_linux_amd64.tar
+/home/ubuntu/nkp-v2.19.0/container-images/nkp-ai-applications-catalog-image-bundle-2.19.tar
+/home/ubuntu/nkp-v2.19.0/container-images/nkp-nutanix-product-catalog-image-bundle-2.19.tar
+/home/ubuntu/nkp-v2.19.0/container-images/nkp-release-specs-v2.19.0.tar
+/home/ubuntu/nkp-v2.19.0/image-artifacts
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-8.9-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-8.9-x86_64_fips.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-9.4-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-9.4-x86_64_fips.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-8.10-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-8.10-x86_64_fips.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.6-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.6-x86_64_fips.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.8-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.8-x86_64_fips.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rocky-9.8-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ubuntu-22.04-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ubuntu-24.04-x86_64.tar.gz
+/home/ubuntu/nkp-v2.19.0/image-artifacts/images
+/home/ubuntu/nkp-v2.19.0/image-artifacts/images/kubernetes-images-1.36.2-d2iq.1-fips.tar
+/home/ubuntu/nkp-v2.19.0/image-artifacts/images/kubernetes-images-1.36.2-d2iq.1.tar
+/home/ubuntu/nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar
+/home/ubuntu/nkp-v2.19.0/kubectl
+/home/ubuntu/nkp-v2.19.0/nkp-image-builder-image-v2.19.0.tar
+/home/ubuntu/nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso
+/home/ubuntu/nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.metadata.json
+/home/ubuntu/nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.sha256
+
+=== du -sh top-level ===
+115M	/home/ubuntu/nkp-v2.19.0/NOTICES
+185M	/home/ubuntu/nkp-v2.19.0/cli
+30G	/home/ubuntu/nkp-v2.19.0/container-images
+1.1G	/home/ubuntu/nkp-v2.19.0/image-artifacts
+3.2G	/home/ubuntu/nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar
+57M	/home/ubuntu/nkp-v2.19.0/kubectl
+1.6G	/home/ubuntu/nkp-v2.19.0/nkp-image-builder-image-v2.19.0.tar
+1.3G	/home/ubuntu/nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso
+4.0K	/home/ubuntu/nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.metadata.json
+4.0K	/home/ubuntu/nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.sha256
+
+=== ls -1 ~/nkp-v2.19.0 ===
+NOTICES
+cli
+container-images
+image-artifacts
+konvoy-bootstrap-image-v2.19.0.tar
+kubectl
+nkp-image-builder-image-v2.19.0.tar
+nkp-ubuntu-24.04-release-amd64.iso
+nkp-ubuntu-24.04-release-amd64.iso.metadata.json
+nkp-ubuntu-24.04-release-amd64.iso.sha256
+
+=== tar -tzf first 50 ===
+nkp-v2.19.0/container-images/
+nkp-v2.19.0/cli/
+nkp-v2.19.0/image-artifacts/
+nkp-v2.19.0/NOTICES
+nkp-v2.19.0/nkp-image-builder-image-v2.19.0.tar
+nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso
+nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar
+nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.sha256
+nkp-v2.19.0/kubectl
+nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.metadata.json
+nkp-v2.19.0/container-images/nkp-release-specs-v2.19.0.tar
+nkp-v2.19.0/container-images/kommander-image-bundle-v2.19.0.tar
+nkp-v2.19.0/container-images/kubernetes-os-ubuntu-24.04-nkp-v2.19.0-v1.36.2_linux_amd64.tar
+nkp-v2.19.0/container-images/nkp-ai-applications-catalog-image-bundle-2.19.tar
+nkp-v2.19.0/container-images/nkp-nutanix-product-catalog-image-bundle-2.19.tar
+nkp-v2.19.0/container-images/konvoy-image-bundle-v2.19.0.tar
+nkp-v2.19.0/cli/NOTICES
+nkp-v2.19.0/cli/nkp
+nkp-v2.19.0/image-artifacts/images/
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.8-x86_64_fips.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-8.9-x86_64_fips.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.8-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ubuntu-22.04-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rocky-9.8-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-9.4-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.6-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ubuntu-24.04-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-9.6-x86_64_fips.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-8.9-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-8.10-x86_64_fips.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-rhel-8.10-x86_64.tar.gz
+nkp-v2.19.0/image-artifacts/containerd-2.3.1-d2iq.1-ol-9.4-x86_64_fips.tar.gz
+nkp-v2.19.0/image-artifacts/images/kubernetes-images-1.36.2-d2iq.1.tar
+nkp-v2.19.0/image-artifacts/images/kubernetes-images-1.36.2-d2iq.1-fips.tar
+
+=== tar top-level entries ===
+nkp-v2.19.0/NOTICES
+nkp-v2.19.0/cli
+nkp-v2.19.0/container-images
+nkp-v2.19.0/image-artifacts
+nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar
+nkp-v2.19.0/kubectl
+nkp-v2.19.0/nkp-image-builder-image-v2.19.0.tar
+nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso
+nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.metadata.json
+nkp-v2.19.0/nkp-ubuntu-24.04-release-amd64.iso.sha256

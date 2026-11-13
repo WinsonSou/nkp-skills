@@ -1,0 +1,77 @@
+
+--- page 1056 ---
+Collect from all Namespaces for ConfigMap and Secret Collector
+Support for collecting from all namespaces forConfigMapandSecretcollector.
+In the original collectors namespace there is a required parameter. This supports collecting from all
+namespaces by not setting the namespace (or setting it to ""). Note: To collect all config maps or secrets,
+an empty selector must be used (selector: [""]).
+Support for Optional support-bundle Name Prefix
+The nkp diagnose command includes an optional --bundle-name-prefix option that is used to add a
+prefix to the bundle names automatically. The original bundle naming convention (i.e. support-bundle-
+<date/time>) is used if this option is not specified.
+When generating a support bundle, you need naming defaults to provide deterministic bundle identifiers.
+This feature is especially useful for our convenience extension of providing diagnostics for both, a
+bootstrap, Konvoy, or other Kubernetes cluster. Using an empty prefix keeps the original naming
+convention.
+ClusterResources Collector
+The ClusterResources collector gathers all custom resource definitions (CRDs) and custom resources
+deployed in the cluster.
+The ClusterResources collector enhances data collection by retrieving all custom resource definitions
+(CRDs) and their associated custom resources from the cluster. This includes third-party controllers,
+operators, and any user-defined Kubernetes extensions.
+Common Information Discovery Commands
+Discovery commands provide information about the environment and system status used to identify
+problems.
+When troubleshooting Cluster Operations Management, sometimes just knowing what, where, and status
+can help you determine where the problem is and help reveal a solution to an issue.
+Several kubectl commands can give you information from your environment that can be useful in
+determining where a problem is occurring.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1056
+
+--- page 1057 ---
+Application Discovery Commands
+Application definitions originate from the source Git repository. These are configured in the cluster for
+Flux to consume. You can use common kubectl verbs to investigate status and gather log data to help
+determine any problem areas.
+Verb and Purpose
+Examples
+Investigate the Git repository using
+kubectl.
+kubectl get gitrepository -A
+or
+kubectl describe -n <namespace> gitrepository <name>
+Check the status logs of the source-
+controller pod
+kubectl describe -n kommander-flux deploy/source-
+controller
+or
+kubectl logs -n kommander-flux deploy/source-
+controller --tail -1
+Verify the status of the associated
+Apps, ClusterApps, and
+AppDeployments
+kubectl get apps,clusterapps,appdeployments -A
+Check the status and logs of the
+kommander-appmanagement pod
+kubectl describe -n kommander deploy/kommander-
+appmanagement
+or
+kubectl logs -n kommander deploy/kommander-
+appmanagement --tail -1
+Kustomizations
+Check the status of all
+Kustomizations created by
+AppDeployment:
+kubectl get kustomization -A
+or
+kubectl describe -n <namespace> kustomization <name>
+Check the status and logs of the
+kustomize-controller pod since
+it manages Kustomizations in the
+kommander-flux Namespace.
+kubectl describe -n kommander-flux deploy/kustomize-
+controller
+or
+kubectl logs -n kommander-flux deploy/kustomize-
+controller --tail -1
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1057

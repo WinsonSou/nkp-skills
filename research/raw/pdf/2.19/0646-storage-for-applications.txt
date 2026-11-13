@@ -1,0 +1,796 @@
+
+--- page 646 ---
+Setting Storage Capacity for Prometheus
+About this task
+Follow the steps on this page to set a specific storage capacity for Prometheus.
+Procedure
+When defining the requirements of a cluster, you can specify the capacity and resource requirements of
+Prometheus by modifying the settings in the overrides ConfigMap definition, as shown below.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kube-prometheus-stack-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    prometheus:
+      prometheusSpec:
+        resources:
+          limits:
+            cpu: "4"
+            memory: "8Gi"
+          requests:
+            cpu: "2"
+            memory: "6Gi"
+      storageSpec:
+        volumeClaimTemplate:
+          spec:
+            resources:
+              requests:
+                storage: "100Gi"
+Storage for Applications
+NKP ships with a Rook Ceph cluster that is used as the primary blob storage for various NKP components
+in the logging stack and backups.
+The pages in this section provide an overview of the Rook Ceph application in NKP, including information
+about its components, resource requirements, storage configuration information, and dashboard. To
+increase Rook Ceph storage capacity, see Increasing Rook Ceph Storage Capacity on page 651.
+•
+Rook Ceph in NKP on page 646
+•
+Bring Your Own Storage (BYOS) to NKP Clusters on page 655
+Rook Ceph in NKP
+NKP ships with a Rook Ceph cluster, that is used as the primary blob storage for various NKP components
+in the logging stack, backups, cost monitoring, and NKP Insights.
+The pages in this section provide an overview of the Rook Ceph application in NKP, including information
+about its components, resource requirements, storage configuration information, and dashboard. To
+increase Rook Ceph storage capacity, see Increasing Rook Ceph Storage Capacity on page 651.
+Note:  The Ceph instance installed by NKP is intended only for use by Nutanix Kubernetes Platform Insights,
+the logging stack, velero, harbor and opencost platform applications. For more information, see the
+Nutanix Kubernetes Platform Insights Guide on page 1086.
+Nutanix Kubernetes Platform | Cluster Operations Management | 646
+
+--- page 647 ---
+If you have an instance of Ceph that is managed outside of the NKP life cycle, see Bring Your
+Own Storage (BYOS) to NKP Clusters on page 655.
+Rook Ceph: Prerequisites
+Important information you should know prior to using Rook Ceph in NKP
+Note:  The Ceph instance installed by NKP is intended only for use by the logging stack, opencost, and
+velero platform applications.
+If you have an instance of Ceph that is managed outside of the NKP life cycle, see Bring Your
+Own Storage (BYOS) to NKP Clusters on page 655
+If you do not plan on using any of the platform applications such as grafana-loki, logging stack,
+and velero for backups and opencost for cost metrics. Then you do not need Rook Ceph for
+your installation and you can disable it by adding the following to your installer config file:
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  ...
+  ...
+  grafana-loki:
+    enabled: false
+  opencost:
+    enabled: false
+  ...
+  rook-ceph:
+    enabled: false
+  rook-ceph-cluster:
+    enabled: false
+  ...
+  velero:
+    enabled: false
+...
+You must enable rook-ceph and rook-ceph-cluster if any of the following is true:
+•
+If you enable grafana-loki.
+•
+If you enable opencost and apply configuration overrides to use storage that is not backed by Ceph,
+you do not need to install Ceph.
+•
+If you enable velero and apply configuration overrides to use storage that is external to your cluster,
+you do not need to install Ceph. For more information, see Usage of Velero with AWS S3 Buckets on
+page 518.
+For more information on Rook Ceph, see https://rook.io/.
+Rook Ceph: Configuration
+This page contains information about configuring Rook Ceph in your NKP Environment.
+Note:  The Ceph instance installed by NKP is intended only for use by the logging stack, opencost, and
+velero platform applications.
+If you have an instance of Ceph that is managed outside of the NKP life cycle, see Bring Your
+Own Storage (BYOS) to NKP Clusters on page 655.
+If you intend to use Ceph in conjunction with NKP Insights, see NKP Insights Bring Your Own
+Storage (BYOS) to Insights on page 1095.
+Nutanix Kubernetes Platform | Cluster Operations Management | 647
+
+--- page 648 ---
+Components of a Rook Ceph Cluster
+Ceph supports creating clusters in different modes as listed in CephCluster CRD Rook Ceph
+Documentation (see https://rook.io/docs/rook/v1.10/CRDs/Cluster/ceph-cluster-crd/). NKP, specifically,
+is shipped with a PVC Cluster, as documented in PVC Storage Cluster Rook Ceph Documentation
+(see https://rook.io/docs/rook/latest/CRDs/Cluster/pvc-cluster/#pvc-storage-only-for-monitors). It is
+recommended that the PVC mode be used to keep the deployment and upgrades simple and agnostic to
+technicalities with node draining.
+Ceph cannot be your CSI Provisioner when installing in PVC mode as Ceph relies on an existing CSI
+provisioner to bind the PVCs created by it. It is possible to use Ceph as your CSI provisioner, but that is
+outside the scope of this document. If you have an instance of Ceph that acts as the CSI Provisoner, then it
+is possible to reuse it for your NKP Storage needs. See Bring Your Own Storage (BYOS) to NKP Clusters
+on page 655 for information on reusing existing Ceph.
+When you create AppDeployments for rook-ceph and rook-ceph-cluster platform applications, it results
+in the deployment of various components as listed in the following diagram
+Figure 16: Rook Ceph Cluster Components
+Items highlighted in green are user-facing and configurable.
+For an in-depth explanation of the inner workings of the components outlined in the above diagram, see
+https://rook.io/docs/rook/latest/Getting-Started/storage-architecture/ and https://docs.ceph.com/en/quincy/
+architecture/.
+Nutanix Kubernetes Platform | Cluster Operations Management | 648
+
+--- page 649 ---
+For additional details about the data model, see https://github.com/rook/rook/blob/release-1.16/design/
+ceph/data-model.md.
+Rook Ceph: Resource Requirements
+The following is a non-exhaustive list of the resource requirements for long running components of Ceph:
+Table 60: Table
+Type
+Resources
+Total
+CPUs
+100m x # of mgr instances
+(default 2)
+250m x # of mon instances
+(default 3)
+250m x # of osd instances
+(default 4)
+100m x # of crashcollector
+instances (Daemonset that is., #
+of nodes)
+250m x # of rados gateway
+replicas (default 2)
+~2000m CPU
+Memory
+512Mi x # of mgr instances
+(default 2)
+512Gi x # of mon instances
+(default 3)
+1Gi x # of osd instances (default
+4)
+500Mi x # of rados gateway
+replicas (default 2)
+~8Gi Memory
+Disk
+4 x 40Gi PVCs with Block mode
+for ObjectStorageDaemons (see
+https://rook.io/docs/rook/latest/
+CRDs/Cluster/ceph-cluster-crd/
+#storage-selection-settings).
+3 x 10Gi PVCs with Block or
+FileSystem mode for Mons (see
+https://rook.io/docs/rook/latest/
+CRDs/Cluster/ceph-cluster-crd/
+#mon-settings).).
+190Gi
+Nutanix Kubernetes Platform | Cluster Operations Management | 649
+
+--- page 650 ---
+Type
+Resources
+Total
+Nodes
+4 x nodes to satisfy the
+requirement of 4 x 40Gi
+PVCs with Block mode for
+ObjectStorageDaemons (see
+https://rook.io/docs/rook/latest/
+CRDs/Cluster/ceph-cluster-crd/
+#storage-selection-settings).
+Each PVC has a toleration and a
+dynamic affinity.
+4 Nodes
+Your default StorageClass should support creation of PersistentVolumes created by Ceph that satisfy
+the volumeMode: Block.
+Each additional OSD needs about 250m CPU and 1 GiB of memory. Rook uses soft anti-affinity, so OSDs
+can schedule on the same node. Nutanix recommends about one worker node per OSD for the default
+layout. Stacking OSDs on one node can stall upgrades when PodDisruptionBudgets block eviction. To add
+OSDs or grow OSD PVCs, see Increasing Rook Ceph Storage Capacity on page 651.
+Rook Ceph: Storage Configuration
+Ceph is highly configurable and can support Replication or Erasure Coding to ensure data durability. NKP
+is configured to use Erasure Coding for maximum efficiency.
+For more information on data durability, see https://en.wikipedia.org/wiki/Durability_(database_systems).
+The default configuration creates a CephCluster that creates 4 x PersistentVolumeClaims of 40G each,
+resulting in 160G of raw storage. Erasure coding ensures durability with k=3 data bits and m=1 parity bits.
+This gives a storage efficiency of 75% (refer to the Primer on Replication Strategies section below for
+calculation), which means 120G of disk space is available for consumption by services like grafana-loki,
+project-grafana-loki, and velero.
+To increase OSD count or PVC size, apply an AppDeployment override. Do not edit the versioned defaults
+ConfigMap or patch the CephCluster resource. Growing the OSDs does not raise the ObjectBucketClaim
+maxSize cap. For the procedure, see Increasing Rook Ceph Storage Capacity on page 651.
+You can override the replication strategy for the logging stack (grafana-loki) and velero backups.
+Confirm the live CephObjectStore values in rook-ceph-cluster-appVersion-config-defaults on your
+cluster. Then override the strategy by referring to the CephObjectStore CRD documentation. See https://
+www.rook.io/docs/rook/latest/CRDs/Object-Storage/ceph-object-store-crd/.
+For more information on configuring storage in Rook Ceph, refer to the following pages:
+•
+For general information on how to configure Object Storage Daemons (OSDs), see https://www.rook.io/
+docs/rook/v1.11/Storage-Configuration/Advanced/ceph-osd-mgmt/.
+•
+To increase OSD capacity, see Increasing Rook Ceph Storage Capacity on page 651.
+Primer on Replication Strategies
+Replication and Erasure Coding are the two primary methods for storing data in a durable fashion in any
+distributed system.
+Replication
+•
+For a replication factor of N, data has N copies (including the original copy)
+•
+Smallest possible replication factor is 2 (usually this means two storage nodes).
+•
+With replication factor of 2, data has 2 copies and this tolerates loss of one copy of data.
+Nutanix Kubernetes Platform | Cluster Operations Management | 650
+
+--- page 651 ---
+•
+Storage efficiency : (1/N) * 100 percentage. For example,
+•
+If N=2, then efficiency is 50%.
+•
+If N=3, then efficiency is 33% so on.
+•
+Fault Tolerance : N-1 nodes can be lost without loss of data. For example,
+•
+If N=2, then atmost 1 node can be lost without data loss.
+•
+If N=3, then atmost 2 nodes can be lost without data loss and so on.
+Erasure Coding
+•
+Slices an object into k data fragments and computes m parity fragments. The erasure coding scheme
+guarantees that data can be recreated using any k fragments out of k+m fragments.
+•
+The k + m = n fragments are spread across (>=n) Storage Nodes to offer durability.
+•
+Since k out of n fragments (parity or data fragments) are needed for the recreation of data, at most m
+fragments can be lost without loss of data.
+•
+The smallest possible count is k = 2, m = 1 that is., n = k + m = 3. This works only if there are at
+least n = 3 storage nodes.
+•
+Storage efficiency: k/(k+m) * 100 percentage. For example,
+•
+If k=2, m=1, then efficiency is 67%
+•
+If k=3, m=1, then efficiency is 75% and so on.
+•
+Fault Tolerance: m nodes can be lost without loss of data. For example:
+•
+If k=3, m=1 then atmost 1 out of 4 nodes can be lost without data loss.
+•
+If k=4, m=2 then atmost 2 out of 6 nodes can be lost without data loss, and so on.
+Increasing Rook Ceph Storage Capacity
+Grow OSD capacity for platform object storage with an AppDeployment override that survives upgrades.
+About this task
+Increase Rook Ceph capacity with a user-owned rook-ceph-cluster AppDeployment override on the
+management cluster. Create the override ConfigMap in the workspace namespace. NKP syncs the values
+to the target cluster.
+Note:  Do not edit the versioned rook-ceph-cluster-appVersion-config-defaults ConfigMap.
+Do not patch the CephCluster resource or OSD objects directly. Those edits revert on reconcile and on
+upgrade.
+The default layout is 4 OSDs of 40 GiB (about 120 GiB usable). You can scale up (larger PVCs) or scale
+out (more OSDs). For durability details, see Rook Ceph: Storage Configuration on page 650.
+Before you begin
+The following table compares the two methods:
+Nutanix Kubernetes Platform | Cluster Operations Management | 651
+
+--- page 652 ---
+Table 61: Capacity Increase Methods
+Method
+Field to change
+Prerequisite
+Scale up
+volumeClaimTemplates storage
+size
+Storage class allowVolumeExpansion is
+true. Ceph version is 19.2.3 or later.
+Scale out
+storageClassDeviceSets count.
+The minimum count is 4.
+Spare node CPU and memory for each
+new OSD. Budget about 250m CPU and
+1 GiB of memory per OSD.
+Point kubectl at the management cluster when you create or attach the override. Point kubectl at the
+target cluster when you inspect OSDs, PVCs, or the Ceph toolbox. On the target cluster, Rook Ceph runs
+in the kommander namespace.
+Set the WORKSPACE_NAMESPACE environment variable to the workspace namespace on the management
+cluster:
+export WORKSPACE_NAMESPACE=<your_workspace_namespace>
+For the management cluster itself, the workspace namespace is kommander.
+Note:  The storageClassDeviceSets field is a list. Helm and Flux replace lists; they do not
+merge them. Copy the full list entry from the defaults ConfigMap before you change count or
+storage. An override that contains only name and count drops volumeClaimTemplates,
+portable, encrypted, and placement, and OSD provisioning fails. Set the OSD count under
+cephClusterSpec.storage.storageClassDeviceSets. Do not use a top-level storage key.
+Procedure
+1. Confirm the rook-ceph-cluster chart version and the defaults ConfigMap name:
+kubectl get appdeployment rook-ceph-cluster -n ${WORKSPACE_NAMESPACE} -o
+ jsonpath='{.spec.appRef.name}{"\n"}'
+kubectl get cm -n ${WORKSPACE_NAMESPACE} -o name | grep 'rook-ceph-cluster-.*-config-
+defaults'
+On NKP 2.19, the chart name is rook-ceph-cluster-1.19.6 and the defaults ConfigMap is rook-
+ceph-cluster-1.19.6-config-defaults. Always use the values from your cluster.
+2. Copy the storageClassDeviceSets list from the defaults ConfigMap:
+kubectl get cm rook-ceph-cluster-appVersion-config-defaults -n ${WORKSPACE_NAMESPACE}
+ \
+  -o jsonpath='{.data.values\.yaml}'
+Keep the full rook-ceph-osd-set1 entry. Change only count, storage, or both.
+3. Create the override ConfigMap in the workspace namespace on the management cluster:
+The following example scales up 4 OSDs from 40 GiB to 500 GiB (2 TiB raw, about 1.5 TiB usable).
+That layout meets a 1 TiB object-store target, such as Nutanix Enterprise AI. On the target cluster,
+confirm that the OSD storage class allows expansion and that Ceph is version 19.2.3 or later:
+kubectl get pvc -n kommander -l ceph.rook.io/DeviceSet \
+  -o custom-
+columns=NAME:.metadata.name,SC:.spec.storageClassName,SIZE:.spec.resources.requests.storage
+kubectl get sc nutanix-volume -o jsonpath='{.allowVolumeExpansion}{"\n"}'
+kubectl -n kommander exec deploy/rook-ceph-tools -- ceph versions
+Note:  On Ceph 19.2.1 and 19.2.2, resizing an OSD PVC can crash the OSD during expand-bluefs.
+That issue is fixed in Ceph 19.2.3. If you are on 19.2.1 or 19.2.2, use scale out and keep the existing
+Nutanix Kubernetes Platform | Cluster Operations Management | 652
+
+--- page 653 ---
+40 GiB PVCs, or add a new device set such as rook-ceph-osd-set2. Do not raise storage on the
+existing set.
+Apply the override ConfigMap:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-ceph-cluster-config-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    dkp:
+      grafana-loki:
+        additionalConfig:
+          maxSize: "800G"
+    cephClusterSpec:
+      storage:
+        storageClassDeviceSets:
+          - name: rook-ceph-osd-set1
+            count: 4
+            portable: true
+            encrypted: false
+            placement:
+              topologySpreadConstraints:
+                - maxSkew: 1
+                  topologyKey: topology.kubernetes.io/zone
+                  whenUnsatisfiable: ScheduleAnyway
+                  labelSelector:
+                    matchExpressions:
+                      - key: app
+                        operator: In
+                        values:
+                          - rook-ceph-osd
+                          - rook-ceph-osd-prepare
+                - maxSkew: 1
+                  topologyKey: kubernetes.io/hostname
+                  whenUnsatisfiable: ScheduleAnyway
+                  labelSelector:
+                    matchExpressions:
+                      - key: app
+                        operator: In
+                        values:
+                          - rook-ceph-osd
+                          - rook-ceph-osd-prepare
+            volumeClaimTemplates:
+              - metadata:
+                  name: data
+                spec:
+                  resources:
+                    requests:
+                      storage: 500Gi
+                  volumeMode: Block
+                  accessModes:
+                    - ReadWriteOnce
+EOF
+Growing the OSDs does not raise the ObjectBucketClaim cap. The dkp.grafana-
+loki.additionalConfig.maxSize value in this ConfigMap raises the Loki bucket limit. For project-
+Nutanix Kubernetes Platform | Cluster Operations Management | 653
+
+--- page 654 ---
+level Loki, Velero, Harbor, or other application buckets, raise that application's limit as well. For Loki
+details, see Rook Ceph on page 554.
+To scale out instead, keep the full list entry and raise count. The following values produce 8 OSDs of
+250 GiB (2 TiB raw). Raising storage on the existing set also expands the original OSDs, so use this
+form only on Ceph 19.2.3 or later:
+            count: 8
+            volumeClaimTemplates:
+              - metadata:
+                  name: data
+                spec:
+                  resources:
+                    requests:
+                      storage: 250Gi
+Note:  Rook spreads OSDs with soft anti-affinity (whenUnsatisfiable: ScheduleAnyway). OSDs
+can land on the same node and stall upgrades when PodDisruptionBudgets block eviction. Nutanix
+recommends about one worker node per OSD for the default layout.
+4. Set spec.configOverrides.name on the rook-ceph-cluster AppDeployment to the override
+ConfigMap name:
+For the general AppDeployment override procedure, see Customizing Your Application on page 272.
+For a workspace-wide override:
+kubectl edit appdeployment rook-ceph-cluster -n ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    kind: ClusterApp
+    name: rook-ceph-cluster-appVersion
+  configOverrides:
+    name: rook-ceph-cluster-config-overrides
+For a per-cluster override, use spec.clusterConfigOverrides. See Customizing an Application Per
+Cluster on page 323.
+If you pasted the values in the UI Configure box, starting at cephClusterSpec:, the UI already created
+the ConfigMap and attached it. Skip this step. For the UI procedure, see Ultimate: Customizing an
+Application Using the UI on page 279 or Pro: Customizing an Application Using the UI on page 281.
+5. On the target cluster, verify that the OSDs are up and that capacity increased:
+kubectl get pods -n kommander -l app=rook-ceph-osd
+kubectl -n kommander exec deploy/rook-ceph-tools -- ceph status
+kubectl -n kommander exec deploy/rook-ceph-tools -- ceph osd df
+kubectl -n kommander exec deploy/rook-ceph-tools -- ceph df
+Scale out triggers a rebalance. Cluster health moves from HEALTH_WARN to HEALTH_OK when backfill
+finishes.
+Read usable capacity from MAX AVAIL on the dkp-object-store.rgw.buckets.data pool in ceph df.
+That value is about 75 percent of raw capacity.
+Note:  After a PVC expansion, compare each OSD SIZE to its WEIGHT in ceph osd df. Weight is the
+OSD size in TiB. An expanded 250 GiB OSD must show a weight of about 0.24409. If SIZE is 250 GiB
+and WEIGHT is still 0.03909 (the 40 GiB weight), the extra space is not counted.
+After backfill settles, set each expanded OSD weight to its size in TiB:
+kubectl -n kommander exec deploy/rook-ceph-tools -- ceph osd crush reweight osd.id
+ 0.24409
+Nutanix Kubernetes Platform | Cluster Operations Management | 654
+
+--- page 655 ---
+6. (Optional) Confirm the updated raw capacity in the Rook Ceph dashboard.
+On the Status page, the Raw Capacity card shows the new total. Under Cluster OSDs, confirm that
+every OSD is up and in. For login steps, see Accessing the Rook Ceph Dashboard on page 655.
+Accessing the Rook Ceph Dashboard
+Rook Ceph Cluster provides a Dashboard which can be accessed from the UI in the Application
+Dashboards tab inside Kommander.
+About this task
+The Rook Ceph dashboard can be used to view current cluster health and logs.
+To access the Rook Ceph dashboard, perform the following steps:
+Procedure
+1. Go to the applications dashboard
+2. Select the Dashboard button.
+3. Enter the Username is admin.
+4. To retrieve your password, in the command line and using the kubeconfig of the Kubernetes cluster you
+have Rook Ceph deployed to, run the following command:
+Note:  Set the NAMESPACE variable according to your environment (kommander on management
+cluster or workspace namespace on attached clusters and managed clusters).
+kubectl get secret -n ${NAMESPACE} rook-ceph-dashboard-password -ogo-
+template='{{ .data.password | base64decode | printf "%s\n" }}'
+5. Copy the password and paste it into the UI to access the dashboard.
+After successful login, the Rook Ceph Cluster dashboard is displayed.
+Bring Your Own Storage (BYOS) to NKP Clusters
+You can use Ceph as the CSI Provisioner in some environments. For environments where Ceph was
+installed before installing NKP, you can reuse your existing Ceph installation to satisfy the storage
+requirements of NKP Applications.
+Note:  This guide assumes you have a Ceph cluster that is not managed by NKP.
+For information on how to configure the Ceph instance installed by NKP for use by NKP platform
+applications, see Rook Ceph: Configuration on page 647.
+Disabling NKP-managed Ceph
+Process for disabling rook-ceph on any infrastructure.
+About this task
+To uninstall a healthy rook-ceph instance on any cluster (applicable for all infrastructures) you must delete
+the rook-ceph-cluster followed by rook-ceph operator. The deletion order is important to ensure that no
+resources are left behind.
+Nutanix Kubernetes Platform | Cluster Operations Management | 655
+
+--- page 656 ---
+Procedure
+1. Remove rook-ceph-cluster AppDeployment on management cluster.
+# Delete rook-ceph-cluster appdeployment
+kubectl delete appdeployment -n <WORKSPACE_NAMESPACE> rook-ceph-cluster
+2. Wait for the CephCluster to be removed. Run the following command on the workload cluster, or
+management cluster if you are running this against it.
+kubectl wait --for=delete cephclusters --all -n <WORKSPACE_NAMESPACE> --timeout=1200s
+ --kubeconfig <kubeconfig-of-your-cluster>
+3. After CephCluster resource is removed, proceed to removal of rook-ceph-cluster AppDeployment on
+management cluster.
+# Delete the operator
+kubectl delete appdeployment -n <WORKSPACE_NAMESPACE> rook-ceph
+Note:  If you have an installation configuration file (which is the case for non-Nutanix infra), to disable
+rook-ceph in the installer config to prevent NKP from installing a Ceph Cluster, edit your installation
+config file:
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+ rook-ceph:
+  enabled: false
+ rook-ceph-cluster:
+  enabled: false
+ ...
+...
+The NKP instances of velero and grafana-loki rely on the storage provided by Ceph. Before installing
+the Kommander component of NKP, be sure to configure appropriate Ceph resources for their usage as
+detailed in the next section.
+Creating NKP-compatible Ceph Resources
+About this task
+This section walks you through the creation of CephObjectStore and then a set of ObjectBucketClaims,
+which can be consumed by either velero and grafana-loki.
+Typically, Ceph is installed in the rook-ceph namespace, which is the default namespace if you have
+followed the Quickstart - Rook Ceph Documentation guide. For more information, see https://www.rook.io/
+docs/rook/v1.10/Getting-Started/quickstart/#create-a-ceph-cluster.
+Note:  This guide assumes your Ceph instance is installed in the rook-ceph namespace. In subsequent
+steps, configure the variable CEPH_NAMESPACE as it applies to your environment.
+Nutanix Kubernetes Platform | Cluster Operations Management | 656
+
+--- page 657 ---
+Procedure
+1. Create CephObjectStore.
+There are two ways to install Ceph:
+»
+Using Helm Charts (For more information on Helm Chart, see https://www.rook.io/docs/rook/v1.10/
+Helm-Charts/operator-chart/#release).
+This section is relevant if you have installed Ceph using helm install or some other managed
+Helm resource mechanism.
+If you have applied any configuration overrides to your Rook Ceph operator, ensure it was deployed
+with currentNamespaceOnly set to false (It is the default value, so unless you have applied any
+overrides, it will be false by default). This ensures that the Ceph Operator in the rook-ceph
+namespace is able to monitor and manage resources in other namespaces such as kommander.
+Note:
+•
+1. Ensure the following configuration for rook-ceph Helm Chart is completed. See
+https://www.rook.io/docs/rook/v1.10/Helm-Charts/operator-chart/#configuration.
+# This is the default value, so need to overwrite if you are just
+ using the defaults as-is
+currentNamespaceOnly: false
+2. You must enable the following configuration overrides for the rook-ceph-cluster.
+See https://www.rook.io/docs/rook/v1.10/Helm-Charts/ceph-cluster-chart/#ceph-
+object-stores.
+cephObjectStores:
+  - name: nkp-object-store
+    # see https://github.com/rook/rook/blob/master/Documentation/
+CRDs/Object-Storage/ceph-object-store-crd.md#object-store-settings
+ for available configuration
+    spec:
+      metadataPool:
+        # The failure domain: osd/host/(region or zone if available)
+ - technically also any type in the crush map
+        failureDomain: osd
+        # Must use replicated pool ONLY. Erasure coding is not
+ supported.
+        replicated:
+          size: 3
+      dataPool:
+        # The failure domain: osd/host/(region or zone if available)
+ - technically also any type in the crush map
+        failureDomain: osd
+        # Data pool can use either replication OR erasure coding.
+ Consider the following example scenarios:
+        # Erasure Coding is used here with 3 data chunks and 1 parity
+ chunks which assumes 4 OSDs exist.
+        # Configure this according to your CephCluster specification.
+        erasureCoded:
+          dataChunks: 3
+          codingChunks: 1
+      preservePoolsOnDelete: false
+      gateway:
+        port: 80
+        instances: 2
+        priorityClassName: system-cluster-critical
+        resources:
+          limits:
+Nutanix Kubernetes Platform | Cluster Operations Management | 657
+
+--- page 658 ---
+            cpu: "750m"
+            memory: "1Gi"
+          requests:
+            cpu: "250m"
+            memory: "500Mi"
+      healthCheck:
+        bucket:
+          interval: 60s
+    storageClass:
+      enabled: true
+      name: nkp-object-store
+      reclaimPolicy: Delete
+»
+By directly applying Kubernetes manifests (For more information, see Bring Your Own Storage
+(BYOS) to NKP Clusters on page 655:
+Note:
+Managing resources directly
+•
+1. Set a variable to refer to the namespace the AppDeployments are created in.
+Note:  This is the kommander namespace on the management cluster or
+Workspace namespace on all other clusters.
+export CEPH_NAMESPACE=rook-ceph
+export NAMESPACE=kommander
+2. Create CephObjectStore in the same namespace as the CephCluster:
+cat <<EOF | kubectl apply -f -
+apiVersion: ceph.rook.io/v1
+kind: CephObjectStore
+metadata:
+  name: nkp-object-store
+  namespace: ${CEPH_NAMESPACE}
+spec:
+  metadataPool:
+    # The failure domain: osd/host/(region or zone if available) -
+ technically, any type in the crush map
+    failureDomain: osd
+    # Must use replicated pool ONLY. Erasure coding is not supported.
+    replicated:
+      size: 3
+  dataPool:
+    # The failure domain: osd/host/(region or zone if available) -
+ technically, any type in the crush map
+    failureDomain: osd
+    # Data pool can use either replication OR erasure coding.
+ Consider the following example scenarios:
+    # Erasure Coding is used here with 3 data chunks and 1 parity
+ chunks which assumes 4 OSDs exist.
+    # Configure this according to your CephCluster specification.
+    erasureCoded:
+      dataChunks: 3
+      codingChunks: 1
+  preservePoolsOnDelete: false
+  gateway:
+    port: 80
+    instances: 2
+    priorityClassName: system-cluster-critical
+    resources:
+Nutanix Kubernetes Platform | Cluster Operations Management | 658
+
+--- page 659 ---
+      limits:
+        cpu: "750m"
+        memory: "1Gi"
+      requests:
+        cpu: "250m"
+        memory: "500Mi"
+  healthCheck:
+    bucket:
+      interval: 60s
+EOF
+3. Wait for the CephObjectStore to be Connected:
+$ kubectl get cephobjectstore -A       
+NAMESPACE   NAME               PHASE
+rook-ceph   nkp-object-store   Progressing
+...
+...
+rook-ceph   nkp-object-store   Connected
+4. Create a StorageClass to consume the object storage:
+cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nkp-object-store
+parameters:
+  objectStoreName: nkp-object-store
+  objectStoreNamespace: ${CEPH_NAMESPACE}
+provisioner: ${CEPH_NAMESPACE}.ceph.rook.io/bucket
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+EOF
+2. Create ObjectBucketClaims.
+After connecting the Object Store, create the ObjectBucketClaim in the same namespace as velero
+and grafana-loki.
+This results in the creation of ObjectBucket , that then creates Secrets that are consumed by velero
+and grafana-loki.
+a. For grafana-loki.
+cat <<EOF | kubectl apply -f -
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+metadata:
+  name: nkp-loki
+  namespace: ${NAMESPACE}
+spec:
+  additionalConfig:
+    maxSize: 80G
+  bucketName: nkp-loki
+  storageClassName: nkp-object-store
+EOF
+b. For velero.
+cat <<EOF | kubectl apply -f -
+apiVersion: objectbucket.io/v1alpha1
+kind: ObjectBucketClaim
+Nutanix Kubernetes Platform | Cluster Operations Management | 659
+
+--- page 660 ---
+metadata:
+  name: nkp-velero
+  namespace: ${NAMESPACE}
+spec:
+  additionalConfig:
+    maxSize: 10G
+  bucketName: nkp-velero
+  storageClassName: nkp-object-store
+EOF
+3. Wait for the ObjectBuckets to be Bound by executing the following command:
+kubectl get objectbucketclaim -n${NAMESPACE} -ocustom-
+columns='NAME:.metadata.name,PHASE:.status.phase'
+which should display something similar to:
+NAME         PHASE
+nkp-loki     Bound
+nkp-velero   Bound
+Configuring Loki to Use S3 Compatible Storage
+About this task
+If you want to use your own storage in NKP that is S3 compatible, create a secret that contains your AWS
+secret credentials.
+Procedure
+Run the following command.
+apiVersion: v1
+data:
+  AWS_ACCESS_KEY_ID: base64EncodedValue
+  AWS_SECRET_ACCESS_KEY: base64EncodedValue
+kind: Secret
+metadata:
+  name: nkp-loki #If you want to configure a custom name here, also use it in the step
+ below
+  namespace: kommander
+Overriding velero and grafana-loki Configuration
+About this task
+After all the buckets are in the Bound state, NKP applications are now ready to be installed with the
+following configuration overrides populated in the installer config.
+Procedure
+Run the following command.
+cat <<EOF | kubectl apply -f -
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  grafana-loki-v3:
+    enabled: true
+    values: |
+      loki:
+        structuredConfig:
+          storage_config:
+Nutanix Kubernetes Platform | Cluster Operations Management | 660
+
+--- page 661 ---
+            aws:
+              s3: "http://rook-ceph-rgw-nkp-object-store.${CEPH_NAMESPACE}.svc:80/nkp-
+loki"
+      ingester:
+        extraEnvFrom:
+          - secretRef:
+              name: nkp-loki # Optional: This is the default value
+      querier:
+        extraEnvFrom:
+          - secretRef:
+              name: nkp-loki # Optional: This is the default value
+      queryFrontend:
+        extraEnvFrom:
+          - secretRef:
+              name: nkp-loki # Optional: This is the default value
+      compactor:
+        extraEnvFrom:
+          - secretRef:
+              name: nkp-loki # Optional: This is the default value
+      ruler:
+        extraEnvFrom:
+          - secretRef:
+              name: nkp-loki # Optional: This is the default value
+      distributor:
+        extraEnvFrom:
+          - secretRef:
+              name: nkp-loki # Optional: This is the default value
+  velero:
+    enabled: true
+    values: |
+      configuration:
+        backupStorageLocation:
+        - bucket: nkp-velero
+          provider: "aws"
+          config:
+            region: nkp-object-store
+            s3Url: http://rook-ceph-rgw-nkp-object-store.${CEPH_NAMESPACE}.svc:80/
+      credentials:
+        # This secret is owned by the ObjectBucketClaim. A ConfigMap and a Secret with
+ the same name as a bucket are created.
+        extraSecretRef: nkp-velero
+EOF
+This installer config can be merged with your installer config with any other relevant configuration before
+installing NKP.
+Overriding project-grafana-loki Configuration
+About this task
+When installing project level grafana loki, its configuration needs to be overridden similarly to workspace
+level grafana loki, so that the project logs can be persisted in Ceph storage.
+Procedure
+1. The following overrides need to be applied to project-grafana-loki-v3:
+loki:
+  structuredConfig:
+    storage_config:
+      aws:
+Nutanix Kubernetes Platform | Cluster Operations Management | 661

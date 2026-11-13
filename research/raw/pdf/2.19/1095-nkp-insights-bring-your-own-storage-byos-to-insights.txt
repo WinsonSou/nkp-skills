@@ -1,0 +1,316 @@
+
+--- page 1095 ---
+Procedure
+1. Set the environment variable for an attached or management cluster using the command.
+export KUBECONFIG=<attached/management_cluster_kubeconfig>
+2. Delete the persistent volume using the following command:
+kubectl delete pvc \
+data-nkp-insights-postgresql-0 \
+-n ${WORKSPACE_NAMESPACE}
+Note:
+•
+Ensure your configuration references the cluster where the Insights Engine is installed. For
+more information, see the Provide Context for Commands with a kubeconfig File topic in
+the Nutanix Kubernetes Platform Guide.
+•
+Ensure your configuration references the correct ${WORKSPACE_NAMESPACE}.
+Disabling NKP Insights Management
+Procedure
+1. Disable the Nutanix Kubernetes Platform Insights (NKP Insights) Management application on the
+Management cluster by deleting the nkp-insights-management AppDeployment:
+kubectl delete appdeployment -n kommander nkp-insights-management
+2. Delete insight alert summaries from the management cluster:
+kubectl delete insights --all -A
+NKP Insights Bring Your Own Storage (BYOS) to Insights
+By default, NKP Insights uses the Rook Ceph instance installed by NKP, when bucket creation and access
+is handled by Ceph COSI driver. This guide shows how to configure NKP Insights to work with other object
+store providers. NKP Insights can be configured to use the following object stores:
+•
+Rook Ceph (via COSI)
+•
+Nutanix Objects (via COSI)
+•
+Manual S3-compatible configuration via secret
+Using Nutanix Objects with NKP Insights via COSI
+Configuring and using Nutanix Objects as the object storage backend for NKP Insights using the
+Kubernetes Container Object Storage Interface (COSI).
+About this task
+To use Nutanix Objects with NKP Insights via COSI, follow these steps:
+Important:  The COSI configuration does not support supplying a custom CA certificate. If your Nutanix
+Objects endpoint is secured with a private or custom certificate authority (CA), do not use COSI, because
+the NKP Insights pods fail with x509 certificate errors. Instead, configure NKP Insights with static credentials
+and a CA secret, as described in Using an external S3-compatible object storage provider on
+page 1097.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1095
+
+--- page 1096 ---
+Procedure
+1. Ensure a Nutanix Objects instance is set up and accessible and the COSI Driver is configured. For
+more information, see Configuring and Enabling COSI Driver for Nutanix in an NKP Cluster.
+2. Enable NKP Insights with the following configuration:
+backend:
+  s3:
+    cosi:
+      className: cosi-nutanix-nkp
+      accessClassName: cosi-nutanix-nkp
+With this configuration, the bucket will be created automatically by COSI controller, and access will be
+granted to the NKP Insights backend and plugins to use the new bucket.
+3. To use an already existing bucket, set the following configuration when enabling NKP Insights in the UI:
+backend:
+  s3:
+    bucketName: <existing bucket name>
+    cosi:
+      className: cosi-nutanix-nkp
+      accessClassName: cosi-nutanix-nkp
+      driverName: ntnx.objectstorage.k8s.io
+Using Rook Ceph with NKP Insights via COSI
+Configuring and using Rook Ceph as the object storage backend for NKP Insights using the Kubernetes
+Container Object Storage Interface (COSI).
+About this task
+To use Rook Ceph with NKP Insights via COSI, follow these steps:
+Procedure
+1. Ensure Rook Ceph Application is enabled. For more information, see Rook Ceph in NKP on page 646.
+2. Enable NKP Insights with the following configuration:
+backend:
+  s3:
+    cosi:
+      className: cosi-ceph-nkp
+      accessClassName: cosi-ceph-nkp
+With this configuration, the bucket will be created automatically by COSI controller, and access will be
+granted to the NKP Insights backend and plugins to use the new bucket.
+3. To use an already existing bucket, set the following configuration when enabling NKP Insights in the UI:
+backend:
+  s3:
+    bucketName: <existing bucket name>
+    cosi:
+      className: cosi-ceph-nkp
+      accessClassName: cosi-ceph-nkp
+      driverName: rook-ceph.ceph.objectstorage.k8s.io
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1096
+
+--- page 1097 ---
+Using an external S3-compatible object storage provider
+Insights can be configured to store data on the external S3-compatible object storage, other than Nutanix
+Objects or Rook Ceph.
+Note:  This guide assumes you have an external S3 compatible object store that NKP does not manage.
+Requirements
+Important:  If you choose to use a third-party, enterprise-grade S3-compatible bucket instead of Nutanix
+Object Storage for NKP Insights, do not disable the Nutanix COSI driver unless you have confirmed that it is
+not being used by any other applications, such as Harbor. Disabling the COSI driver while it is still in use may
+lead to service disruptions or unexpected behavior.
+If the COSI driver is confirmed to be unused by any application, it is safe to disable it to reduce resource
+consumption and simplify the deployment.
+The following are required for using Nutanix Kubernetes Platform Insights with your storage:
+•
+The bucket needs to be manually created, and the following user policies need to be enabled:
+s3:DeleteObject
+s3:DeleteObjectVersion
+s3:GetBucketLocation
+s3:GetObject
+s3:ListBucket
+s3:ListMultipartUploadParts
+s3:PutObject
+s3:PutLifecycleConfiguration
+•
+The object store endpoint fully qualified domain name (FQDN) must be resolvable from within the
+cluster. If the FQDN does not resolve, update the cluster DNS (for example, CoreDNS) so that the pods
+can resolve the endpoint before you install NKP Insights.
+•
+If the object store endpoint is secured with a private or custom certificate authority (CA), you must
+provide the CA certificate in a secret and reference it with the caSecretName value. For more
+information, see Create a Secret to support BYOS for NKP Insights on page 1097 and Helm Values for
+Insights Storage on page 1098.
+•
+Additionally, the following conditions have to be met:
+•
+At least 1GB of storage
+•
+TTL is set to a value of “n days” per S3 spec example: 7 Days. Insights will set TTL to this value on
+initialization, which fails if it can not be set.
+•
+It is assumed the storage is hosted in the same cluster with fast networking access.
+•
+The bandwidth usage is ~100Mb over the course of a day
+•
+Latency and speed must be <10 ms and >1Gbs
+Create a Secret to support BYOS for NKP Insights
+About this task
+To create a secret to support BYOS, follow these steps:
+You must create a secret with the object store credentials for the bucket created for Insights.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1097
+
+--- page 1098 ---
+Procedure
+1. Create a secret in the same namespace where you installed NKP Insights
+# Set to the workspace namespace insights is installed in
+export WORKSPACE_NAMESPACE=kommander
+# Replace with your object store credentials
+kubectl create secret generic nkp-insights-objectstore-credentials -n
+ ${WORKSPACE_NAMESPACE} \
+  --from-literal='AWS_ACCESS_KEY_ID=<Insert Key Here>' \
+  --from-literal='AWS_SECRET_ACCESS_KEY=<Insert Secret Access Key Here>' \
+2. In case a custom CA bundle is required to access an object store via HTTPS, create a secret with a
+certificate:
+export WORKSPACE_NAMESPACE=kommander
+kubectl create secret -n ${WORKSPACE_NAMESPACE} generic nkp-insights-s3-cert --from-
+file=ca.crt=<Path to custom CA certificate>
+Helm Values for Insights Storage
+This section provides the Helm Values for Insights storage and each component's description
+The Helm Values for Insights storage and each component's description are as follows:
+backend:
+  s3:
+    cosi:
+      enabled: false
+    port: 443
+    region: "us-east-1"
+    endpoint: "<Object Store FQDN or IP>"
+    bucketName: nkp-insights
+    disableSSL: false
+    caSecretName: nkp-insights-s3-cert
+    skipTLSVerification: false
+cleanup:
+    insightsTTL: "168h"
+Table 94: Helm Values for Insights Storage
+Name
+Default Value
+Description
+port
+80
+Port of S3 storage provider.
+region
+us-east-1
+AWS Region for S3 storage
+provider. Some providers require
+this value. For Nutanix Objects,
+set it to us-east-1.
+endpoint
+rook-ceph-rgw-nkp-object-
+store
+Endpoint URL for S3 storage
+provider. Exclude HTTP://
+insightsTTL
+168h
+The time in hours spent
+maintaining insights data in the
+database and S3. For S3, this is
+rounded up to the nearest day.
+bucketName
+nkp-insights
+Name of the bucket in the S3
+object storage
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1098
+
+--- page 1099 ---
+Name
+Default Value
+Description
+disableSSL
+true
+Force the client to disable
+SSL. Set to false for a secure
+(HTTPS) endpoint.
+forcePathStyle
+true
+Force the request to use path-
+style addressing
+skipTLSVerification
+false
+controls whether a client verifies
+the server's certificate chain and
+host name
+caSecretName
+“”
+Name of the secret storing the
+custom CA for the S3 object
+storage
+Installing NKP Insights with external object storage using UI
+Describes how to install NKP Insights with external object storage using UI.
+About this task
+To install Insights with an external object storage, complete the following steps:
+Procedure
+Add the following in the UI:
+backend:
+  s3:
+    cosi:
+      enabled: false
+    port: 443
+    region: "us-east-1"
+    endpoint: "<Object Store FQDN or IP>"
+    bucketName: nkp-insights
+    disableSSL: false
+    caSecretName: nkp-insights-s3-cert
+    skipTLSVerification: false
+cleanup:
+  insightsTTL: "168h"
+Installing NKP Insights with external object storage using CLI
+About this task
+To configure external object storage for Insights via the CLI, follow these steps:
+Procedure
+1. Create the ConfigMap with the name provided along with the custom configuration:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: nkp-insights-overrides
+data:
+  values.yaml: |
+    # helm values here
+    backend:
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1099
+
+--- page 1100 ---
+      s3:
+        cosi:
+          enabled: false
+        port: 443
+        region: "us-east-1"
+        endpoint: "<Object Store FQDN or IP>"
+        bucketName: nkp-insights
+        disableSSL: false
+        caSecretName: nkp-insights-s3-cert
+        skipTLSVerification: false
+    cleanup:
+      insightsTTL: "168h"
+EOF
+Note:  Kommander waits for the ConfigMap to be present before deploying the AppDeployment to the
+managed or attached clusters.
+2. Provide the name of a ConfigMap in the AppDeployment, which provides a custom configuration on top
+of the default configuration:
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: nkp-insights
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    kind: ClusterApp
+    name: nkp-insights-1.6.8
+  configOverrides:
+    name: nkp-insights-overrides
+EOF
+Installing NKP Insights in an Air-gapped Environment
+About this task
+Follow the steps below to configure storage for NKP Insights in air-gapped environments:
+Procedure
+In kommander.yaml, enable NKP Insights by setting the following:
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  ...
+  nkp-insights-management:
+    enabled: true
+    # helm values here
+    backend:
+      s3:
+        port: 80
+        region: "us-east-1"
+        endpoint: "rook-ceph-rgw-nkp-object-store"
+        bucketSize: "1G"
+        storageClassName: nkp-object-store
+        enableObjectBucketClaim: true
+    cleanup:
+      insightsTTL: "168h"
+...
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1100

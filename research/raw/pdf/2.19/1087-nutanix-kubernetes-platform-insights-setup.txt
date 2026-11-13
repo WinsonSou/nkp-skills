@@ -1,0 +1,306 @@
+
+--- page 1087 ---
+NKP Insights Engine
+The Nutanix Kubernetes Platform Insights (NKP Insights) Engine collects events and metrics on your
+Attached clusters and uses rule-based heuristics to detect potential anomalies of varying criticality, which
+helps you quickly identify and resolve any anomalies. The NKP Insights alert summaries are displayed in
+the NKP Insights Alert table, where you can filter and sort insight alerts by:
+•
+Project name
+•
+Cluster name
+•
+Description
+•
+Type
+You can also filter insight alerts in the Alerts table for each Severity level:
+•
+Critical
+•
+Warning
+•
+Notice
+NKP Insights Architecture
+This section describes the architecture for Nutanix Kubernetes Platform Insights (NKP Insights).
+Following diagram details the architecture for Nutanix Kubernetes Platform Insights (NKP Insights).
+The NKP Insights Architecture diagram shows how NKP Managed Clusters generate events and metrics
+through the Insights Engine. NKP Insights Management processes these insights, stores them in the Alerts
+Table, and shares them as notifications with collaboration tools such as Slack and Teams. Insight alerts
+include anomaly descriptions, root cause analysis, solutions, and best practices.
+Figure 24: NKP Insights Architecture
+Nutanix Kubernetes Platform Insights Setup
+Nutanix Kubernetes Platform Insights (NKP Insights) Management is enabled by default on your
+Management Cluster as one of the Platform Applications on page 294. You must enable NKP Insights on
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1087
+
+--- page 1088 ---
+each managed or attached cluster that you want to monitor. See NKP Insights Setup and Configuration on
+page 1088.
+NKP Insights Resource Requirements
+Table 93: Resources needed to run Nutanix Kubernetes Platform Insights
+Application Name
+Component Name
+Minimum
+Resources
+Suggested
+Minimum
+Persistent Storage
+Required
+Default
+PriorityClass
+NKP Insights
+Management
+nkp-insights-
+management
+CPU: 100m
+Memory: 128Mi
+NKP Critical
+(100002000)
+NKP Insights
+nkp-insights-
+backend-
+deployment
+CPU: 250m
+Memory: 128Mi
+NKP Critical
+(100002000)
+nkp-insights-
+backend-
+reforwarder
+CPU: 100m
+Memory: 64Mi
+nkp-insights-
+postgresql
+CPU: 256Mi
+Memory: 250m
+# of PVs: 1
+PV Sizes: 8Gi
+nkp-insights-
+resolution
+CPU: 100m
+Memory: 64Mi
+NKP Insights Setup and Configuration
+NKP Insights monitors and alerts on NKP clusters, with setup ensuring deployment, integrations, and
+reliability.
+This section outlines the requirements that must be in place before you begin deployment, including
+supported NKP versions, cluster access, resource availability, and necessary integrations. Reviewing these
+prerequisites ensures that the setup process runs smoothly and NKP Insights functions as expected.
+This chapter contains the following setup and configuration topics:
+•
+Prerequisites
+•
+Installing NKP Insights
+Prerequisites
+Before enabling NKP Insights, complete the following:
+•
+You have installed NKP.
+•
+You have an NKP Ultimate license applied.
+•
+Decide from which clusters you want to receive insight alerts.
+•
+Ensure you have Rook Ceph, Rook Ceph Cluster, and Kube Prometheus Stack deployed on the
+clusters where you perform the NKP Insights installation.
+•
+You have CloudNativePG component enabled.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1088
+
+--- page 1089 ---
+Note:  The Management cluster comes with Rook Ceph, Rook Ceph Cluster, and Kube Prometheus Stack
+by default. Deploy Rook Ceph and Rook Ceph Cluster on any Managed or Attached clusters using the UI or
+CLI.
+Installing NKP Insights
+About this task
+NKP Insights consists of two applications:
+•
+The Insights Management application or nkp-insights-management.
+•
+The Insights Engine application or nkp-insights.
+The Insights Management application is enabled by default in the Management cluster. You must enable
+the Insights Engine application on the clusters you want to monitor.
+Procedure
+1. Enable the Insights Engine (the nkp-insights application) on the clusters you want to monitor. There
+are several options:
+»
+You can enable NKP Insights per cluster or workspace using the UI.
+»
+You can enable NKP Insights per workspace using the CLI. This enables nkp-insights in all
+clusters in the target workspace.
+»
+You can enable NKP Insights per cluster using the CLI. This enables nkp-insights in selected
+clusters within a workspace.
+2. (Optional) Nutanix recommends enabling the Insights Engine Application on the kommander workspace
+to monitor your Management cluster.
+Note:  If you only want to monitor managed clusters, skip this step.
+a. Enable NKP Insights on the Management Cluster Workspace using the UI.
+b. Create an AppDeployment for NKP Insights in the kommander namespace (the workspace name
+is kommander-workspace). Specify the correct application version. For more information, see NKP
+Insights Release Notes on the Nutanix Support Portal.
+For example:
+nkp create appdeployment nkp-insights --app nkp-insights-1.4.4 --workspace
+ kommander-workspace
+Grant View Rights to Users Using the UI
+By default, only admin users can access the NKP Insights Alerts table of the NKP UI and the individual
+insight alert details.
+To allow additional users and user groups to view these Insights resources, create roles with rights to view
+them. Then, assign these roles to users or user groups.
+Note:  Access control to summary cards and details of insight alerts is performed via Kubernetes RBAC
+based on the namespace of the Kubernetes resource to which the insight alert is tied. A workspace
+namespace of the cluster is used for node-wide and cluster-wide insight alerts.
+Workspace-Based Access Control
+Allowing users to view Nutanix Kubernetes Platform Insights alerts in a project.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1089
+
+--- page 1090 ---
+Workspace-Based Access Control provides users to view Nutanix Kubernetes Platform Insights alerts in a
+project. This is achieved in the following two ways :
+•
+Creating a Role with View Rights to Summary Cards
+•
+Creating a Role with View Rights to Insight Alert Details
+Creating a Role with View Rights to Summary Cards
+Admin task for creating a workspace-based role with view rights to Nutanix Kubernetes Platform Insights
+summary cards.
+About this task
+When assigned, this role allows users and user groups to view the summary table of all Nutanix
+Kubernetes Platform Insights alerts for all workspaces and projects.
+Procedure
+1. Select the Management Cluster Workspace. The workspace selector is located at the top navigation
+bar.
+2. Select Administration > Access Control in the sidebar menu.
+3. Select Create Role, and add a Role Name
+4. Select NKP Role, as you provide access to NKP UI resources.
+5. Select + Add Rule in the Rules section.
+6. Enter the following information:
+Field
+Value
+Resources
+insights
+Resource Names
+[Leave this field empty]
+API Groups
+dkp-insights.d2iq.io
+Verbs
+get, list and watch
+7. Select Save to exit the rule configuration window.
+8. Select Save again to create the new role.
+9. Assign the roles you created to a user group as explained in Configuring Workspace Role Bindings on
+page 365.
+Note:  It will take a few minutes to create the resource.
+Creating a Role with View Rights to Insight Alert Details
+Admin task for creating a project-based role with view rights to Nutanix Kubernetes Platform Insights
+details.
+About this task
+When assigned to a user or user group, this role allows them to view alert details for an alert generated in
+a specific project.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1090
+
+--- page 1091 ---
+Procedure
+1.
+Select the workspace you want to grant view rights to. The workspace selector is located at the top
+navigation bar. (Option available for Ultimate customers only)
+2.
+Select Projects in the sidebar menu. Select or create a Project for which you want to create a role.
+3.
+Select the Roles tab, and Create Role.
+4.
+Assign a name to the role.
+5.
+Select Role, as you provide access to Insights resources across clusters.
+6.
+Select + Add Rule in the Rules section.
+7.
+Enter the following information:
+Field
+Value
+Select Rule Type
+Resources
+Resources
+insights, rca, solutions
+Resource Names
+[Leave this field empty]
+API Groups
+virtual.backend.dkp-insights.d2iq.io
+Verbs
+get
+8.
+Select Save to exit the rule configuration window and Save again to create the new role.
+9.
+Assign the role you created to a user group as explained in Configuring Workspace Role Bindings on
+page 365.
+10. If you want to grant view rights to the alert details for clusters in another Workspace, repeat the same
+procedure on a per-workspace basis.
+Note:
+•
+It will take a few minutes for the resource to be created.
+•
+insights, rca, solutions are virtual resources and are not listed as a Kubernetes API
+resource.
+Project-Based Access Control
+Allowing users to view Nutanix Kubernetes Platform Insights alerts in a workspace.
+Project-Based Access Control provides users to view Nutanix Kubernetes Platform Insights alerts in a
+workspace. This is achieved in the following two ways :
+•
+Creating a Role with View Rights to Summary Cards
+•
+Creating a Role with View Rights to Insight Alert Details
+Creating a Role with View Rights to Summary Cards
+Admin task for creating a project-based role with view rights to Nutanix Kubernetes Platform Insights
+summary cards.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1091
+
+--- page 1092 ---
+About this task
+When assigned, this role allows users and user groups to view the summary table of all Nutanix
+Kubernetes Platform Insights alerts for all workspaces and projects.
+Procedure
+1.
+Select the Management Cluster Workspace. The workspace selector is located at the top navigation
+bar.
+2.
+Select Projects in the sidebar menu.
+3.
+Select or create a Project for which you want to create a role.
+4.
+Select the Roles tab and Create Role.
+5.
+Select NKP Role, as you are providing access to NKP UI resources, and add a Role Name
+6.
+Select + Add Rule in the Rules section.
+7.
+Enter the following information:
+Field
+Value
+Resources
+insights
+Resource Names
+[Leave this field empty]
+API Groups
+dkp-insights.d2iq.io
+Verbs
+get, list and watch
+8.
+Select Save to exit the rule configuration window.
+9.
+Select Save again to create the new role.
+10. Assign the roles you created to a user group as explained in Configuring Workspace Role Bindings on
+page 365.
+Note:  It will take a few minutes to create the resource.
+Creating a Role with View Rights to Insight Alert Details
+Admin task for creating a workspace-based role with view rights to Nutanix Kubernetes Platform Insights
+details.
+About this task
+When assigned to a user or user group, this role allows them to view alert details for an alert generated in
+a specific workspace.
+Procedure
+1.
+Select the workspace you want to grant view rights to. The workspace selector is located at the top
+navigation bar.
+2.
+Select Administration > Access Control  in the sidebar menu.
+3.
+Select the Cluster Roles tab, and Create Role.
+4.
+Provide a name for the role.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1092

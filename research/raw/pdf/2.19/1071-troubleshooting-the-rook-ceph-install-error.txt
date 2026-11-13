@@ -1,0 +1,46 @@
+
+--- page 1071 ---
+Figure 21: Kommander Installation Diagram
+Troubleshooting the Rook Ceph Install Error
+If the installation of Kommander component of NKP is unsuccessful due to rook-cephfailing, follow this
+workaround to install.
+About this task
+If the installation of Kommander component of NKP is unsuccessful due to rook-ceph failing, follow these
+steps:
+Procedure
+1. Check if the cluster is affected by this issue:
+kubectl describe CephObjectStores dkp-object-store -n kommander
+•
+If the following output is not displayed, stop at this step.
+•
+If the following output is displayed, continue to the next step to apply the workaround.
+Name:         dkp-object-store
+Namespace:    kommander
+...
+  Warning  ReconcileFailed     7m55s (x19 over 52m)
+  rook-ceph-object-controller  failed to reconcile CephObjectStore
+  "kommander/dkp-object-store". failed to create object store deployments: failed
+  to configure multisite for object store: failed create ceph multisite for
+  object-store ["dkp-object-store"]: failed to commit config changes after
+  creating multisite config for CephObjectStore "kommander/dkp-object-store":
+  failed to commit RGW configuration period changes%!(EXTRA []string=[]): signal:
+ interrupt
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1071
+
+--- page 1072 ---
+2. Kubectl exec into the rook-ceph-tools pod:
+export WORKSPACE_NAMESPACE=<workspace namespace>
+CEPH_TOOLS_POD=$(kubectl get pods -l app=rook-ceph-tools -n ${WORKSPACE_NAMESPACE} -o
+ name)
+kubectl exec -it -n ${WORKSPACE_NAMESPACE} $CEPH_TOOLS_POD bash
+3. Set dkp-object-store as the default zonegroup:
+radosgw-admin zonegroup default --rgw-zonegroup=dkp-object-store
+radosgw-admin period update --commit
+The period update command may take a few minutes to complete.
+4. Restart the rook-ceph-operatordeployment:
+kubectl rollout restart deploy -n${WORKSPACE_NAMESPACE} rook-ceph-operator
+The rook-cephoperator reconciles the object . This takes time. The CephObjectStoredisplays
+Connected.
+5. Wait and verify if status of the CephObjectStoreis Connected:
+kubectl wait CephObjectStore --for=jsonpath='{.status.phase}'=Connected dkp-object-
+store -n ${WORKSPACE_NAMESPACE} --timeout 10m

@@ -1,0 +1,67 @@
+# NKP 2.19.0 — upgrade objects on the live management cluster (read-only, scrubbed)
+# Collected 2026-11-02 for skill nkp-upgrade. Cluster: <mgmt-cluster> (AHV, Starter, already on 2.19.0).
+# No upgrade was run (P-04 stays open).
+
+## UpgradePlan (upgradeplans.upgrade.nkp.nutanix.com/v1alpha1)
+kubectl get upgradeplans -A            -> No resources found (fresh 2.19.0 install)
+spec: nkpClusterRef (required), version (required, NKP version), kubernetesVersion, controlPlaneImage, workerImages (map pool->image), inputs
+status.phase enum: ValidatingInputs, UpgradingManagementPlane, UpgradingKommander, UpgradingPlatformApplications, UpgradingKubernetes, Upgraded, Failed
+status.steps[]: name, title, description, state (NotStarted|Progressing|Completed), progressMessage, error, errorRaw, startTime, endTime
+status.managementPlane / status.nkpCluster: the YAML applied during the upgrade
+printer columns: Version=.spec.version, Kubernetes Version=.spec.kubernetesVersion, Phase=.status.phase
+
+## ManagementPlane (managementplanes.managementplane.nkp.nutanix.com), cluster-scoped
+NAME           VERSION   CURRENT VERSION
+nkp-platform   v2.19.0   v2.19.0
+conditions (all True): OCIInstallConfigReady, FluxOCIMirrorReady, Reconciled, KAppsOCIRepositoryReady, CAPIOperatorReady,
+  CAPIStackOperatorReady, CAPIStackReady, ManagementPlaneOperatorReady, NKPClusterOperatorReady, UpgradePlanOperatorReady,
+  ReleaseOperatorReady, KommanderCoreOperatorReady, LoggingStackOperatorReady, NKPClusterQuotaReady, KommanderCoreReady, ClusterClassReady
+
+## Release (releases.release.nkp.nutanix.com)
+NAME      VERSION   UPGRADEABLE
+v2.19.0   v2.19.0   false
+
+## NKPCluster status
+keys: capiCluster, capiClusterRef, conditions, history, kommanderCluster, kommanderClusterRef, kubernetesVersion, phase, platformVersion
+printer columns: NKP Version=.status.platformVersion, Kubernetes Version=.status.kubernetesVersion, Phase=.status.phase
+history: [{"kubernetes":{"version":"v1.36.2","startedAt":...,"completedAt":...},"platform":{"version":"v2.19.0","startedAt":...,"completedAt":...}}]
+conditions (all True): CAPIClusterAdopted, CAPIClusterTopologyUpToDate, CAPIClusterStatusSynced, CAPITopologyReconciled,
+  KommanderClusterReady, KommanderClusterStatusSynced, PlatformAppsReconciled, KommanderClusterSynced
+host label kommander.d2iq.io/host=true; status.capiClusterRef = kommander/<mgmt-cluster>
+
+## Kommander HelmRelease
+kommander  True  Helm install succeeded for release kommander/kommander.v1 with chart kommander-chart@v2.19.0
+
+## Workspaces
+default-workspace -> kommander-default-workspace ; kommander-workspace -> kommander
+
+## Pre-check facts
+Prism Central project check (pdf p.1015 jq, adapted): kommander/<mgmt-cluster> -> _internal (single project)
+gitrepositories -A: only kommander-flux/management (git-operator, internal)
+Flux Kustomizations: 44 in kommander + 1 in kommander-default-workspace, all source GitRepository/management or OCIRepository/release-metadata; most prune=true (NKP-owned)
+Secrets named *dockerhub-nutanix-credentials: none (site uses a registry mirror; globalImageRegistryMirror.url = https://<registry-fqdn>/nutanix)
+topology.cluster.x-k8s.io/upgrade-concurrency on the CAPI Cluster: not set
+VM image of the cluster: nkp-ubuntu-24.04-release-cis-1.36.2-<build> (control plane and md-0)
+
+## Webhook check before the dry runs (AGENTS.md)
+Webhooks that match clusters / nkpclusters / upgradeplans / managementplanes / kommanderclusters:
+ capi-validating/mutating (clusters) sideEffects=None; caren preflight, cluster-validator, addons-defaulter, cluster-defaulter (clusters) None;
+ nkp-cluster-validating (nkpclusters; kommanderclusters,clusters) None; nkp-cluster-defaulting (nkpclusters) None;
+ upgradeplan-validating, upgradeplan-defaulting (upgradeplans) None; nkp-management-plane-validating None;
+ gatekeeper validation/mutation (*) None; kommander-validating/defaulting (kommanderclusters,...) NoneOnDryRun.
+All None or NoneOnDryRun -> dry runs allowed.
+
+## Dry runs (logged)
+1. nkp upgrade cluster nutanix -c <mgmt-cluster> -n kommander --vm-image <current image> --dry-run -o yaml
+   -> rc 0, empty output, log: INF Cluster "<mgmt-cluster>" is already using the latest supported Kubernetes version "1.36.2"
+2. nkp upgrade platform-apps --cluster-name <mgmt-cluster> --version v2.19.0 --workspace kommander-workspace --dry-run
+   -> INF dry-run: would create UpgradePlan "<mgmt-cluster>-v2.19.0" ... ; INF dry-run: server-side create request accepted;
+      admitted manifest: UpgradePlan, labels upgrade.nkp.nutanix.com/nkpcluster-name, upgrade.nkp.nutanix.com/target-version,
+      spec.nkpClusterRef (NKPCluster kommander/<mgmt-cluster>), spec.version v2.19.0
+3. same with --workspace kommander (a namespace) -> ERR failed to resolve namespace for workspace "kommander": no Workspace with this name
+4. same without --workspace -> ERR required flag(s) "workspace" not set
+5. kubectl annotate clusters.cluster.x-k8s.io <mgmt-cluster> topology.cluster.x-k8s.io/upgrade-concurrency=2 --dry-run=server -> accepted
+6. kubectl annotate nkpcluster <mgmt-cluster> topology.cluster.x-k8s.io/upgrade-concurrency=2 --dry-run=server -> accepted
+After all dry runs: kubectl get upgradeplans -A -> No resources found.
+
+## nkp upgrade kommander --help: no --disable-appdeployments flag (P-20).

@@ -1,0 +1,37 @@
+
+--- page 18 ---
+What to do next
+To complete the installation, see Installing NKP on page 46. To activate the license, see Adding a
+Nutanix Kubernetes® Platform License Through the UI on page 28.
+Note:  If you have problems downloading or installing NKP, contact Nutanix Support.
+Downloading NKP Using Command Line
+Use curl or wget to download the NKP binary from the command line for scripted installations, repeatable
+lab environments, and air-gapped workflows.
+Before you begin
+Log in to the Nutanix Portal with your Nutanix credentials.
+Procedure
+1. In the Nutanix Portal, copy the download URL for the NKP package that matches your operating system
+and architecture.
+Important:  Portal-generated download URLs expire after a short time. Keep the URL in single quotes
+when you use it in commands to prevent shell parsing issues.
+2. Download the package by running one of the following commands, replacing download-url with the
+URL that you copied:
+curl -L -o nkp_version_os_arch.tar.gz 'download-url'
+wget -O nkp_version_os_arch.tar.gz 'download-url'
+Tip:  If the download is interrupted, copy a new URL from the Nutanix Portal and resume with curl -C
+- or wget -c.
+3. Verify that the package downloaded:
+ls -lh nkp_version_os_arch.tar.gz
+4. Extract the downloaded .tar.gz file:
+tar -xzvf nkp_version_os_arch.tar.gz
+5. Move the nkp binary to a directory on your PATH:
+sudo mv nkp /usr/local/bin/
+6. Verify the installation:
+nkp version
+What to do next
+For air-gapped environments, transfer the downloaded bundle to your disconnected environment (for
+example, on USB media or in an internal artifact repository), and then follow the air-gapped installation
+procedure for image loading and registry seeding.
+To complete the installation, see Installing NKP on page 46. To activate the license, see Adding a
+Nutanix Kubernetes® Platform License Through the UI on page 28.
+Note:  If you have problems downloading or installing NKP, contact Nutanix Support.

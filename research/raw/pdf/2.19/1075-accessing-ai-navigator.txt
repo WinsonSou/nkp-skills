@@ -1,0 +1,27 @@
+
+--- page 1075 ---
+NKP MCP Server Installation Behavior
+Starting with NKP 2.19, NKP installs and enables the NKP MCP Server by default when you install AI
+Navigator. You do not need to install the NKP MCP Server separately.
+If you uninstall the NKP MCP Server, you can install it again later using the standard platform application
+installation workflow. For more information, see Activating an Application Using the UI.
+Disabling AI Navigator
+Disable AI Navigator app using the UI or CLI.
+About this task
+Disabling AI Navigator removes the application and its resources from your NKP cluster.
+Disable AI Navigator using one of the following methods.
+Procedure
+1. From the NKP UI, go to the Management Cluster Workspace and click Applications > View Details
+> Disable.
+2. From the CLI, on the NKP management cluster, run the following command.
+kubectl delete appdeployment ai-navigator-app -n kommander
+Accessing AI Navigator
+Access AI Navigator from the NKP user interface to use AI-powered assistance for managing your
+environment.
+About this task
+Note:  AI Navigator is not available in air-gapped NKP environments.
+AI Navigator is available by default in internet-connected NKP environments with Pro or Ultimate licenses.
+To access AI Navigator, follow these steps:
+Procedure
+1. Log in to the Nutanix Kubernetes Platform (NKP) user interface.
+Nutanix Kubernetes Platform | AI Navigator | 1075

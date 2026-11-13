@@ -1,0 +1,387 @@
+
+--- page 622 ---
+•
+Enable time-slicing on GPU Operators. See the GPU Sharing section in the CNCF AI
+Conformance document.
+•
+Install and maintain compatible accelerator drivers and the corresponding container-runtime
+configuration on accelerator nodes. See GPU Management.
+Scheduling
+•
+Enable and configure AI workload schedulers from catalog applications (for example, Kueue,
+Slurm Operator, and KAI Scheduler) and align with the GPU allocation strategy. See AI workload
+schedudling section in AI Catalog Applications on page 622.
+•
+Validate that node groups with accelerators scale up when pods are pending and additional
+nodes are provisioned to meet GPU demand and scale down when idle. See Cluster Autoscaling
+on page 628.
+•
+Validate that Horizontal Pod Autoscaler (HPA) works with GPUs. See Horizontal Pod Autoscaler
+on page 628.
+Networking
+•
+Enable Gateway API for AI Inference. See Gateway API for AI Inference Traffic on page 628.
+•
+Configure ingress, DNS, service exposure, and network policy controls required by AI services
+and model endpoints.
+Observability
+•
+Enable monitoring, logging, and metrics applications for AI workload health, GPU telemetry, and
+troubleshooting.
+•
+Ensure that GPU Metrics are available. See the Accelerator Performance Metrics section in the
+CNCF AI Conformance document.
+•
+Ensure that the monitoring system can collect AI Workload Metrics. See the AI Job and
+Inference Service Metrics section in the CNCF AI Conformance document.
+Security
+•
+Enforce identity, policy, and access controls for AI workloads and APIs.
+•
+Validate that pods without a GPU request cannot access a GPU, and pods cannot access a GPU
+assigned to others. See GPU Access Control on page 629.
+Operators
+•
+Enable and manage required platform and catalog operators, verify dependencies, and track life
+cycle updates. See Slurm Operator on page 624.
+Important:  Provisioning a cluster does not complete AI conformance. After you provision the cluster, enable
+the platform dependencies, configure workload controls, and run runtime validation before onboarding
+production AI traffic.
+AI Catalog Applications
+AI Catalog applications are validated AI and machine learning workload components that you deploy from
+the workspace catalog in Nutanix Kubernetes Platform (NKP).
+Use AI Catalog applications in NKP to deploy validated AI workload components from the workspace
+catalog.
+The AI Catalog lineup includes the following applications:
+Nutanix Kubernetes Platform | Cluster Operations Management | 622
+
+--- page 623 ---
+•
+KAI Scheduler: A robust, efficient, and scalable Kubernetes Native scheduler designed specifically to
+optimize GPU resource allocation for AI and machine learning workloads. To manage large-scale GPU
+clusters with high-throughput workloads. KAI provides an advanced placement logic and manages the
+entire AI life cycle, while ensuring resource fairness and optimal allocation. KAI can run alongside other
+schedulers installed on the cluster.
+•
+Slurm Operator: A Kubernetes operator for running and managing Slurm clusters on NKP.
+•
+Kueue: A job queueing and quota system for batch and AI/ML workloads. It holds jobs in a queue
+(suspended) until the quota and policy allow, then hands the admitted job to the normal scheduler for
+placement.
+•
+Kubeflow Pipelines: An open-source tool that helps to run AI and ML workloads on Kubernetes. This
+Kubeflow Platform application acts as a bridge between Kubeflow components, such as the central
+dashboard and pipelines. It restores the unified Kubeflow experience with a single URL, a single login,
+and isolated workspaces. It ensures consistent authentication, routing, and namespace isolation across
+components.
+•
+JupyterHub: A notebook authoring and editing environment.
+•
+Milvus Operator: An open-source, high-performance vector database for large-scale AI applications.
+For more information, see Pro: Enabling an Application Using the UI or Ultimate: Enabling an Application
+Using the UI.
+AI Workload Scheduling
+Use AI workload schedulers to apply gang scheduling, fair queueing, or advanced GPU-sharing policies to
+AI workloads in NKP. Use a gang scheduler when distributed AI workloads require all worker pods to start
+together. Gang scheduling avoids partial startup, stranded accelerator capacity, and unstable distributed
+job initialization.
+Use this guidance to select a scheduler:
+•
+Kueue: When you need queue-based admission and gang scheduling for distributed jobs.
+•
+Slurm Operator: When you need Slurm-oriented queue and job control for HPC-style workflows.
+•
+KAI Scheduler: When you need policy and queue-based behavior for shared GPU workload fairness.
+For GPU workloads, you must first configure NVIDIA Operators, then enable the scheduler application.
+You can validate the scheduler deployment by checking the application status in the NKP UI and the Helm
+release readiness in the target workspace namespace. For more information, see GPU Management on
+page 607.
+AI Workload Metrics
+NKP monitoring collects metrics from AI Catalog applications, such as Kueue and KServe, in a standard
+format (for example, the Prometheus exposition format).
+NKP monitors, discovers, and collects metrics from the following AI Catalog applications:
+•
+Kueue: Kueue exposes job-queue metrics for AI and machine learning workloads.
+•
+KServe: KServe exposes inference-service metrics for model serving.
+For more information on Kueue, see Kueue for Gang Scheduling.
+For more information, see the AI Job and Inference Service Metrics section in the CNCF AI Conformance
+document.
+Nutanix Kubernetes Platform | Cluster Operations Management | 623
+
+--- page 624 ---
+Prerequisites for AI Catalog Applications Deployment
+Complete these prerequisites before you enable AI Catalog applications in Nutanix Kubernetes Platform
+(NKP).
+Verify the following prerequisites before you enable AI Catalog applications:
+•
+Obtain a NKP Pro or Ultimate license.
+•
+Use a target-managed or attached cluster in a workspace.
+•
+Enable the following required platform applications for your selected AI application:
+•
+GPU Operator (NVIDIA GPU Operator) for GPU workloads. For more information, see GPU
+Management.
+•
+Monitoring stack (Prometheus and Grafana components) for observability. For more information, see
+Monitoring and Alerts.
+•
+Ingress or gateway components for external access, where needed. For more information, see
+Ingress and Networking.
+•
+Cert-manager for TLS-backed services and certificates. For more information, see Certificate
+Configuration Options.
+•
+Label the GPU nodes according to your scheduling design. For more information, see Adding or Editing
+Workspace Annotations and Labels.
+For more information on how to enable and configure an AI Catalog application, see Pro: Enabling an
+Application Using the UI or Ultimate: Enabling an Application Using the UI.
+KAI Scheduler
+KAI Scheduler is a catalog application that adds queue and policy based GPU scheduling controls for AI
+and machine learning workloads in Nutanix Kubernetes Platform (NKP).
+KAI Scheduler is a catalog application for GPU aware workload scheduling in NKP. It complements native
+Kubernetes scheduling by adding queue- and policy-based controls for GPU-sharing workloads, while
+Kubernetes continues to manage core pod placement and cluster orchestration.
+Use KAI Scheduler to improve GPU utilization and workload fairness for AI and ML clusters that run mixed
+job types, multiple tenants, or short spikes in demand. If your environment has simple, single tenant GPU
+usage, native Kubernetes scheduling can remain sufficient.
+With KAI Scheduler, you can do the following tasks:
+•
+Allocate GPU capacity more efficiently across teams and workloads.
+•
+Enforce scheduling policy for shared GPU environments.
+•
+Reduce pending-job contention during peak usage windows.
+Note:  Before you enable KAI Scheduler, configure the GPU Operator, node isolation, and monitoring.
+Validate KAI Scheduler with test workloads before you use it in production.
+Slurm Operator
+The Slurm Operator is a catalog application that extends Kubernetes with Slurm control resources to run
+queue-based HPC and AI jobs in Nutanix Kubernetes Platform.
+Use the Slurm Operator catalog application to run Slurm-managed workloads on Nutanix Kubernetes
+Platform. The Slurm Operator extends Kubernetes with Slurm control resources so that you can manage
+queue-based HPC and AI jobs in a Kubernetes-native environment.
+Nutanix Kubernetes Platform | Cluster Operations Management | 624
+
+--- page 625 ---
+The Slurm Operator supports the following operations:
+•
+Slurm control-plane deployment on Nutanix Kubernetes Platform clusters
+•
+Slurm queue and job life cycle orchestration
+•
+Integration with GPU-enabled node pools for AI and High-Performance Computing (HPC) workloads
+Use the Slurm Operator when you require Slurm semantics for scheduling and operations. For clusters that
+use only Kubernetes-native scheduling, the Slurm Operator is optional.
+For more information, see the Robust CRD and Controller Operation section in the CNCF AI Conformance
+document.
+Kueue for Gang Scheduling
+Kueue is a job queueing and quota system that provides gang scheduling and queue-based admission
+control for distributed AI workloads in Nutanix Kubernetes Platform (NKP).
+Use Kueue in NKP when distributed AI jobs must start as a coordinated unit and consume quota-managed
+resources. Kueue adds queue-based admission control on top of Kubernetes scheduling, so jobs wait until
+the required resources are available rather than starting partially.
+Gang scheduling means all required workload units (for example, worker pods in a distributed training
+job) are admitted together. If cluster resources cannot satisfy the full request, Kueue keeps the workload
+pending in the queue, and thus prevents the following:
+•
+Partial startup of distributed jobs
+•
+Stranded GPU allocations
+•
+Repeated retry loops from under-provisioned starts
+Use these objects to control admission behavior:
+•
+Local queue: A namespaced queue that application teams use to submit workloads
+•
+Cluster queue: A cluster-scoped quota and policy pool that backs one or more local queues
+Kueue checks workload requests against the cluster queue quota and policy. If quota is available, Kueue
+admits the workload; if not, the workload remains queued.
+Kueue and GPU Allocation
+Kueue does not replace GPU device allocation. GPU Operators expose allocatable GPU resources, and
+Kueue uses those resources in admission decisions.
+This interaction model uses the following lifecycle:
+•
+Resource publication: The GPU Operator publishes the available GPU resources.
+•
+Admission evaluation: Kueue evaluates queue quota and workload requests.
+•
+Pod scheduling: Kubernetes schedules admitted pods onto eligible GPU nodes.
+Note:  Configure node labels and tolerations to ensure deterministic GPU placement after admission.
+Use Kueue when you need the following:
+•
+Coordinated start for distributed jobs
+•
+Queue fairness across teams
+•
+Explicit quota control per tenant or project
+Nutanix Kubernetes Platform | Cluster Operations Management | 625
+
+--- page 626 ---
+•
+Admission gating to avoid partial AI job execution
+Use the default scheduling when you need the following:
+•
+Simple single-pod or small stateless workloads
+•
+No queue hierarchy or quota governance
+•
+Immediate best-effort scheduling without gang semantics
+The following operational examples show how Kueue acts as a gatekeeper:
+Distributed Training with Eight GPUs
+The job requires eight GPU-consuming workers. With default scheduling, some workers can start
+while others wait, causing an unstable startup. With Kueue, admission waits until the quota can
+satisfy all workers, then the job starts coherently.
+Multi-Tenant AI Workspace
+Team A and Team B share the same GPU cluster. The cluster queue enforces tenant quotas. The
+local queue isolates team submissions. Kueue admission prevents one team from consuming all
+GPU capacity.
+For more information, see the Gang Scheduling section in the CNCF AI Conformance document.
+Kubeflow Pipelines
+Kubeflow Pipelines is a catalog application that enables you to build, run, and manage portable machine
+learning workflows in Nutanix Kubernetes Platform (NKP).
+Kubeflow Pipelines is a catalog application in NKP that represents each machine learning workflow as
+a set of containerized components. It supports experiments, pipeline runs, recurring runs, and artifact
+tracking so that you can build, run, and manage portable machine learning workflows.
+Use Kubeflow Pipelines to organize repeatable machine learning workflows, such as data preparation,
+model training, model evaluation, and model serving. You can define pipelines with the Kubeflow Pipelines
+SDK, compile them to intermediate representation YAML, and run them from the Kubeflow Pipelines UI or
+SDK.
+Use Kubeflow Pipelines when you need the following:
+•
+Repeatable and versioned machine learning workflows.
+•
+Experiments that group related pipeline runs.
+•
+Recurring runs for scheduled pipeline execution.
+•
+Pipeline graphs, step logs, and output artifact tracking.
+•
+A Kubernetes-native workflow service that runs pipeline components in containers.
+With Kubeflow Pipelines, you can do the following tasks:
+•
+Define pipelines and components by using the Kubeflow Pipelines SDK.
+•
+Compile a pipeline to intermediate representation YAML before execution.
+•
+Upload and run a compiled pipeline from the Kubeflow Pipelines UI.
+•
+Submit pipeline runs by using the Python SDK or Kubeflow Pipelines API.
+•
+Compare runs within an experiment and review the execution graph, logs, and artifacts.
+•
+Configure replicas, resources, node scheduling, and other Helm-backed settings through application
+configuration overrides.
+Nutanix Kubernetes Platform | Cluster Operations Management | 626
+
+--- page 627 ---
+JupyterHub
+JupyterHub is a catalog application that provides shared, multi-user Jupyter notebook environments in
+Nutanix Kubernetes Platform (NKP).
+JupyterHub is a catalog application in NKP that provides shared, multi-user Jupyter notebook
+environments. JupyterHub gives users access to computational environments without requiring each user
+to install and maintain the notebook service.
+Use JupyterHub to provide a shared notebook environment for teams that perform data analysis, scientific
+computing, machine learning development, and collaborative experimentation. JupyterHub spawns and
+manages a separate Jupyter notebook server for each user on demand.
+Use JupyterHub when you need the following:
+•
+A centralized notebook environment for multiple users.
+•
+User authentication through NKP single sign-on.
+•
+Kubernetes-native user server spawning.
+•
+Per-user resource requests, limits, and persistent storage.
+•
+A shared environment for data analysis and model development.
+With JupyterHub, you can do the following tasks:
+•
+Authenticate users with NKP credentials through traefik-forward-auth and Dex.
+•
+Start and manage a separate notebook server for each user.
+•
+Assign CPU and memory resources to individual notebook servers.
+•
+Configure administrator access by adding users to the admin_users list.
+•
+Manage user servers from the JupyterHub administrator panel.
+•
+Customize Helm values through workspace application configuration overrides.
+Milvus Operator
+Milvus Operator is a catalog application that deploys and manages a full Milvus service stack in Nutanix
+Kubernetes Platform (NKP).
+Milvus Operator is a catalog application in NKP that deploys and manages a full Milvus service stack,
+including the Milvus components and their required dependencies.
+Use Milvus Operator to provide scalable vector data management and search capabilities for applications
+that use similarity search, metadata filtering, and machine learning workloads. Milvus uses a service-
+oriented architecture that separates storage, coordinators, and workers so that you can scale components
+independently.
+Use Milvus Operator when you need the following:
+•
+A Kubernetes-native way to deploy and manage Milvus clusters.
+•
+Independent scaling of storage, coordinator, and worker components.
+•
+Multiple index types for different performance and accuracy requirements.
+•
+Approximate nearest neighbor (ANN) and metadata-filtered search.
+•
+Tunable consistency based on data freshness and query performance requirements.
+•
+Hardware-accelerated compute support, including GPU-based indexing.
+With Milvus Operator, you can do the following tasks:
+Nutanix Kubernetes Platform | Cluster Operations Management | 627
+
+--- page 628 ---
+•
+Deploy a complete Milvus service stack by creating a Milvus custom resource.
+•
+Scale Milvus components according to application workload requirements.
+•
+Select from index types such as HNSW, inverted file (IVF), product quantization, and GPU-based
+indexes.
+•
+Use top-K ANN search, range ANN search, and metadata-filtered search.
+•
+Configure consistency behavior by using a staleness tolerance that matches your application's data
+freshness requirements.
+•
+Use compute optimizations such as SIMD execution, quantization, cache-aware processing, and GPU
+acceleration.
+Gateway API for AI Inference Traffic
+Use Kubernetes Gateway API to expose AI inference endpoints with clear traffic ownership, protocol
+control, and policy boundaries.
+Use Kubernetes Gateway API to expose AI inference endpoints with clear traffic ownership, protocol
+control, and policy boundaries. Gateway API separates infrastructure ownership from application routing,
+which is useful when platform teams manage ingress infrastructure and application teams manage model
+routes.
+Consider the following security and reliability recommendations:
+•
+Use TLS for all external inference paths.
+•
+Limit cross-namespace route attachment with allowedRoutes and namespace selectors.
+•
+Use explicit hostnames instead of wildcard catch-all hosts for production APIs.
+•
+Apply request timeout, retry, and header policy controls where the gateway controller supports them.
+•
+Keep route definitions in version-controlled manifests and promote the manifests through staged
+environments.
+For more information and instructions to install and implement the API Gateway, see the Support the
+Gateway API section in the CNCF AI Conformance document.
+Cluster Autoscaling
+Use cluster autoscaling on accelerator node pools to align GPU capacity with workload demand while
+controlling idle cost.
+Use cluster autoscaling on accelerator node pools to align GPU capacity with workload demand while
+controlling idle cost. Coordinate the autoscaling policy with scheduler admission, node initialization time,
+and GPU Operator readiness.
+For more information, see the Cluster Autoscaling section in the CNCF AI Conformance document.
+Horizontal Pod Autoscaler
+Use Horizontal Pod Autoscaler (HPA) with custom metrics when inference workload pressure is better
+represented by application signals rather than CPU or memory alone.
+Use Horizontal Pod Autoscaler (HPA) with custom metrics when inference workload pressure is better
+represented by application signals, such as requests per second, queue depth, or in-flight requests, rather
+than CPU or memory alone.
+Verify the following prerequisites:
+Nutanix Kubernetes Platform | Cluster Operations Management | 628

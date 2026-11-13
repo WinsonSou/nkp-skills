@@ -1,0 +1,395 @@
+# NKP 2.19.0 — --help of the upgrade and update commands (live, scrubbed). Collected 2026-11-02 for skill nkp-upgrade.
+
+########## nkp upgrade --help ##########
+Upgrade one of [addons, catalog-app, cluster, kommander, platform-apps]
+
+Usage:
+  nkp upgrade [command]
+
+Available Commands:
+  addons          Upgrade the core Addons in a cluster, one of [aws, azure, gcp, preprovisioned, vsphere]
+  catalog-app     Upgrade a Catalog Application to a newer version
+  cluster         Cluster one of [eks, metal, nutanix]
+  kommander       Upgrade the Kommander version of the targeted cluster
+  platform-apps   Upgrade platform applications for a target NKPCluster
+
+Flags:
+  -h, --help   Help for upgrade
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp upgrade [command] --help" for more information about a command.
+
+########## nkp upgrade cluster --help ##########
+Cluster one of [eks, metal, nutanix]
+
+Usage:
+  nkp upgrade cluster [command]
+
+Available Commands:
+  eks         Upgrade a Kubernetes cluster's version to 1.36.0 in EKS
+  metal       Upgrade a NKP Metal cluster
+  nutanix     Upgrade a Kubernetes cluster's version to 1.36.2 in Nutanix
+
+Flags:
+  -h, --help   Help for cluster
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp upgrade cluster [command] --help" for more information about a command.
+
+########## nkp upgrade cluster metal --help ##########
+Upgrade a Kubernetes cluster's version to 1.36.2 on bare metal.
+
+Usage:
+  nkp upgrade cluster metal [flags]
+
+Flags:
+  -c, --cluster-name name                Name used to prefix the cluster and all the created resources.
+      --dry-run                          Only print the objects that would be created, without creating them.
+  -h, --help                             Help for metal
+      --kubeconfig string                Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-image-uri image-uri   Machine OS image URI uploaded to an OCI-compliant registry. The expected format is oci://<registry-url>/<registry-path>/<image-name>:<image-tag>. When unset, will be derived based on the Kubernetes versions using the registry mirror when one is configured.
+      --kubernetes-version string        Kubernetes version. (default "1.36.2")
+  -n, --namespace string                 If present, the namespace scope for this CLI request. (default "kommander-default-workspace")
+  -o, --output string                    Output format. One of: (json, yaml, kyaml, name).
+      --show-managed-fields              If true, keep the managedFields when printing objects in JSON or YAML format.
+      --skip-preflight-checks strings    Skip preflight checks. Use "all" to skip all checks, a comma-separated list of names to skip specific checks, or "" to run all checks, even if checks were previously skipped. (default [])
+      --timeout duration                 The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 1h0m0s)
+  -v, --verbose int                      Output verbosity
+      --wait                             If true, wait for operations to complete before returning. (default true)
+
+########## nkp upgrade cluster eks --help ##########
+Upgrade a Kubernetes cluster's version to 1.36.0 in EKS
+
+Usage:
+  nkp upgrade cluster eks [flags]
+
+Flags:
+  -c, --cluster-name name               Name used to prefix the cluster and all the created resources.
+      --dry-run                         Only print the objects that would be created, without creating them.
+  -h, --help                            Help for eks
+      --kubeconfig string               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string                If present, the namespace scope for this CLI request. (default "default")
+  -o, --output string                   Output format. One of: (json, yaml, name).
+      --output-directory string         Used with --output=json|yaml. The directory where to output resources to files. The directory must already exist.
+      --show-managed-fields             If true, keep the managedFields when printing objects in JSON or YAML format.
+      --skip-preflight-checks strings   Skip preflight checks. Use "all" to skip all checks, a comma-separated list of names to skip specific checks, or "" to run all checks, even if checks were previously skipped. (default [])
+      --timeout duration                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 40m0s)
+      --use-context string              Use a specific context in a kubeconfig file.
+  -v, --verbose int                     Output verbosity
+      --wait                            If true, wait for operations to complete before returning. (default true)
+
+########## nkp upgrade platform-apps --help ##########
+Upgrade platform applications for a target NKPCluster
+
+Usage:
+  nkp upgrade platform-apps --cluster-name CLUSTER_NAME --version VERSION --workspace WORKSPACE [--dry-run] [flags]
+
+Flags:
+      --allow-gitrepository-catalog-apps   Allow upgrade to proceed when deprecated GitRepository-based catalog apps are detected
+      --cluster-name string                Name of target NKPCluster
+      --config string                      Config file to use (default "/home/runner/.kommander/config")
+      --context string                     The name of the kubeconfig context to use
+      --core-app-timeout duration          Timeout to wait for upgrade of each kommander core application (default 20m0s)
+      --dry-run                            Do not upgrade, just list the operations that would be performed
+  -h, --help                               Help for platform-apps
+      --kubeconfig string                  Path to the kubeconfig file to use for CLI requests.
+      --platform-apps-timeout duration     Timeout to wait for upgrade of the set of platform applications (default 1h0m0s)
+      --request-timeout string             The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int                        Output verbosity
+      --version string                     Target NKP platform version to upgrade to
+      --workspace string                   Workspace containing the target NKPCluster
+
+########## nkp upgrade catalog-app --help ##########
+Upgrade a Catalog Application to a newer version
+
+Usage:
+  nkp upgrade catalog-app CATALOGAPP_NAME --to-version VERSION [--workspace WORKSPACE | --project PROJECT] [flags]
+
+Aliases:
+  catalog-app, catalogapp
+
+Flags:
+      --allow-gitrepository-catalog-apps   Allow upgrade to proceed when deprecated GitRepository-based catalog apps are detected
+      --config string                      Config file to use (default "/home/runner/.kommander/config")
+      --context string                     The name of the kubeconfig context to use
+      --core-app-timeout duration          Timeout to wait for upgrade of each kommander core application (default 20m0s)
+  -h, --help                               Help for catalog-app
+      --kubeconfig string                  Path to the kubeconfig file to use for CLI requests.
+      --platform-apps-timeout duration     Timeout to wait for upgrade of the set of platform applications (default 1h0m0s)
+      --project string                     Name of the Project to upgrade the Catalog App in
+      --request-timeout string             The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+      --to-version string                  Version the Catalog App should be upgraded to
+  -v, --verbose int                        Output verbosity
+  -w, --workspace string                   Name of the Workspace to upgrade the Catalog App in
+
+########## nkp upgrade addons aws --help ##########
+Upgrade the core Addons in a AWS cluster
+
+Usage:
+  nkp upgrade addons aws [flags]
+
+Flags:
+  -c, --cluster-name name         Name used to prefix the cluster and all the created resources.
+      --dry-run                   Only print the objects that would be created, without creating them.
+  -h, --help                      Help for aws
+      --kubeconfig string         Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string          If present, the namespace scope for this CLI request. (default "default")
+  -o, --output string             Output format. One of: (json, yaml, name).
+      --output-directory string   Used with --output=json|yaml. The directory where to output resources to files. The directory must already exist.
+      --show-managed-fields       If true, keep the managedFields when printing objects in JSON or YAML format.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp upgrade addons preprovisioned --help ##########
+Upgrade the core Addons in a Preprovisioned cluster
+
+Usage:
+  nkp upgrade addons preprovisioned [flags]
+
+Flags:
+  -c, --cluster-name name         Name used to prefix the cluster and all the created resources.
+      --dry-run                   Only print the objects that would be created, without creating them.
+  -h, --help                      Help for preprovisioned
+      --kubeconfig string         Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string          If present, the namespace scope for this CLI request. (default "default")
+  -o, --output string             Output format. One of: (json, yaml, name).
+      --output-directory string   Used with --output=json|yaml. The directory where to output resources to files. The directory must already exist.
+      --show-managed-fields       If true, keep the managedFields when printing objects in JSON or YAML format.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update controlplane aws --help ##########
+Update a Kubernetes cluster control plane in AWS
+
+Usage:
+  nkp update controlplane aws [flags]
+
+Flags:
+      --ami string                                      AMI ID to use for machines
+      --ami-base-os string                              Base OS used in search of AMIs. Examples: 'ubuntu-22.04'
+      --ami-format string                               Query string used in search of AMIs. Example: When --ami-base-os='rhel8.10', then the string 'prefix-{{.BaseOS}}-?{{.K8sVersion}}-*' matches any AMIs with the Name 'prefix-rhel8.10-1.36.2
+      --ami-owner string                                ID of AWS account used in search of AMIs
+  -c, --cluster-name name                               Name used to prefix the cluster and all the created resources.
+      --control-plane-renew-certificates-before int32   Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+  -h, --help                                            Help for aws
+      --instance-type string                            Instance type to use for control plane machines
+      --kubeconfig string                               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string                       Kubernetes version
+  -n, --namespace string                                If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration                                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string                              Use a specific context in a kubeconfig file.
+      --wait                                            If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update controlplane azure --help ##########
+Update a Kubernetes cluster control plane in Azure
+
+Usage:
+  nkp update controlplane azure [flags]
+
+Flags:
+  -c, --cluster-name name                               Name used to prefix the cluster and all the created resources.
+      --compute-gallery-id string                       Compute Gallery ID of a custom image, e.g., '/subscriptions/<subscription id>/resourceGroups/<resource group name>/providers/Microsoft.Compute/galleries/<gallery name>/images/<image definition name>/versions/<version id>' (replacing placeholders with the values used when creating the image)
+      --control-plane-renew-certificates-before int32   Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+  -h, --help                                            Help for azure
+      --kubeconfig string                               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string                       Kubernetes version
+      --machine-size string                             Worker machine size (ex. 'Standard_D2s_v3')
+  -n, --namespace string                                If present, the namespace scope for this CLI request. (default "default")
+      --plan-offer string                               The offer for a Marketplace image or a custom image sourced from a Marketplace image requiring Plan information.
+      --plan-publisher string                           The publisher for a Marketplace image or a custom image sourced from a Marketplace image requiring Plan information.
+      --plan-sku string                                 The SKU for a Marketplace image or a custom image sourced from a Marketplace image requiring Plan information.
+      --timeout duration                                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string                              Use a specific context in a kubeconfig file.
+      --wait                                            If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update controlplane gcp --help ##########
+Update a Kubernetes cluster control plane in GCP
+
+Usage:
+  nkp update controlplane gcp [flags]
+
+Flags:
+  -c, --cluster-name name                               Name used to prefix the cluster and all the created resources.
+      --control-plane-renew-certificates-before int32   Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+  -h, --help                                            Help for gcp
+      --image string                                    Full reference to an image to use for all nodes (set either this or --image-family) (ex. 'projects/my-project/global/images/konvoy-ubuntu-2204-1-99-99-1234567890')
+      --image-family string                             Full reference to an image family to use for all nodes (set either this or --image) (ex. 'projects/my-project/global/images/family/nkp-ubuntu-2204-{{.K8sVersion}}')
+      --instance-type string                            Control Plane machine instance type (ex. "n2-standard-4")
+      --kubeconfig string                               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string                       Kubernetes version
+  -n, --namespace string                                If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration                                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string                              Use a specific context in a kubeconfig file.
+      --wait                                            If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update controlplane vsphere --help ##########
+Update a Kubernetes cluster control plane in vSphere
+
+Usage:
+  nkp update controlplane vsphere [flags]
+
+Flags:
+  -c, --cluster-name name                               Name used to prefix the cluster and all the created resources.
+      --control-plane-renew-certificates-before int32   Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+      --cpus int                                        The number of virtual processors in a virtual machine.
+      --disk-size int                                   The size of a virtual machine's disk, in GB.
+  -h, --help                                            Help for vsphere
+      --kubeconfig string                               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string                       Kubernetes version
+      --memory int                                      The size of a virtual machine's memory, in GB.
+  -n, --namespace string                                If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration                                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string                              Use a specific context in a kubeconfig file.
+      --vm-template string                              The virtual machine template to use for a virtual machine.
+      --wait                                            If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update controlplane preprovisioned --help ##########
+Update a Kubernetes cluster control plane in Preprovisioned
+
+Usage:
+  nkp update controlplane preprovisioned [flags]
+
+Flags:
+  -c, --cluster-name name                               Name used to prefix the cluster and all the created resources.
+      --control-plane-renew-certificates-before int32   Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+  -h, --help                                            Help for preprovisioned
+      --kubeconfig string                               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string                       Kubernetes version
+  -n, --namespace string                                If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration                                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string                              Use a specific context in a kubeconfig file.
+      --wait                                            If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update nodepool aws --help ##########
+Update a Konvoy cluster node pool in AWS
+
+Usage:
+  nkp update nodepool aws [flags]
+
+Flags:
+      --ami string                  AMI ID to use for machines
+      --ami-base-os string          Base OS used in search of AMIs. Examples: 'ubuntu-22.04'
+      --ami-format string           Query string used in search of AMIs. Example: When --ami-base-os='rhel8.10', then the string 'prefix-{{.BaseOS}}-?{{.K8sVersion}}-*' matches any AMIs with the Name 'prefix-rhel8.10-1.36.2
+      --ami-owner string            ID of AWS account used in search of AMIs
+  -c, --cluster-name name           Name used to prefix the cluster and all the created resources.
+  -h, --help                        Help for aws
+      --instance-type string        Instance type to use for node pool machines
+      --kubeconfig string           Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string   Kubernetes version
+  -n, --namespace string            If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration            The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string          Use a specific context in a kubeconfig file.
+      --wait                        If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update nodepool azure --help ##########
+Update a Konvoy cluster node pool in Azure
+
+Usage:
+  nkp update nodepool azure [flags]
+
+Flags:
+  -c, --cluster-name name           Name used to prefix the cluster and all the created resources.
+      --compute-gallery-id string   Compute Gallery ID of a custom image, e.g., '/subscriptions/<subscription id>/resourceGroups/<resource group name>/providers/Microsoft.Compute/galleries/<gallery name>/images/<image definition name>/versions/<version id>' (replacing placeholders with the values used when creating the image)
+  -h, --help                        Help for azure
+      --kubeconfig string           Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string   Kubernetes version
+      --machine-size string         Worker machine size (ex. 'Standard_D2s_v3')
+  -n, --namespace string            If present, the namespace scope for this CLI request. (default "default")
+      --plan-offer string           The offer for a Marketplace image or a custom image sourced from a Marketplace image requiring Plan information.
+      --plan-publisher string       The publisher for a Marketplace image or a custom image sourced from a Marketplace image requiring Plan information.
+      --plan-sku string             The SKU for a Marketplace image or a custom image sourced from a Marketplace image requiring Plan information.
+      --timeout duration            The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string          Use a specific context in a kubeconfig file.
+      --wait                        If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update nodepool gcp --help ##########
+Update a Konvoy cluster node pool in GCP
+
+Usage:
+  nkp update nodepool gcp [flags]
+
+Flags:
+  -c, --cluster-name name           Name used to prefix the cluster and all the created resources.
+  -h, --help                        Help for gcp
+      --image string                Full reference to an image to use for all nodes (set either this or --image-family) (ex. 'projects/my-project/global/images/konvoy-ubuntu-2204-1-99-99-1234567890')
+      --image-family string         Full reference to an image family to use for all nodes (set either this or --image) (ex. 'projects/my-project/global/images/family/nkp-ubuntu-2204-{{.K8sVersion}}')
+      --instance-type string        Worker machine instance type (ex. "n2-standard-8")
+      --kubeconfig string           Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string   Kubernetes version
+  -n, --namespace string            If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration            The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string          Use a specific context in a kubeconfig file.
+      --wait                        If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update nodepool vsphere --help ##########
+Update a Konvoy cluster node pool in vSphere
+
+Usage:
+  nkp update nodepool vsphere [flags]
+
+Flags:
+  -c, --cluster-name name           Name used to prefix the cluster and all the created resources.
+      --cpus int                    The number of virtual processors in a virtual machine.
+      --disk-size int               The size of a virtual machine's disk, in GB.
+  -h, --help                        Help for vsphere
+      --kubeconfig string           Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string   Kubernetes version
+      --memory int                  The size of a virtual machine's memory, in GB.
+  -n, --namespace string            If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration            The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string          Use a specific context in a kubeconfig file.
+      --vm-template string          The virtual machine template to use for a virtual machine.
+      --wait                        If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update nodepool preprovisioned --help ##########
+Update a Konvoy cluster node pool in Preprovisioned
+
+Usage:
+  nkp update nodepool preprovisioned [flags]
+
+Flags:
+  -c, --cluster-name name           Name used to prefix the cluster and all the created resources.
+  -h, --help                        Help for preprovisioned
+      --kubeconfig string           Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string   Kubernetes version
+  -n, --namespace string            If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration            The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string          Use a specific context in a kubeconfig file.
+      --wait                        If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+

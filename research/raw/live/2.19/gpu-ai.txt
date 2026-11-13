@@ -1,0 +1,71 @@
+# GPU and AI facts — NKP 2.19.0 (read-only, 2026-11-03, batch 4 nkp-gpu-ai author)
+# Cluster: <mgmt-cluster> (AHV, Starter, no GPU nodes). Scrubbed: names, IPs, UUIDs.
+# Commands: kubectl get/explain, get --raw /metrics, tar -t/-xO on the bastion bundle, nkp --help.
+# Upstream artifacts read on the parent's workstation (public OCI/GitHub), matched by digest:
+#   ghcr.io/mesosphere/kommander-applications:v2.19.0 digest sha256:ec2a35cc94a0...41e
+#     = the digest of OCIRepository kommander/kommander-applications-v2-19-0 on the lab (kommander.txt).
+#   ghcr.io/nutanix-cloud-native/vgpu-token-operator-charts/vgpu-token-operator:v1.0.7 sha256:2d3eeee9...54c8
+#     = the tag link in kommander-image-bundle-v2.19.0.tar.
+#   registry.k8s.io/dra-driver-nvidia/charts/dra-driver-nvidia-gpu:0.4.1 sha256:7a00373f...25dd
+#     = the tag link in kommander-image-bundle-v2.19.0.tar.
+
+== ClusterApps (GPU) ==
+nvidia-gpu-operator-26.3.3      appId nvidia-gpu-operator      licensing pro,ultimate,essential,enterprise  category accelerated-infrastructure  certifications qualified,airgapped
+nvidia-network-operator-26.4.1  appId nvidia-network-operator  licensing pro,ultimate,essential,enterprise
+vgpu-token-operator-1.0.8       appId vgpu-token-operator      licensing pro,ultimate,essential,enterprise  (chart tag v1.0.7)
+No amd-gpu-operator or amd-kmm-operator ClusterApp. kubectl get apps -A: none.
+
+== nvidia-gpu-operator 26.3.3 app tree (kommander-applications v2.19.0) ==
+Three Flux Kustomizations: nvidia-gpu-operator-pre-install (Job), nvidia-gpu-operator-helmrelease, nvidia-dra-driver-helmrelease (both dependsOn pre-install).
+HelmRelease nvidia-gpu-operator: chart oci://ghcr.io/mesosphere/charts/gpu-operator v26.3.3
+  valuesFrom: <releaseName>-26.3.3-config-defaults ; <releaseName>-config-deviceplugin-defaults (key operator-deviceplugin-enabled-values.yaml, optional)
+  (plus the Kommander patch that adds <app>-cluster-overrides when the AppDeployment has configOverrides; seen on dex)
+HelmRelease nvidia-dra-driver: chart oci://registry.k8s.io/dra-driver-nvidia/charts/dra-driver-nvidia-gpu 0.4.1
+  valuesFrom: <releaseName>-26.3.3-dra-driver-config-defaults ; <releaseName>-config-overrides (optional) ; <releaseName>-config-deviceplugin-defaults (key dra-driver-disabled-values.yaml, optional)
+Defaults (gpu-operator): nfd.enabled false; driver.enabled false (driver manager v0.11.0); cdi.enabled true; devicePlugin.enabled false (v0.19.3);
+  toolkit v1.20.0 with env RUNTIME_CONFIG_SOURCE=file; gfd enabled v0.19.3; dcgm enabled 4.5.2-1-ubuntu22.04;
+  dcgmExporter enabled, serviceMonitor enabled, label prometheus.kommander.d2iq.io/select=true, 4.5.3-4.8.2-distroless;
+  operator v26.3.3; migManager enabled v0.14.2.
+Defaults (dra driver): nvidiaDriverRoot "/", gpuResourcesEnabledOverride true, resources.gpus.enabled true, resources.computeDomains.enabled true, webhook.enabled true.
+Pre-install Job (image mesosphere/kubectl:v1.36.2-alpine): "DRA and DevicePlugin are mutually exclusive. DevicePlugin is disabled by default for new installations."
+  If exactly one ClusterPolicy exists with spec.devicePlugin.enabled=true -> makes ConfigMap <releaseName>-config-deviceplugin-defaults (devicePlugin on, DRA gpus/computeDomains/webhook off).
+  No ClusterPolicy CRD / no ClusterPolicy / devicePlugin false -> deletes that ConfigMap (DRA on). More than one ClusterPolicy -> Job fails.
+Chart value nvidiaDriverRoot (dra driver): "/" for a host driver; "/run/nvidia/driver" when the operator installs the driver.
+DRA DeviceClasses from the chart: gpu.nvidia.com (extendedResourceName nvidia.com/gpu on resource.k8s.io/v1), mig.nvidia.com, vfio.gpu.nvidia.com, compute-domain-daemon.nvidia.com, compute-domain-default-channel.nvidia.com.
+DRA kubelet plugin DaemonSet tolerates nvidia.com/gpu:NoSchedule. gpu-operator daemonsets tolerate nvidia.com/gpu:NoSchedule (chart default).
+extra-images.txt: precompiled driver images nvcr.io/nvidia/driver:580-5.15.0-176-generic-ubuntu22.04, 580-6.8.0-111-generic-ubuntu24.04, 595-6.8.0-134-generic-ubuntu24.04 (NKP Metal Ubuntu 24.04), cuda-sample vectoradd-cuda12.5.0. All are in kommander-image-bundle (bundle-images.txt).
+Lab worker kernel: 6.8.0-124-generic, Ubuntu 24.04.5, containerd 2.3.1-d2iq.1 (no precompiled driver image for this kernel in the bundle).
+
+== vgpu-token-operator 1.0.8 (chart v1.0.7) ==
+Defaults ConfigMap values.yaml: empty. Chart value vgpuTokenObjects: [] (each item tokenName, tokenSecretName, optional hostDirectoryPath, nodeSelector).
+CRD vgpu-token.nutanix.com/v1alpha1 VGPUToken: spec.tokenSecretRef.name (required, same namespace), hostDirectoryPath (default /etc/nvidia/ClientConfigToken/), nodeSelector (default nvidia.com/vgpu.present=true).
+Upstream README: the Secret key must be client_configuration_token.tok.
+
+== DRA API on the cluster ==
+api-resources: deviceclasses, resourceclaims, resourceclaimtemplates, resourceslices in resource.k8s.io/v1. get deviceclasses / resourceslices: none (no driver).
+Feature gates (apiserver /metrics): DynamicResourceAllocation 1, DRAPrioritizedList 1, DRAExtendedResource 1 (BETA), DRAPartitionableDevices 1 (BETA), DRAConsumableCapacity 1 (BETA), DRADeviceTaints 1 (BETA), DRAAdminAccess 1.
+Dry run (webhooks matching pods: gatekeeper validating + mutating, both sideEffects=None):
+  kubectl apply --dry-run=server of ResourceClaimTemplate single-gpu (deviceClassName gpu.nvidia.com, requests[].exactly) + Pod with spec.resourceClaims and containers[].resources.claims
+  -> "resourceclaimtemplate.resource.k8s.io/single-gpu created (server dry run)", "pod/dra-gpu-test created (server dry run)".
+
+== NFD ==
+CAREN addon clusterConfig.addons.nfd {"strategy":"HelmAddon"}; namespace node-feature-discovery; DaemonSet node-feature-discovery-worker (tolerates all), Deployments -master, -gc; chart 0.19.0.
+Lab nodes have label feature.node.kubernetes.io/pci-0300_1234.present (virtual VGA), no 10de labels (no NVIDIA GPU).
+Batch 4 fix pass (2026-11-03): kubectl -n node-feature-discovery get configmap node-feature-discovery-worker-conf -o jsonpath='{.data}'
+  -> nfd-worker.conf: sources.pci.deviceLabelFields: [class, vendor]. So NFD writes pci-<class>_<vendor>.present only; never pci-10de.present.
+  NVIDIA: pci-0302_10de.present (3D controller) or pci-0300_10de.present (VGA) (pdf p.621 label fix uses pci-0302_10de).
+
+== NutanixMachineTemplate gpus (kubectl explain) ==
+gpus <[]Object>: mutually exclusive with VMProfile. Fields: type (required, enum deviceID,name,profile), name, deviceID, profile (AHV GPU profile by name or UUID, PC 7.6 or later).
+
+== CLI ==
+nkp create image nutanix --gpu-name x --help -> "Flag --gpu-name has been deprecated, use --gpu-profile-name instead; --gpu-name is deprecated for PC 7.6+ and will be removed in a future NKP release (retained for PC 7.5 compatibility)". --gpu-name is hidden from --help but accepted.
+
+== Catalog bundles in the 2.19.0 bundle (collection layer read with tar -xO) ==
+nkp-ai-applications-catalog-image-bundle-2.19.tar collection:2.19 (manifest sha256:cb68477b...bcc):
+  jupyterhub 4.3.2, kubeflow-pipelines 2.15.0, kai-scheduler 0.15.2, kueue 0.18.0, milvus-operator 1.3.6, slurm-operator 1.1.1. No AMD apps.
+  (The public ghcr collection:2.19 tag now has a later digest sha256:2777d12b...2eb that adds amd-kmm-operator 1.0.0 and amd-gpu-operator 1.5.1.)
+nkp-nutanix-product-catalog-image-bundle-2.19.tar collection:2.19: ndk 2.3.0 only.
+  (The public ghcr collection:2.19 also lists nutanix-ai 2.8.0, 2.8.1, kserve 0.19.0, envoy-gateway-nai 1.8.2, opentelemetry-operator 0.114.1, leaderworkerset 0.8.0 — NOT in the bundle.)
+AI catalog app metadata (public repo, 2.19 versions): all licensing Pro,Ultimate; nkpVersionSupport >=2.18.0; slurm-operator requiredDependencies cert-manager; kubeflow-pipelines scope workspace,project; kueue defaults empty (upstream chart defaults, no queues).
+AMD (public repo, not in the 2.19.0 bundle): amd-gpu-operator 1.5.1 needs amd-kmm-operator; defaults DRA on, device plugin off, DeviceConfig "default" selector feature.node.kubernetes.io/amd-gpu=true; driver image must be in a private registry (kmm-registry-credentials Secret).

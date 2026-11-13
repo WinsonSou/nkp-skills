@@ -1,0 +1,925 @@
+
+--- page 1016 ---
+ *Multiple* projects: \(.)" else "Your cluster is deployed on *Single* project: \(.
+[0])" end'
+Replace my-cluster with the name of the cluster, and kommander with the namespace of the cluster
+that you want to check.
+If the control plane and all worker node pools use the same project, output similar to the following is
+displayed:
+Your cluster is deployed on *Single* project: _internal
+If the control plane and worker node pools use different projects, output similar to the following is
+displayed:
+Your cluster is deployed on *Multiple* projects: ["_internal", "project-a"]
+If the command reports a single project, proceed with the upgrade.
+2. If the command reports multiple projects, use the NKP UI to edit the node pool, or edit the cluster object
+directly.
+To converge the cluster, ensure that the entire cluster uses a single project by updating any worker
+node pools that do not match the control plane. For more information, see Adding a Node Pool to an
+Nutanix Kubernetes Platform Cluster Using the UI on page 758.
+Important:
+•
+The nkp update nodepool command does not change the node pool's project. Do not use
+this command to converge a cluster onto a single project.
+•
+After you select a project for a cluster, either while converging an existing cluster or when
+you create a new cluster, changing the project later is not supported. To use a different
+project, create a new cluster.
+•
+A cluster that already used guest-attached storage can continue to use it after you
+converge the cluster into a user-defined project. Do not configure guest-attached storage
+for a node pool that did not already use it.
+Upgrade Nutanix Kubernetes Platform
+Upgrade your Nutanix Kubernetes Platform (NKP) environment to the latest NKP version. The
+NKP upgrade keeps your clusters current with the latest features, improvements, and performance
+enhancements.
+Upgrade your NKP environment as follows:
+1. Upgrading Kommander on page 1017
+2. If your workload cluster is ClusterClass based, see Upgrade the ClusterClass Based Management and
+Workload Clusters on page 1018
+3. If your workload cluster is non-ClusterClass based, see Upgrade the Non-ClusterClass Based
+Management and Workload Clusters on page 1025
+Important:
+NKP supports GitOps-based creation and upgrades only for workload clusters.
+For the ClusterClass-based Cluster API (CAPI) workload clusters that are managed through
+a FluxCD GitOps repository, you must follow a modified upgrade workflow. For the complete
+GitOps-managed workload cluster upgrade procedure, see Upgrade Nutanix Kubernetes Platform
+with GitOps-Managed Workload Clusters on page 1035.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1016
+
+--- page 1017 ---
+Upgrading Kommander
+Upgrade Kommander and the platform applications on the management cluster before upgrading the
+cluster infrastructure and workload clusters.
+Before you begin
+If your cluster is not air-gapped, update the cluster with your Nutanix registry credentials before you
+upgrade Kommander:
+1. Obtain your Nutanix registry username and Personal Access Token (PAT) from the NKP Downloads
+Portal.
+2. Update the management cluster with Nutanix registry credentials:
+nkp update cluster nutanix-registry-credentials --all-namespaces \
+  --nutanix-registry-username username \
+  --nutanix-registry-password pat
+Note:  If you skip updating the management cluster with Nutanix registry credentials, the Kommander
+upgrade fails with an error similar to the following:
+docker.io/nutanix credentials are missing for count cluster(s) in workspace(s):
+workspace-name: cluster-name.
+NKP needs these credentials to pull its images during the upgrade.
+1. Obtain your Nutanix registry credentials from the NKP Downloads Portal:
+   feature-portal.nutanix.com/page/downloads?product=nkp
+2. Run the following on the management cluster:
+   nkp update cluster nutanix-registry-credentials --all-namespaces \
+     --nutanix-registry-username username \
+     --nutanix-registry-password pat
+3. Retry the Kommander upgrade.
+About this task
+Upgrade Kommander before you upgrade the management cluster infrastructure or any workload clusters.
+The Kommander upgrade updates the management plane, which now includes the Cluster API (CAPI)
+components and ClusterClass resources, and the platform applications on the management cluster. You do
+not need to upgrade the platform applications on the management cluster separately.
+After you upgrade Kommander, upgrade the management cluster infrastructure. You can then use the
+supported simplified workflows to upgrade individual workload clusters either using Nutanix Kubernetes
+Platform (NKP) UI or CLI.
+Verify that you upgrade Kommander on the correct cluster by using the --kubeconfig=
+${CLUSTER_NAME}.conf flag or by setting the KUBECONFIG environment variable. For alternative methods
+and best practices, see Commands within a kubeconfig File on page 34.
+NKP introduces changes to the authentication token. Earlier NKP versions supported using the same token
+across clusters attached to the management cluster. The current NKP version logs you out of attached
+clusters until the upgrade completes. After the upgrade finishes, retrieve the new kubeconfig from the
+endpoint and share it with all users who access the attached clusters.
+Important:
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1017
+
+--- page 1018 ---
+•
+You can generate a URL to download a new kubeconfig:
+kubectl -n kommander get svc kommander-traefik -o go-template='https://{{with
+ index 
+.status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}/token/plugin/
+kubeconfig{{ "\n"}}'
+•
+During NKP upgrade, resources are limited:
+•
+If you configure a custom domain, services can be temporarily inaccessible through that
+domain for a few minutes while the upgrade is in progress.
+•
+The NKP UI and other APIs can behave inconsistently or be unavailable until the upgrade
+completes.
+Procedure
+1. Download and install the supported NKP CLI binary for this release.
+For instructions, see Downloading NKP on page 17.
+Important:  The NKP CLI binary must match the target upgrade version. Running nkp upgrade
+kommander with a mismatched binary can cause the upgrade to fail.
+2. Upgrade Kommander:
+nkp upgrade kommander
+Note:  To disable Artificial Intelligence (AI) Navigator during the upgrade, add the flag --disable-
+appdeployments ai-navigator-app to the nkp upgrade kommander command.
+Sample output:
+# Checking for deprecated GitRepository-based catalog apps
+Checking that CloudNativePG is enabled on clusters that run NKP AI Navigator or NKP
+ Insights...
+ # Ensuring that new app dependencies introduced by the upgrade are enabled
+ # Ensuring upgrading conditions are met
+ # Checking docker.io/nutanix credentials are present for the fleet
+ # Upgrading ManagementPlane nkp-platform
+ # Ensuring platform Kommander applications are upgraded
+Upgrade the ClusterClass Based Management and Workload Clusters
+Upgrade Nutanix Kubernetes Platform (NKP) ClusterClass-based management and workload clusters on
+Nutanix AHV and EKS infrastructures in the following sequence to gain the latest features, security fixes,
+and improved performance:
+Management Cluster
+Upgrade the management cluster before you upgrade any ClusterClass-based workload cluster. Use
+the target NKP CLI version to upgrade the management cluster. The CLI version that you use selects
+its default Kubernetes version. The upgrade updates the Cluster API (CAPI) components, ClusterClass
+resources, CNI, Container Storage Interface (CSI) Volume Driver, control plane, and worker node pools.
+Each NKP version updates the cluster management software that the management cluster applies to
+workload clusters, so complete the management cluster upgrade before you upgrade any workload cluster.
+You can upgrade multiple worker node pools in parallel by setting the topology.cluster.x-k8s.io/
+upgrade-concurrency annotation on the cluster object.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1018
+
+--- page 1019 ---
+For more information, see Upgrading the Management Cluster on page 1019.
+ClusterClass-Based Workload Cluster
+Ensure that you upgrade Kommander and the management cluster before you upgrade any ClusterClass-
+based workload clusters. When upgrading from NKP 2.18 to 2.19, complete both management-cluster
+procedures by using the NKP CLI. After the management cluster runs on NKP 2.19, you can use the UI or
+CLI workflow for each workload cluster.
+Workload cluster upgrades are cluster specific. Clusters in the same workspace can run different supported
+NKP versions and follow different upgrade schedules.
+For more information, see Upgrading a Workload Cluster Using the Nutanix Kubernetes Platform UI on
+page 1021 or Upgrading a Workload Cluster Using the Nutanix Kubernetes Platform CLI on page 1023.
+Both NKP UI and CLI methods upgrade the supported ClusterClass-based workload cluster in the following
+sequence in a single workflow:
+1. Upgrade the platform applications.
+2. Upgrade Kubernetes and the cluster infrastructure.
+Cluster infrastructure includes the virtual machines, ClusterClass resources, control plane, worker node
+pools, CNI, and Container Storage Interface (CSI).
+Upgrading the Management Cluster
+Upgrade the Kubernetes version and infrastructure of the management cluster before you upgrade
+ClusterClass-based workload clusters (like Nutanix AHV or EKS infrastructure providers).
+Before you begin
+Before upgrading the management cluster, verify that your environment meets the following requirements:
+•
+Verify that your environment meets all upgrade requirements. For more information, see Nutanix
+Infrastructure Requirements on page 692 or EKS: Prerequisites and Permissions on page 844.
+•
+(For Nutanix AHV only) Verify that the control plane and all node pools of your cluster use the same
+Prism Central project. If they do not, converge the cluster onto a single project before you upgrade.
+For instructions, see Converging a Nutanix Kubernetes Platform Cluster Into a Single Prism Project on
+page 1015.
+•
+(For Nutanix AHV only) Create or verify the VM image:
+•
+The image must match the Kubernetes version of the current Nutanix Kubernetes Platform (NKP)
+version.
+•
+If you use a prebuilt image, select the image included with the current NKP version.
+•
+If you create an image, use the same nkp executable that you use for the cluster upgrade. For more
+information, see Nutanix Image Builder on page 55.
+•
+(For Nutanix AHV only) Upload the VM image to Prism Central.
+The upgrade command references the image by name. The image must exist in Prism Central before
+you run the command. For instructions, see Importing Images to Prism Central.
+Note:  Do not rename the image downloaded from the Nutanix Support Portal.
+•
+Upgrade Kommander. For instructions, see Upgrading Kommander on page 1017
+•
+Upgrade the management cluster before upgrading any managed cluster. Each NKP version updates
+the cluster management software. This software is applied when you upgrade the management cluster.
+•
+Verify that the KUBECONFIG environment variable points to the management-cluster kubeconfig.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1019
+
+--- page 1020 ---
+About this task
+Use the target NKP CLI version to upgrade the management cluster. When upgrading from NKP 2.18 to
+2.19, you must complete this CLI procedure before you use the UI to upgrade the supported workload
+clusters.
+The target NKP CLI version selects its default Kubernetes version. Use the --kubernetes-version flag
+only when you need another supported version.
+Most management clusters use the same VM image for the control plane and worker nodes. If the cluster
+uses different images, provide an image for the control plane and each worker node pool.
+The commands read the cluster name and namespace from the host NKPCluster object's
+status.capiClusterRef field instead of from its metadata.name. On a management cluster that
+originated on an earlier NKP release and was later adopted, the host NKPCluster name and namespace
+can differ from the name and namespace of the underlying cluster that nkp upgrade cluster must target.
+Reading status.capiClusterRef resolves the correct name and namespace in both cases.
+You can upgrade multiple worker node pools in parallel. The topology.cluster.x-k8s.io/upgrade-
+concurrency annotation on the cluster object controls the number of worker node pools that upgrade in
+parallel.
+•
+If the annotation is not available, NKP upgrades one worker node pool at a time.
+•
+If you set the value to 3, up to three worker node pools upgrade at the same time.
+Verify that the upgrade adheres to pod scheduling requirements. For more information, see Pod disruption
+budgets.
+To upgrade a management cluster, follow these steps:
+Procedure
+1. If your NKP cluster uses the same VM image for both control plane and worker nodes, upgrade your
+management cluster:
+export MANAGEMENT_CLUSTER_NAME=$(kubectl get -n kommander nkpcluster -l
+ 'kommander.d2iq.io/host=true' -o jsonpath='{.items[0].status.capiClusterRef.name}')
+export MANAGEMENT_CLUSTER_NAMESPACE=$(kubectl get -n
+ kommander nkpcluster -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].status.capiClusterRef.namespace}')
+export VM_IMAGE_NAME=vm-image-name
+nkp upgrade cluster infrastructure-provider \
+  --cluster-name ${MANAGEMENT_CLUSTER_NAME} \
+  --namespace ${MANAGEMENT_CLUSTER_NAMESPACE} \
+  --vm-image ${VM_IMAGE_NAME}
+Replace infrastructure-provider with your infrastructure provider name.
+Sample output:
+ # Waiting for ClusterClasses to be ready
+ # Running preflight checks
+ # Upgrading the cluster
+2. If your NKP cluster uses different VM images for both control plane and worker node pools, follow these
+steps:
+a. Set the cluster name, namespace, and control-plane image as environment variables:
+export CLUSTER_NAME=$(kubectl get -n kommander nkpcluster -l 'kommander.d2iq.io/
+host=true' -o jsonpath='{.items[0].status.capiClusterRef.name}')
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1020
+
+--- page 1021 ---
+export CLUSTER_NAMESPACE=$(kubectl get -n kommander
+ nkpcluster -l 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].status.capiClusterRef.namespace}')
+export CONTROL_PLANE_VM_IMAGE_NAME=control-plane-vm-image-name
+b. List the worker node pools:
+nkp get nodepools \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${CLUSTER_NAMESPACE}
+Output similar to the following is displayed:
+NODEPOOL               DESIRED               READY               KUBERNETES
+ VERSION
+md-0                   5                     5                   v<kubernetes-
+version>
+other                  3                     3                   v<kubernetes-
+version>
+c. Set the worker node pool names and image names as environment variables:
+export WORKER_POOL_1_NAME=md-0
+export WORKER_POOL_1_VM_IMAGE_NAME=first-worker-pool-vm-image-name
+export WORKER_POOL_2_NAME=other
+export WORKER_POOL_2_VM_IMAGE_NAME=second-worker-pool-vm-image-name
+d. Upgrade the management cluster:
+nkp upgrade cluster infrastructure-provider \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${CLUSTER_NAMESPACE} \
+  --control-plane-vm-image ${CONTROL_PLANE_VM_IMAGE_NAME} \
+  --worker-vm-images ${WORKER_POOL_1_NAME}=${WORKER_POOL_1_VM_IMAGE_NAME},
+${WORKER_POOL_2_NAME}=${WORKER_POOL_2_VM_IMAGE_NAME}
+Replace infrastructure-provider with your infrastructure provider name.
+For example, WORKER_POOL_1_NAME and WORKER_POOL_2_NAME variables are the worker node pool
+names returned from the nkp get nodepools command output.
+The command upgrades the CNI, Container Storage Interface (CSI) Volume Driver, control plane, and
+worker node pools. If a preflight check blocks the upgrade, resolve the reported issue before you run
+the command again. For more information, see Preflight Checks on page 726.
+Upgrading a Workload Cluster Using the Nutanix Kubernetes Platform UI
+Use the Nutanix Kubernetes® Platform (NKP) UI to upgrade the platform applications, Kubernetes version,
+and infrastructure of a ClusterClass-based workload cluster (like Nutanix AHV or EKS infrastructure
+providers).
+Before you begin
+Before upgrading a ClusterClass-based workload cluster, verify that your environment meets the following
+requirements:
+•
+Verify that your environment meets all upgrade requirements. For more information, see Nutanix
+Infrastructure Requirements on page 692 or EKS: Prerequisites and Permissions on page 844.
+•
+(For Nutanix AHV only) Verify that the control plane and all node pools of your ClusterClass-based
+workload cluster use the same Prism Central project. If they do not, converge the cluster into a single
+Prism Central project before you upgrade. For more information, see Converging a Nutanix Kubernetes
+Platform Cluster Into a Single Prism Project on page 1015.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1021
+
+--- page 1022 ---
+•
+Upgrade Kommander and the management cluster before you upgrade a ClusterClass-based workload
+cluster. When upgrading from NKP 2.18 to 2.19, complete both Kommander and management-cluster
+procedures using the NKP CLI.
+•
+Verify that the management cluster runs NKP 2.19 or later.
+•
+(For Nutanix AHV only) Create or verify the VM image:
+•
+The image must match the target Kubernetes version.
+•
+If you use a prebuilt image, select the image included with the target NKP version.
+•
+If you create an image, use the same nkp executable that you use for the cluster upgrade. For more
+information, see Nutanix Image Builder on page 55.
+•
+(For Nutanix AHV only) Upload the target VM images to Prism Central. The images must match the
+target Kubernetes version.
+About this task
+The NKP UI upgrades a ClusterClass-based workload cluster in a single workflow where it upgrades
+the platform applications, Kubernetes version, and the cluster infrastructure, including virtual machines,
+ClusterClass resources, CNI, Container Storage Interface (CSI), the control plane, and worker node pools.
+You can leave the progress view and return while the upgrade continues. Refresh the page if the displayed
+status does not yet show recent progress.
+To upgrade a ClusterClass-based workload cluster using the NKP UI, follow these steps:
+Procedure
+1.
+Log in to the NKP UI.
+By default, NKP displays the Global workspace.
+2.
+In the navigation pane, click Administration > Upgrades.
+3.
+In Workload Clusters, locate the ClusterClass workload cluster that you want to upgrade.
+Verify that the Upgrade Status column displays Ready.
+4.
+In the Action column for the workload cluster, click Upgrade.
+5.
+In Workload Cluster(s) Upgrade page, on the Select Version tab, review the current NKP and
+Kubernetes versions.
+6.
+From Select a New Version drop-down list, select the target NKP version.
+Review the target Kubernetes version, release information, and release-note links that the NKP UI
+displays for the selected version.
+7.
+Click Next.
+8.
+In the Upgrade Configuration page, review the OS image mapping for the cluster.
+The NKP UI groups nodes by their current image configuration and displays the Current OS Image
+and New OS Image mappings.
+9.
+For the control plane and each worker node pool, verify or select the New OS Image.
+The NKP UI can preselect a recommended target image. Change the selection if the image does not
+match the required target image for that node type.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1022
+
+--- page 1023 ---
+10. Click Upgrade.
+The UI starts the workload cluster upgrade.
+11. Monitor the upgrade progress.
+The NKP UI displays platform application progress before Kubernetes and cluster infrastructure. It
+also displays completed steps and elapsed duration. For more information, see Monitoring an NKP
+Upgrade on page 1043.
+What to do next
+Verify the cluster status, target versions, and component health. For more information, see Verifying
+Nutanix Kubernetes Platform Upgrade on page 1044.
+Upgrading a Workload Cluster Using the Nutanix Kubernetes Platform CLI
+Use Nutanix Kubernetes® Platform (NKP) CLI to upgrade the platform applications, Kubernetes version,
+and infrastructure of a ClusterClass-based workload cluster (like Nutanix AHV or EKS infrastructure
+providers).
+Before you begin
+Before upgrading a ClusterClass-based workload cluster, verify that your environment meets the following
+requirements:
+•
+Verify that your environment meets all upgrade requirements. For more information, see Nutanix
+Infrastructure Requirements on page 692 or EKS: Prerequisites and Permissions on page 844.
+•
+(For Nutanix AHV only) Verify that the control plane and all node pools of your workload cluster use
+the same Prism Central project. If they do not, converge the cluster into a single Prism Central project
+before you upgrade. For more information, see Converging a Nutanix Kubernetes Platform Cluster Into
+a Single Prism Project on page 1015.
+•
+Upgrade Kommander and the management cluster before you upgrade a ClusterClass-based workload
+cluster. When upgrading from NKP 2.18 to 2.19, complete both Kommander and management-cluster
+procedures using the NKP CLI.
+•
+(For Nutanix AHV only) Create or verify the VM image:
+•
+The image must match the target Kubernetes version.
+•
+If you use a prebuilt image, select the image included with the target NKP version.
+•
+If you create an image, use the same nkp executable that you use for the cluster upgrade. For more
+information, see Nutanix Image Builder on page 55.
+•
+(For Nutanix AHV only) Upload each VM image to Prism Central.
+The command references images by name. An image must exist in Prism Central before you select it.
+For instructions, see Importing Images to Prism Central.
+Note:  Do not rename an image downloaded from the Nutanix Support Portal.
+•
+Verify that the KUBECONFIG environment variable points to the management cluster kubeconfig.
+About this task
+The nkp upgrade cluster infrastructure-provider command upgrades the platform applications,
+Kubernetes version, and the cluster infrastructure of only one ClusterClass-based workload cluster in a
+single workflow. It includes the virtual machines, ClusterClass resources, control plane, worker node pools,
+Container Network Interface (CNI), and Container Storage Interface (CSI) .
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1023
+
+--- page 1024 ---
+The ClusterClass-based workload clusters in the same workspace can run different supported NKP
+versions and follow different upgrade schedules.
+The target NKP CLI version selects its default Kubernetes version. Use the --kubernetes-version option
+only when you need another supported version.
+Most clusters use the same VM image for the control plane and worker nodes. If a cluster uses different
+images, provide an image for the control plane and each worker node pool.
+You can upgrade multiple worker node pools in parallel. The topology.cluster.x-k8s.io/upgrade-
+concurrency annotation on the cluster object controls the number of worker node pools that upgrade in
+parallel.
+•
+If the annotation is not available, NKP upgrades one worker node pool at a time.
+•
+If you set the value to 3, up to three worker node pools upgrade at the same time.
+Verify that the upgrade adheres to pod scheduling requirements. For more information, see Pod disruption
+budgets.
+To upgrade a ClusterClass-based workload cluster using the NKP CLI, follow these steps:
+Procedure
+1. List the ClusterClass-based workload clusters and identify the ClusterClass, name, and namespace of
+the cluster that you want to upgrade.
+kubectl get nkpclusters -A
+Output similar to the following is displayed:
+NAMESPACE               NAME           CLUSTERCLASS   PHASE         AGE     VERSION
+kommander               nkp-mgt                       Provisioned   5d18h
+demo-zone-c4zz7-qjq6g   demo-prod-01   nkp-nutanix    Provisioned   3d1h   
+ v<kubernetes-version>
+Verify that the CLUSTERCLASS column contains a value for the workload cluster.
+2. If the ClusterClass-based workload cluster uses the same VM image for all nodes, run the upgrade
+command.
+export WORKLOAD_CLUSTER_NAME=workload-cluster-name
+export WORKLOAD_CLUSTER_NAMESPACE=workload-cluster-namespace
+export VM_IMAGE_NAME=vm-image-name
+nkp upgrade cluster infrastructure-provider \
+  --cluster-name ${WORKLOAD_CLUSTER_NAME} \
+  --namespace ${WORKLOAD_CLUSTER_NAMESPACE} \
+  --vm-image ${VM_IMAGE_NAME}
+Replace infrastructure-provider with your infrastructure provider name.
+The interactive output displays the platform application stage before the Kubernetes and cluster
+infrastructure stage. The output also displays application readiness and stage duration.
+In a non-interactive terminal, the command displays upgrade in progress instead of the interactive
+progress view.
+3. If the ClusterClass-based workload cluster uses different VM images, do the following:
+a. Set the cluster name, namespace, and control-plane image as environment variables:
+export CLUSTER_NAME=workload-cluster-name
+export CLUSTER_NAMESPACE=workload-cluster-namespace
+export CONTROL_PLANE_VM_IMAGE_NAME=control-plane-vm-image-name
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1024
+
+--- page 1025 ---
+b. List the worker node pools:
+nkp get nodepools \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${CLUSTER_NAMESPACE}
+Output similar to the following is displayed:
+NODEPOOL               DESIRED               READY               KUBERNETES
+ VERSION
+md-0                   5                     5                   v<kubernetes-
+version>
+other                  3                     3                   v<kubernetes-
+version>
+c. Set the worker node pool names and image names as environment variables:
+export WORKER_POOL_1_NAME=md-0
+export WORKER_POOL_1_VM_IMAGE_NAME=first-worker-pool-vm-image-name
+export WORKER_POOL_2_NAME=other
+export WORKER_POOL_2_VM_IMAGE_NAME=second-worker-pool-vm-image-name
+d. Upgrade the cluster:
+nkp upgrade cluster infrastructure-provider \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${CLUSTER_NAMESPACE} \
+  --control-plane-vm-image ${CONTROL_PLANE_VM_IMAGE_NAME} \
+  --worker-vm-images ${WORKER_POOL_1_NAME}=${WORKER_POOL_1_VM_IMAGE_NAME},
+${WORKER_POOL_2_NAME}=${WORKER_POOL_2_VM_IMAGE_NAME}
+Replace infrastructure-provider with your infrastructure provider name.
+Note:  The command upgrades the platform applications before Kubernetes and the cluster
+infrastructure.
+The command upgrades the platform applications, Kubernetes, control plane, worker node pools,
+CNI, and CSI. If a preflight check blocks the upgrade, resolve the reported issue before you run the
+command again. For more information, see Preflight Checks on page 726.
+Upgrade the Non-ClusterClass Based Management and Workload Clusters
+Upgrade Nutanix Kubernetes Platform (NKP) non-ClusterClass-based management and workload clusters
+on all supported infrastructures (other than Nutanix AHV and EKS) to gain the latest features, security
+fixes, and improved performance.
+Upgrade NKP non-ClusterClass-based management and workload clusters on all supported infrastructures
+(other than Nutanix AHV and EKS) as follows:
+•
+Upgrading Core Addons on the Management Cluster on page 1025
+•
+Upgrading Kubernetes Version on the Management Cluster on page 1027
+•
+Upgrading Platform Applications on a Workload Cluster on page 1031
+•
+Upgrading Core Addons on Workload Clusters on page 1032
+•
+Upgrading Kubernetes Version on Workload Clusters on page 1033
+Upgrading Core Addons on the Management Cluster
+Upgrade core addons on the management cluster of all supported infrastructures (other than Nutanix AHV
+and EKS) to maintain your Nutanix Kubernetes Platform (NKP) environment with the latest features and
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1025
+
+--- page 1026 ---
+security updates. Core addons include Container Storage Interface (CSI), Container Network Interface
+(CNI), Cluster Autoscaler, and Node Feature Discovery components.
+Before you begin
+•
+Complete the Cluster API (CAPI) component upgrade before upgrading core addons.
+•
+Verify that your nkp configuration points to the correct management cluster by setting the KUBECONFIG
+environment variable or by using the --kubeconfig flag following Kubernetes conventions.
+•
+If you have multiple workload clusters, repeat this procedure for each cluster.
+Note:
+•
+For a Pre-provisioned air-gapped environment only, ensure you uploaded the artifacts.
+•
+For air-gapped environment only, ensure you have created the air-gapped bundle correctly:
+Preparing Air-Gapped Environments for Upgrade on page 1012.
+About this task
+NKP installs core addons using the ClusterResourceSet of ClusterAPI. During the upgrade process,
+NKP removes outdated global ClusterResourceSets and replaces them with cluster-specific
+ClusterResourceSets for each cluster.
+The upgrade applies new versions of the following core addons bundled with the latest NKP release:
+•
+CSI
+•
+CNI
+•
+Cluster Autoscaler
+•
+Node Feature Discovery
+Each cluster now manages its own set of resources named with the cluster's name as a suffix. For
+example: calico-cni-installation-my-aws-cluster.
+To upgrade core addons on the management cluster of all supported infrastructures (other than Nutanix
+AHV and EKS), follow these steps:
+Procedure
+1. Set the cluster name as an environment variable:
+export CLUSTER_NAME=<your-cluster-name>
+Replace <your-cluster-name> with your actual cluster name.
+2. Upgrade core addons of the management cluster of your infrastructure provider:
+nkp upgrade addons <infrastructure-provider> --cluster-name=${CLUSTER_NAME}
+Replace <infrastructure-provider> with one of the following values: aws, azure, vsphere, eks, gcp,
+or preprovisioned.
+Example for AWS:
+export CLUSTER_NAME=my-aws-cluster
+nkp upgrade addons aws --cluster-name=${CLUSTER_NAME}
+Sample output:
+Generating addon resources
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1026
+
+--- page 1027 ---
+clusterresourceset.addons.cluster.x-k8s.io/calico-cni-installation-my-aws-cluster
+ upgraded
+configmap/calico-cni-installation-my-aws-cluster upgraded
+clusterresourceset.addons.cluster.x-k8s.io/tigera-operator-my-aws-cluster upgraded
+configmap/tigera-operator-my-aws-cluster upgraded
+clusterresourceset.addons.cluster.x-k8s.io/aws-ebs-csi-my-aws-cluster upgraded
+configmap/aws-ebs-csi-my-aws-cluster upgraded
+clusterresourceset.addons.cluster.x-k8s.io/cluster-autoscaler-my-aws-cluster upgraded
+configmap/cluster-autoscaler-my-aws-cluster upgraded
+clusterresourceset.addons.cluster.x-k8s.io/node-feature-discovery-my-aws-cluster
+ upgraded
+configmap/node-feature-discovery-my-aws-cluster upgraded
+clusterresourceset.addons.cluster.x-k8s.io/nvidia-feature-discovery-my-aws-cluster
+ upgraded
+configmap/nvidia-feature-discovery-my-aws-cluster upgraded
+The core addons are successfully upgraded with the latest versions bundled with your NKP release.
+Each cluster now uses cluster-specific ClusterResourceSets instead of global configurations.
+3. (Optional) If you previously made custom modifications to any ClusterResourceSet definitions, reapply
+your configurations:
+a. Generate the new addon configuration using the dry-run option:
+nkp upgrade addons <infrastructure-provider> --cluster-name=${CLUSTER_NAME} --dry-
+run -o yaml
+b. Apply the customized configuration:
+kubectl apply -f
+Note:  Custom modifications to ClusterResourceSet definitions are not preserved during the
+upgrade. You must regenerate and reapply your configurations after each upgrade.
+Additional references:
+•
+For more information about CAPI, see Kubernetes Cluster API.
+•
+For more information about Kubernetes conventions, see Configure Access to Multiple Clusters.
+Upgrading Kubernetes Version on the Management Cluster
+Upgrade the Kubernetes version on the management cluster of all supported infrastructures (other than
+Nutanix AHV and EKS) to access the latest features, security updates, and performance improvements.
+This process upgrades both the control plane and worker node pools to maintain cluster compatibility and
+functionality.
+Before you begin
+•
+Verify that your target Kubernetes version is supported. For more information, see Supported
+Kubernetes Versions section in the NKP Release Notes.
+•
+Verify that your operating system is compatible with the target Kubernetes version. For more
+information, see Supported Infrastructure Operating Systems on page 13.
+•
+Deploy pod disruption budgets (PDBs) for critical applications to maintain high availability during the
+upgrade.
+•
+If you have a FIPS cluster, review the additional FIPS considerations in the upgrade commands.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1027
+
+--- page 1028 ---
+About this task
+Upgrade the Kubernetes version by first upgrading the control plane, then upgrading each worker node
+pool. This process maintains cluster stability and minimizes downtime.
+To upgrade Kubernetes version on the management cluster of all supported infrastructures (other than
+Nutanix AHV and EKS), follow these steps:
+Procedure
+1. Set the cluster name as an environment variable:
+export CLUSTER_NAME=<your-cluster-name>
+Replace <your-cluster-name> with your actual management cluster name.
+2. Create new AMIs or VM images with the target Kubernetes version.
+Verify that you select an operating system that matches the current supported version and build a new
+image if required.
+•
+If an AMI was specified when initially creating a cluster for AWS, you must build a new one Building
+a Custom Image with AWS on page 63 and set the flag(s) in the update commands. Either AMI
+ID --ami AMI_ID, or the lookup image flags: --ami-owner AWS_ACCOUNT_ID, --ami-base-os
+ubuntu-OS-version, and --ami-format 'example-{{.BaseOS}}-?{{.K8sVersion}}-*'.
+Warning:  The AMI lookup method will return an error if the lookup uses the upstream CAPA account
+ID.
+•
+If an Azure Machine Image was specified for Azure, you must build a new one with Building a
+Custom Image with Azure on page 65.
+•
+If a vSphere template Image was specified for vSphere, you must build a new one with Building a
+Custom Image with vSphere on page 68.
+•
+You must build a new GCP image with Building a Custom Image with GCP on page 67.
+3. Upgrade the control plane to the new VM image and Kubernetes version using the appropriate
+command for your infrastructure provider:
+•
+AWS:
+nkp update controlplane aws --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version>
+•
+AWS AMI ID Lookup:
+nkp update controlplane aws \
+--cluster-name=${CLUSTER_NAME} \
+--ami-owner AWS_ACCOUNT_ID \
+--ami-base-os ubuntu-OS-version \
+--ami-format 'example-{{.BaseOS}}-?{{.K8sVersion}}-*' \
+--kubernetes-version=v<kubernetes-version>
+Note:  If you created the initial cluster with a custom AMI using the --ami flag, include the same --
+ami flag during the Kubernetes upgrade.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1028
+
+--- page 1029 ---
+•
+Azure:
+nkp update controlplane azure --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> --compute-gallery-id <Azure Compute Gallery built by
+ NIB for Kubernetes v<kubernetes-version>>
+If you specified the --plan-offer, --plan-publisher, and --plan-sku fields in the override file
+during image creation, include the same flags during upgrade.
+For example:
+--plan-offer rockylinux-OS-version
+--plan-publisher erockyenterprisesoftwarefoundationinc1653071250513
+--plan-sku rockylinux-OS-version
+•
+vSphere:
+nkp update controlplane vsphere --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> --vm-template <vSphere template built by NIB for
+ Kubernetes v<kubernetes-version>>
+•
+GCP:
+nkp update controlplane gcp --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> --image=projects/${GCP_PROJECT}/global/images/<GCP
+ image built by NIB for Kubernetes v<kubernetes-version>>
+•
+Pre-Provisioned:
+nkp update controlplane preprovisioned --cluster-name=${CLUSTER_NAME} --
+kubernetes-version=v<kubernetes-version>
+•
+Additional Considerations for upgrading a FIPS cluster:
+If you upgrade a FIPS cluster, upgrade the supported Kubernetes version of the cluster:
+nkp update controlplane aws --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version>+fips.0 --ami=<ami-with-fips-id>
+Sample output:
+Updating control plane resource controlplane.cluster.x-k8s.io/v1beta1,
+ Kind=KubeadmControlPlane 
+default/my-aws-cluster-control-plane
+Waiting for control plane update to finish.
+ # Updating the control plane
+Note:
+•
+View all available options for your infrastructure provider:
+nkp update controlplane aws|vsphere|preprovisioned|azure|gcp|eks --help
+For example, to view more advanced options for AWS AMI instance:
+aws: --ami, --instance-type
+•
+The nkp update controlplane command has a default timeout of 30 minutes. If you
+receive a "timed out waiting for the condition" error, check the control plane node versions
+before retrying:
+kubectl get machines -o wide $KUBECONFIG
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1029
+
+--- page 1030 ---
+4. Upgrade the worker node pools to match the control plane Kubernetes version.
+Upgrading a node pool drains existing nodes and replaces them with new nodes. This process
+maintains high availability when you have pod disruption budgets (PDBs) configured for critical
+applications. For more information, see Updating Pod Disruption Budget on page 1003.
+a. Obtain a list of all node pools available in your cluster:
+nkp get nodepool --cluster-name ${CLUSTER_NAME} -n kommander
+Note:  Starting in NKP 2.18, the management cluster runs in the kommander namespace. Include -n
+kommander in all nodepool commands that target the management cluster. In NKP 2.17 and earlier,
+this flag was not required.
+b. Select the node pool to upgrade:
+export NODEPOOL_NAME=my-nodepool
+c. Upgrade the selected node pool using the appropriate command for your infrastructure provider:
+Note:  If you created the initial cluster with a custom AMI using the --ami flag, include the same --
+ami flag during the Kubernetes upgrade.
+•
+AWS:
+nkp update nodepool aws ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} -n
+ kommander --kubernetes-version=v<kubernetes-version>
+•
+Azure:
+nkp update nodepool azure ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} -
+n kommander --kubernetes-version=v<kubernetes-version> --compute-gallery-id
+ <Azure Compute Gallery built by NIB for Kubernetes v<kubernetes-version>>
+If you specified the --plan-offer, --plan-publisher, and --plan-sku fields in the override file
+during image creation, include the same flags during upgrade. For more information, see Azure:
+Creating an Image on page 196.
+•
+vSphere:
+nkp update nodepool vsphere ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} -
+n kommander --kubernetes-version=v<kubernetes-version> --vm-template <vSphere
+ template built by NIB for Kubernetes v<kubernetes-version>>
+•
+GCP:
+nkp update nodepool gcp ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} -
+n kommander --kubernetes-version=v<kubernetes-version> --image=projects/
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1030
+
+--- page 1031 ---
+${GCP_PROJECT}/global/images/<GCP image built by NIB for Kubernetes
+ v<kubernetes-version>>
+•
+Pre-provisioned:
+nkp update nodepool preprovisioned ${NODEPOOL_NAME} --cluster-name=
+${CLUSTER_NAME} -n kommander --kubernetes-version=v<kubernetes-version>
+•
+Additional Considerations for upgrading a FIPS cluster:
+If you upgrade a FIPS cluster, upgrade the supported Kubernetes version of the cluster:
+nkp update nodepool aws ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} -n
+ kommander --kubernetes-version=v<kubernetes-version>+fips.0 --ami=<ami-with-
+fips-id>
+Sample output:
+Updating node pool resource cluster.x-k8s.io/v1beta1, Kind=MachineDeployment
+ default/my-aws-cluster-my-nodepool
+Waiting for node pool update to finish.
+  # Updating the my-aws-cluster-my-nodepool node pool
+Repeat step 4 for each additional node pool in your cluster.
+What to do next
+Verify the management cluster, target versions, and component health. For more information, see Verifying
+Nutanix Kubernetes Platform Upgrade on page 1044.
+After upgrading the management cluster, upgrade any additional workload or attached clusters:
+•
+For workload clusters, upgrade both the core addons and the Kubernetes version.
+•
+For attached clusters, upgrade the Kubernetes version to a supported Nutanix Kubernetes Platform
+(NKP) version using the tool that created the cluster.
+Upgrading Platform Applications on a Workload Cluster
+Upgrade the platform applications on each non-ClusterClass-based workload cluster (like all infrastructure
+providers other than Nutanix AHV and EKS) before upgrading Kubernetes and the cluster infrastructure.
+Before you begin
+Before upgrading the platform applications, verify that your environment meets the following requirements:
+•
+Upgrade Kommander and the management cluster before you upgrade a non-ClusterClass-based
+workload cluster.
+•
+Verify that the KUBECONFIG environment variable points to the management-cluster kubeconfig.
+•
+Verify that the non-ClusterClass-based workload cluster and its platform applications are healthy.
+•
+Verify that no other upgrade or cluster lifecycle operation is in progress for the non-ClusterClass-based
+workload cluster.
+•
+Review platform application configuration overrides for compatibility with the target NKP version.
+About this task
+The nkp upgrade platform-apps command upgrades the platform applications only on one non-
+ClusterClass-based workload cluster. The command creates an UpgradePlan for the cluster, reports
+application readiness, and waits for the platform application upgrade to complete.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1031
+
+--- page 1032 ---
+Note:  The nkp upgrade workspace command is deprecated. Upgrade the platform applications on each
+non-ClusterClass-based workload cluster separately.
+Procedure
+1. List the non-ClusterClass-based workload clusters and identify its name and namespace that you want
+to upgrade.
+kubectl get nkpclusters -A
+Verify that the CLUSTERCLASS column does not contain a value for the workload cluster. Use the value in
+the NAMESPACE column, not the workspace display name.
+2. Set the target version, workload cluster name, and workload cluster namespace as environment
+variables.
+export TARGET_NKP_VERSION=target-nkp-version
+export WORKLOAD_CLUSTER_NAME=workload-cluster-name
+export WORKLOAD_CLUSTER_NAMESPACE=workload-cluster-namespace
+3. Upgrade the platform applications on the non-ClusterClass-based workload cluster.
+nkp upgrade platform-apps \
+  --version ${TARGET_NKP_VERSION} \
+  --cluster-name ${WORKLOAD_CLUSTER_NAME} \
+  --namespace ${WORKLOAD_CLUSTER_NAMESPACE}
+4. Verify that the command completes successfully and that the platform applications on the non-
+ClusterClass-based workload cluster are healthy.
+5. Repeat this procedure for each non-ClusterClass-based workload cluster that you want to upgrade.
+Upgrading Core Addons on Workload Clusters
+Upgrade core addons on non-ClusterClass-based workload clusters (like all infrastructure providers other
+than Nutanix AHV and EKS) to maintain compatibility with the management cluster and access the latest
+features and security updates. Core addons include Container Storage Interface (CSI), Container Network
+Interface (CNI), Cluster Autoscaler, and Node Feature Discovery components.
+Before you begin
+Before upgrading core addons on non-ClusterClass-based workload clusters, ensure that you complete the
+following prerequisites:
+1. Complete the management cluster upgrade process, including CAPI components and core addons.
+2. Upgrade platform applications on all workspace clusters.
+About this task
+To upgrade core addons on each non-ClusterClass-based workload cluster, follow these steps:
+Procedure
+1. To identify the clusters that you need to upgrade, list all non-ClusterClass-based workload clusters:
+kubectl get nkpclusters -A
+Sample output:
+NAMESPACE               NAME           CLUSTERCLASS   PHASE         AGE     VERSION
+default                 nkp-mgmt                       Provisioned   5d18h
+demo-zone-c4zz7-qjq6g   demo-prod-01   nkp-nutanix    Provisioned   3d1h   
+ v<kubernetes-version>
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1032
+
+--- page 1033 ---
+demo-zone-c4zz7-qjq6g   demo-staging   nkp-nutanix    Provisioned   2d1h   
+ v<kubernetes-version>
+Note the cluster names and their corresponding namespaces for the non-ClusterClass-based workload
+clusters.
+2. Set the environment variables for your non-ClusterClass-based workload cluster:
+export CLUSTER_NAME=<your-workload-cluster-name> 
+export CLUSTER_NAMESPACE=<your-workspace-namespace>
+Replace <your-workload-cluster-name> and <your-workspace-namespace> with the values
+returned in the kubectl get nkpclusters -A command output.
+For example:
+export CLUSTER_NAME=demo-prod-01 
+export CLUSTER_NAMESPACE=demo-zone-c4zz7-qjq6g
+3. Upgrade the core addons:
+nkp upgrade addons <infrastructure-provider> --cluster-name=${CLUSTER_NAME} -n
+ ${CLUSTER_NAMESPACE}
+Replace <infrastructure-provider> with one of the following values: aws, azure, vsphere, eks, gcp,
+or preprovisioned.
+For example:
+nkp upgrade addons aws --cluster-name=${CLUSTER_NAME} -n ${CLUSTER_NAMESPACE}
+Repeat these steps for each additional non-ClusterClass-based workload cluster that requires core
+addon upgrades.
+Update the CLUSTER_NAME and CLUSTER_NAMESPACE environment variables for each cluster and run the
+appropriate upgrade command.
+Upgrading Kubernetes Version on Workload Clusters
+Upgrade the Kubernetes version on non-ClusterClass-based workload clusters (like all infrastructure
+providers other than Nutanix AHV and EKS) to access the latest features, security updates, and
+performance improvements. This process upgrades both the control plane and worker node pools to
+maintain cluster compatibility and functionality.
+Before you begin
+•
+Complete the management cluster upgrade before upgrading any non-ClusterClass-based workload
+clusters.
+•
+Verify that your target Kubernetes version is supported. For more information, see Supported
+Kubernetes Versions section in the NKP Release Notes.
+About this task
+Upgrade the Kubernetes version by first upgrading the control plane, then upgrading each worker node
+pool. This process maintains cluster stability and minimizes downtime for workload clusters.
+Procedure
+1. Set the environment variables for the non-ClusterClass-based workload cluster:
+export CLUSTER_NAME=<your-workload-cluster-name> 
+export CLUSTER_NAMESPACE=<your-workspace-namespace>
+Replace <your-workload-cluster-name> and <your-workspace-namespace> with your actual cluster
+name and namespace.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1033
+
+--- page 1034 ---
+2. Upgrade the control plane to the new Kubernetes version using the appropriate command for your
+infrastructure provider:
+•
+AWS:
+nkp update controlplane aws --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> -n ${CLUSTER_NAMESPACE}
+•
+Azure:
+nkp update controlplane azure --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> --compute-gallery-id <Azure Compute Gallery built by
+ NIB for Kubernetes v<kubernetes-version>> -n ${CLUSTER_NAMESPACE}
+•
+vSphere:
+nkp update controlplane vsphere --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> --vm-template <vSphere template built by NIB for
+ Kubernetes v<kubernetes-version>> -n ${CLUSTER_NAMESPACE}
+•
+GCP:
+nkp update controlplane gcp --cluster-name=${CLUSTER_NAME} --kubernetes-
+version=v<kubernetes-version> --image=projects/${GCP_PROJECT}/global/images/<GCP
+ image built by NIB for Kubernetes v<kubernetes-version>> -n ${CLUSTER_NAMESPACE}
+•
+Pre-provisioned:
+nkp update controlplane preprovisioned --cluster-name=${CLUSTER_NAME} --
+kubernetes-version=v<kubernetes-version> -n ${CLUSTER_NAMESPACE}
+3. List all node pools in your non-ClusterClass-based workload cluster:
+nkp get nodepools --cluster-name ${CLUSTER_NAME} -n ${CLUSTER_NAMESPACE}
+Sample output:
+NODEPOOL               DESIRED               READY               KUBERNETES VERSION
+md-0                   3                     3                   v<kubernetes-
+version>
+worker-pool-1          2                     2                   v<kubernetes-
+version>
+4. Set the node pool name as an environment variable:
+export NODEPOOL_NAME=<your-nodepool-name>
+Replace <your-nodepool-name> with the name of the node pool returned in the nkp get nodepools
+command output:
+5. Upgrade the node pool to match the control plane Kubernetes version using the appropriate command
+for your infrastructure provider:
+•
+AWS:
+nkp update nodepool aws ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} --
+kubernetes-version=v<kubernetes-version> -n ${CLUSTER_NAMESPACE}
+•
+Azure:
+nkp update nodepool azure ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME}
+ --kubernetes-version=v<kubernetes-version> --compute-gallery-id <Azure
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1034

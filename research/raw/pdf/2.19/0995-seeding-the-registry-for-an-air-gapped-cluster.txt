@@ -1,0 +1,101 @@
+
+--- page 995 ---
+Table 88: Node Shutdown Fields
+Field
+Description
+shutdownGracePeriod
+Total delay for pod termination during node
+shutdown.
+shutdownGracePeriodCriticalPods
+Time reserved for critical pods during node
+shutdown.
+Important:  If you set cpuManagerPolicy: static, configure reserved resources such as
+systemReserved or kubeReserved to avoid kubelet startup failures.
+Configuration Examples
+The following examples show basic control plane and worker node configuration.
+Control plane example:
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: <NAME>
+spec:
+  topology:
+    variables:
+      - name: clusterConfig
+        value:
+          controlPlane:
+            kubeletConfiguration:
+              maxPods: 200
+              protectKernelDefaults: true
+              seccompDefault: true
+Worker node example:
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: Cluster
+metadata:
+  name: <NAME>
+spec:
+  topology:
+    workers:
+      machineDeployments:
+        - class: default-worker
+          name: md-0
+          variables:
+            overrides:
+              - name: workerConfig
+                value:
+                  kubeletConfiguration:
+                    maxPods: 250
+                    podPidsLimit: 4096
+                    seccompDefault: true
+Seeding the Registry for an Air-gapped Cluster
+About this task
+Before creating an air-gapped Kubernetes cluster, you can load the required images in a local registry
+for the Konvoy component. This registry must be accessible from both the Creating a Bastion Host on
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 995
+
+--- page 996 ---
+page 679 and either the Amazon Elastic Compute Cloud (Amazon EC2) instances (if deploying to Amazon
+Web Services (AWS)) or other machines that will be created for the Kubernetes cluster.
+This procedure is optional and not mandatory for clusters created from NKP 2.16 onwards.
+Note:  If you do not already have a local registry set up, see the Local Registry Tools page for more
+information.
+Procedure
+1. If not already done in prerequisites, download the air-gapped bundle nkp-air-gapped-bundle_nkp-
+version_linux_amd64.tar.gz, and extract the tarball to a local directory.
+tar -xzvf nkp-air-gapped-bundle_nkp-version>_linux_amd64.tar.gz
+2. The directory structure after extraction can be accessed in subsequent steps using commands to
+access files from different directories. Change your directory to the NKP <version> directory for the
+bootstrap cluster example,
+cd nkp-nkp-version
+3. Set an environment variable with your registry address and any other needed variables using this
+command.
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+export REGISTRY_CA=<path to the cacert file on the bastion>
+4. Execute the following command to load the air-gapped image bundle into your private registry using any
+relevant flags to apply the mentioned variables.
+nkp push bundle --bundle ./container-images/konvoy-image-bundle-nkp-version.tar --to-
+registry=${REGISTRY_URL}
+ --to-registry-username=${REGISTRY_USERNAME} --to-registry-password=
+${REGISTRY_PASSWORD}
+Note:
+•
+NKP takes some time to push all the images to your image registry, depending on the
+performance of the network between the machine you are running the script on and the
+registry.
+•
+To use Elastic Container Registry (ECR), set an environment variable with your registry
+address for ECR:
+export REGISTRY_URL=<ecr-registry-URI>
+•
+REGISTRY_URL: the address of an existing local registry accessible in the Virtual Private Cloud (VPC)
+that the new cluster nodes will be configured to use a mirror registry when pulling images.
+•
+The environment where you are running the nkp push command must be authenticated with AWS in
+order to load your images into ECR.
+You are now ready to create an air-gapped bootstrap cluster for a custom cluster for your infrastructure
+provideror create an air-gapped cluster from the Day 1 - Basic Installs section for your provider.
+Example directory structure after extraction::
+nkp-nkp-version/
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 996

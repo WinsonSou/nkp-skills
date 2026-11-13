@@ -1,0 +1,131 @@
+
+--- page 1044 ---
+Procedure
+1. To monitor the workload cluster upgrade from the NKP UI, follow these steps:
+a. Log in to the NKP UI.
+b. In the navigation pane, click Administration > Upgrades.
+c. In Workload Clusters, locate the cluster that you are upgrading and open its upgrade details.
+d. Monitor the platform application stage.
+Review the application readiness, completed steps, elapsed duration, warnings, and error
+messages.
+e. After the platform application stage completes, monitor the Kubernetes and cluster infrastructure
+stage.
+Review the progress for Kubernetes, the control plane, worker node pools, CNI, CSI, and virtual
+machines.
+f.
+If the displayed status does not show recent progress, refresh the page.
+Refreshing the page does not restart the upgrade.
+g. Wait for the NKP UI to report that the upgrade is complete.
+2. To monitor the workload cluster upgrade from the NKP CLI, follow these steps:
+a. Keep the interactive terminal that is running the upgrade open.
+b. Monitor the platform application stage.
+The CLI displays application readiness and identifies applications that are not yet ready.
+c. For a combined ClusterClass workload-cluster upgrade, monitor the Kubernetes and cluster
+infrastructure stage after the platform application stage completes.
+The interactive output displays stage progress, elapsed duration, and error messages.
+d. If the command runs in a non-interactive terminal, use the UI for detailed progress.
+Non-interactive output contains less detail and can report only that the upgrade is in progress.
+e. Wait for the command to report that the upgrade is complete.
+3. If a warning persists or the NKP UI or CLI reports an error, record the affected stage, component, and
+displayed message before you begin troubleshooting.
+Note:  Do not assume that an error triggers automatic remediation or rollback.
+What to do next
+Verify the cluster, node, workload, and platform application health after the upgrade completes. For more
+information, see Verifying Nutanix Kubernetes Platform Upgrade on page 1044.
+Verifying Nutanix Kubernetes Platform Upgrade
+Verify the upgrade status and target versions in the Nutanix Kubernetes Platform (NKP) UI, and then verify
+cluster, application, and infrastructure health.
+Before you begin
+Before verifying the upgrade, ensure that you have the following access:
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1044
+
+--- page 1045 ---
+•
+An account with permission to view the upgraded clusters in the NKP UI.
+•
+The management cluster kubeconfig.
+•
+The kubeconfig for each workload cluster that you want to verify.
+About this task
+Verify the upgrade from the NKP UI, and then validate the cluster and workloads using the NKP CLI.
+Repeat the cluster specific checks for the management cluster and each upgraded workload cluster.
+Procedure
+1. For a workload cluster upgraded through the NKP UI, verify that the upgrade is completed:
+1. Log in to the NKP UI.
+2. In the navigation pane, click Administration > Upgrades.
+3. In the Workload Clusters widget, locate the upgraded cluster and open its upgrade details.
+4. Verify the following information:
+•
+The upgrade status is complete.
+•
+The current NKP version matches the selected target version.
+•
+The current Kubernetes version matches the selected or default target version.
+•
+The platform application stage is complete.
+•
+The Kubernetes and cluster infrastructure stage is complete.
+•
+No persistent warning or failed step remains.
+Note:  If the displayed status does not show recent progress, refresh the page.
+5. To verify the platform applications, from the navigation pane, click Applications. and follow these
+steps:
+•
+Verify that each enabled platform application has the expected status.
+•
+Investigate any application that remains in Pending, Deploying, or Error status.
+For more information about application statuses, see Cluster Applications and Statuses on
+page 500.
+2. Verify the NKP CLI version:
+nkp version
+Confirm that the reported CLI version matches the target NKP version.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1045
+
+--- page 1046 ---
+3. Using the management-cluster kubeconfig, verify cluster and machine health:
+•
+For the management cluster:
+kubectl get nkp clusters,machines -n kommander
+•
+For a workload cluster:
+kubectl get nkp clusters,machines -n workload-cluster-namespace
+Confirm the following:
+•
+The cluster does not report an upgrade in progress or an error.
+•
+The Kubernetes version corresponds to the target NKP version.
+•
+For a ClusterClass workload cluster, the ClusterClass corresponds to the target NKP version.
+•
+The control plane and worker machines are in the Ready state.
+4. Using the kubeconfig for the cluster that you are verifying, verify node readiness and Kubernetes
+versions:
+kubectl get nodes
+Confirm that all control plane and worker nodes are in the Ready state and that the VERSION column
+displays the target Kubernetes version.
+Note:  When connected to the management cluster, this command displays only the management-cluster
+nodes.
+5. Verify system pod, CNI, CSI, and platform component health across all namespaces:
+kubectl get pods -A
+Confirm that the expected pods are ready. Verify that no core platform, CNI, or CSI pod remains in
+CrashLoopBackOff, ImagePullBackOff, Error, or an extended Pending state.
+6. For GitOps-managed workload clusters, verify that the migration and upgrade is complete:
+•
+Verify that an NKPCluster resource is created for each existing workload cluster:
+kubectl get nkp clusters -A
+•
+Verify that each GitOps-managed workload cluster in the workspace is reconciled to the new version
+of the platform application, Kubernetes version, cluster version:
+kubectl get nkpcluster <cluster-name> -n <namespace> \
+  -o jsonpath='{.status.phase}'
+During the upgrade, the NKPCluster status transitions through Reconciling... and returns to
+Reconciled when the upgrade is complete.
+•
+Verify Flux reconciliation status:
+kubectl get kustomizations <kustomization-name> -n <namespace>
+Confirm that the Kustomizations for the upgraded clusters report a ready state and do not report a
+reconciliation error.
+•
+Verify that the control plane and worker machines are ready:
+kubectl get machines -n <namespace> \
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1046

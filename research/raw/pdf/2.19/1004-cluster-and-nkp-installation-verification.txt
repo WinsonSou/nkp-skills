@@ -1,0 +1,97 @@
+
+--- page 1004 ---
+2. Create the pod-disruption-budget-nvidia.yaml file.
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: nvidia-critical-app
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: nvidia-critical-app
+3. Apply the YAML file above using the command.
+kubectl create -f pod-disruption-budget-nvidia.yaml
+4. Prepare OS image for your node pool using the Nutanix Image Builder on page 55.
+What to do next
+For information on related topics or procedures, see Upgrade Nutanix Kubernetes Platform on page 1016.
+Cluster and NKP Installation Verification
+Check Nutanix Kubernetes Platform (NKP) components to verify the status of your cluster
+This section contains information on how to verify a NKP installation.
+Checking the Cluster Infrastructure and Nodes
+Diagnosis tools check your cluster infrastructure and nodes.
+About this task
+Nutanix Kubernetes Platform (NKP) ships with default diagnosis tools to check your cluster, such as the
+describe command. You can use those tools to validate your installation.
+Procedure
+1. If you have not done so already, set the environment variable for your cluster name, substituting nkp-
+example with the name of your cluster.
+export CLUSTER_NAME=nkp-example
+2. Then, run this command to check the health of the cluster infrastructure.
+nkp describe cluster --cluster-name=${CLUSTER_NAME}
+A healthy cluster returns an output similar to this example.
+NAME                                                            READY  SEVERITY 
+ REASON  SINCE  MESSAGE
+Cluster/nkp-example                                             True                 
+    121m          
+##ClusterInfrastructure - AWSCluster/nkp-example                True                 
+    121m          
+##ControlPlane - KubeadmControlPlane/nkp-example-control-plane  True                 
+    121m          
+# ##Machine/nkp-example-control-plane-h52t6                     True                 
+    121m          
+# ##Machine/nkp-example-control-plane-knrrh                     True                 
+    121m          
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 1004
+
+--- page 1005 ---
+# ##Machine/nkp-example-control-plane-zmjjx                     True                 
+    121m          
+##Workers                                                                            
+                  
+  ##MachineDeployment/nkp-example-md-0                          True                 
+    121m          
+    ##Machine/nkp-example-md-0-88488cb74-2vxjq                  True                 
+    121m          
+    ##Machine/nkp-example-md-0-88488cb74-84xsd                  True                 
+    121m          
+    ##Machine/nkp-example-md-0-88488cb74-9xmc6                  True                 
+    121m          
+    ##Machine/nkp-example-md-0-88488cb74-mjf6s                  True                 
+    121m     
+3. Use this kubectl command to see if all cluster nodes are ready.
+kubectl get nodes
+Example output showing all statuses set to Ready.
+NAME                                         STATUS   ROLES                  AGE   
+ VERSION
+ip-10-0-112-116.us-west-2.compute.internal   Ready    <none>                 135m  
+ v<kubernetes-version>
+ip-10-0-122-142.us-west-2.compute.internal   Ready    <none>                 135m  
+ v<kubernetes-version>
+ip-10-0-186-214.us-west-2.compute.internal   Ready    control-plane,master   133m  
+ v<kubernetes-version>
+ip-10-0-231-82.us-west-2.compute.internal    Ready    control-plane,master   135m  
+ v<kubernetes-version>
+ip-10-0-71-114.us-west-2.compute.internal    Ready    <none>                 135m  
+ v<kubernetes-version>
+ip-10-0-71-207.us-west-2.compute.internal    Ready    <none>                 135m  
+ v<kubernetes-version>
+ip-10-0-85-253.us-west-2.compute.internal    Ready    control-plane,master   137m  
+ v<kubernetes-version>
+To verify a successful installation, all of the previous commands should return as Ready or True.
+Monitor the CAPI Resources
+Monitor the cluster API (CAPI) resources to validate the health and readiness of your Nutanix Kubernetes®
+Platform (NKP) deployment.
+Gather a list of all resources that comprise a cluster and their statuses.
+kubectl get cluster-api
+The status of clusters, machines, control planes, and infrastructure components ensures that all resources
+are provisioned and functioning as expected. Before proceeding with workload deployment or integration,
+reviewing the CAPI resources helps identify configuration issues and confirms that the cluster is stable.
+Verify all Pods
+After installing Nutanix Kubernetes® Platform (NKP), verify that all system pods are in a Running or
+Completed state to ensure a successful deployment.
+Ensure to check pod status across all namespaces of the cluster, and that the system components are
+operational.
+kubectl get pods --all-namespaces
+If any pod is not in Running or Completed status, see Troubleshooting on page 1006.
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 1005

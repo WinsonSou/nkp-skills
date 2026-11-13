@@ -1,0 +1,78 @@
+
+--- page 46 ---
+example-claim   Bound    local-pv-4c7fc8ba   3986Mi     RWO           
+ localvolumeprovisioner   78s
+And you can also check the persistent volume:
+NAME                CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM     
+              STORAGECLASS             REASON   AGE
+local-pv-4c7fc8ba   3986Mi     RWO            Delete           Bound       default/
+example-claim   localvolumeprovisioner            15m
+Upon deletion of the persistent volume claim, the corresponding persistent volume resource uses the
+Delete reclaim policy, which removes all data on the volume.
+Installing NKP
+The topic lists the basic package requirements for your environment to perform a successful installation of
+Nutanix Kubernetes Platform (NKP). Next, install NKP, and then you can begin any custom configurations
+based on your environment.
+About this task
+Perform the following steps to install NKP:
+Procedure
+1. Install the required packages.
+In most cases, you can install the required software using your preferred package manager. For
+example, on a macOS computer, use Homebrew (see Homebrew Documentation) to install kubectl.
+brew install kubernetes-cli 
+Note:  The required packages depend on the chosen infrastructure provider. To select the provider and
+continue with the installation, see Basic Installations by Infrastructure.
+a. Check the Kubernetes client version.
+Many important Kubernetes functions do not work if your client is outdated. You can verify the
+version of kubectl you have installed to check whether it is supported by running the following
+command.
+kubectl version --short=true
+b. Check the Supported Kubernetes Versions section in the NKP Release Notes for a specific NKP
+version after finding your version with the preceding command.
+c. Update your kubectl versions to the Kubernetes version used by NKP.
+2. For air-gapped environments, create a bastion host for the cluster nodes to use within the air-gapped
+network.
+The bastion host needs access to a local registry instead of an Internet connection to export images.
+The recommended template naming pattern is ../folder-name/NKP-e2e-bastion-template or
+similar. Each infrastructure provider has its own set of bastion host instructions. For specific
+details of your provider, see the respective provider's site for more information: Azure (see https://
+learn.microsoft.com/en-us/azure/bastion/quickstart-host-portal, AWS (see https://aws.amazon.com/
+solutions/implementations/linux-bastion/, GCP, or vSphere Security.
+3. Download NKP. For more information, see Downloading NKP on page 17.
+Nutanix Kubernetes Platform | Getting Started with NKP | 46
+
+--- page 47 ---
+4. Create NKP machine images by downloading the Nutanix Image Builder (NIB) and extracting it.
+»
+For Nutanix AHV deployments, use NKP CLI to create a new OS image or use the pre-built image.
+For more information, see Nutanix Kubernetes Platform Installation Prerequisites on page 692.
+»
+For non-Nutanix AHV deployments, download NIB and create new images.
+5. Verify that you have valid infrastructure provider security credentials to deploy the cluster.
+Note:  This step regarding the provider security credentials is not required if you install NKP using Pre-
+provisioned Infrastructure on page 765.
+6. Start NKP cluster installation on your infrastructure. For more information, see Basic Installations by
+Infrastructure on page 76. To use customized YAML and other advanced features, see Custom
+Installation and Infrastructure Tools on page 665.
+7. For non-Nutanix AHV deployments: Configure the Kommander component by initializing the
+configuration file under the Kommander Installer Configuration File component of NKP. For more
+information, see Kommander Installation Based on Your Environment on page 941.
+For Nutanix AHV, the NKP UI (Kommander) is installed automatically.
+8. (Optional) Test operations by deploying a sample application, customizing the cluster configuration, and
+checking the status of cluster components.
+9. Initialize the configuration file under the Kommander Installer Configuration File component of NKP. For
+more information, see Initializing a Kommander Installer Configuration File on page 958.
+You can test operations by deploying a simple, sample application, customizing the cluster
+configuration, or checking the status of cluster components.
+What to do next
+Here are some links to the NKP installation-specific information:
+•
+To view supported Kubernetes versions, see Supported Kubernetes Versions section in the NKP
+Release Notes.
+•
+To view the list of NKP versions and compatibility software, see Nutanix Image Builder on page 55.
+•
+For details about default storage providers and drivers, see Default Storage Providers.
+•
+For supported FIPS builds, see  Deploying a Cluster in FIPS mode.
+Nutanix Kubernetes Platform | Getting Started with NKP | 47

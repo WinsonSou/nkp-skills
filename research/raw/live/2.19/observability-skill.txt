@@ -1,0 +1,122 @@
+# For skill nkp-observability: read-only facts from the live 2.19.0 lab (Starter, AHV), 2026-11-03.
+# Cluster name scrubbed to <mgmt-cluster>, IPs removed. Secret values never read. Override values read with the gitops O2 awk mask.
+
+=== Monitoring and logging API on Starter ===
+kubectl api-resources | grep -iE 'monitoring.coreos|logging|loggingstack|insights|objectbucket'
+  -> only: loggingstacks  loggingstack.nkp.nutanix.com/v1alpha1  true  LoggingStack
+kubectl get crds | grep -iE 'monitoring.coreos|logging|insights|objectbucket'
+  -> only: loggingstacks.loggingstack.nkp.nutanix.com
+kubectl explain prometheusrules -> the server doesn't have a resource type "prometheusrules"
+So on Starter there are no Prometheus, ServiceMonitor, PrometheusRule, AlertmanagerConfig, Logging, ClusterOutput CRDs.
+
+=== Pods (Starter) matching prom|grafana|loki|fluent|logging|alertmanager|thanos|karma|insights ===
+kommander-default-workspace  karma-traefik-certs-...-cert-feder...       1/1 Running
+kommander-default-workspace  prometheus-traefik-certs-...-cert-...       1/1 Running
+kommander                    karma-traefik-certs-kommander-cert-federation-...  1/1 Running
+kommander                    loggingstack-controller-manager-...                1/1 Running
+kommander                    prometheus-traefik-certs-kommander-cert-federation-... 1/1 Running
+No AppDeployment for any monitoring or logging app on Starter.
+
+=== Workspaces ===
+NAME                 NAMESPACE
+default-workspace    kommander-default-workspace
+kommander-workspace  kommander
+
+=== ClusterApp versions (catalog) and annotations ===
+kube-prometheus-stack-87.16.0  licensing pro,ultimate,essential,enterprise  scope workspace  type nkp-core-platform  display "Prometheus Monitoring"
+  overview text names Prometheus v3.13.1, Alertmanager v0.33.1, Grafana v13.1.0 (the bundle images differ, see below)
+grafana-loki-v3-3.6.7          pro,ultimate,...   dependencies rook-ceph-cluster,logging-operator
+logging-operator-6.7.0         pro,ultimate,...
+fluent-bit-0.57.9              pro,ultimate,...
+grafana-logging-11.3.3         pro,ultimate,...   dependencies grafana-loki-v3
+nkp-insights-1.9.7             ultimate,enterprise  required-dependencies kube-prometheus-stack,cloudnative-pg  allow-multiple-instances false
+  overview: "When using NKP Insights with the default S3 object storage configuration, ensure that the rook-ceph and rook-ceph-cluster applications are enabled ..."
+ClusterApp spec: {"appId":"kube-prometheus-stack","sourceRef":{"kind":"GitRepository","name":"management","namespace":"kommander-flux"},"version":"87.16.0"}
+
+=== Kommander default app lists (kommander-0.19.0-config-defaults, values.yaml) ===
+defaultEnterpriseApps: opencost, centralized-opencost, centralized-grafana, karma, karma-traefik, prometheus-thanos-traefik, thanos, nkp-insights-management
+defaultProApps: grafana-logging, grafana-loki-v3, headlamp, kube-prometheus-stack, kubetunnel, logging-operator, prometheus-adapter, rook-ceph, rook-ceph-cluster, velero, cilium-hubble-relay-traefik, cloudnative-pg, cloudnative-pg-plugin-barman-cloud, nkp-mcp-server
+managementApps (management cluster only): centralized-grafana, centralized-opencost, dex, dex-k8s-authenticator, nkp-insights-management, nkp-pulse-management, git-operator, karma, kommander, kommander-appmanagement, kommander-ui, kubefed, thanos, traefik-forward-auth-mgmt, kubetunnel, nkp-mcp-server
+attached.prerequisites.defaultApps: reloader, gateway-api-crds, traefik, headlamp, opencost, kube-prometheus-stack, prometheus-adapter, prometheus-thanos-traefik, cert-manager, karma-traefik, gatekeeper, kommander-flux, cilium-hubble-relay-traefik
+(fluent-bit and nkp-insights are in no default list)
+
+=== ConfigMap kommander/kube-prometheus-stack-mgmt-overrides (exists on Starter, no kps AppDeployment) ===
+labels: {"kommander.d2iq.io/managed-by-kind":"AppDeployment"}   no ownerReferences
+values.yaml (masked, summary): prometheus.additionalServiceMonitors: a list of 15 NKP ServiceMonitors:
+  dkp-service-monitor-nutanix-csi-driver, -metrics-dex-controller, -metrics-thanos (targetPort 10902, ns kommander, kubecost),
+  -metrics-kommander, -karma (path /dkp/kommander/monitoring/karma/metrics), -metrics, -metrics-auth,
+  -dkp-logging-grafana-metrics (path /dkp/logging/grafana/metrics), -dkp-project-logging-grafana-metrics,
+  -metrics-http (loki-distributed), -api-v1-metrics-prometheus, -api-v1-metrics-prometheus-http-10s,
+  -prometheus-metrics, -etcd-metrics (app: etcd-metrics-proxy)
+  Comment in the file: "Below service monitors are copied from kube-prometheus-stack-d2iq-defaults. This is because arrays in values are replaced, not appended."
+  Selector label used by NKP services: servicemonitor.kommander.mesosphere.io/path
+
+=== LoggingStack (Starter) ===
+kubectl explain loggingstack.spec -> kommanderClusterRef (required), version (required)
+kubectl explain loggingstack.status -> conditions, currentPhase, observedGeneration, version
+kommander  loggingstack-<mgmt-cluster>  (owner: KommanderCluster <mgmt-cluster>, finalizer loggingstack.nkp.nutanix.com/loggingstack)
+  spec.version v2.19.0
+  LoggingStackVersionReconciled=True ReconciliationSucceeded: LoggingStack version v2.19.0 reconciled
+  GrafanaLokiV3Deployed=False GrafanaLokiV2NotDeployed: Loki v2 is not enabled in workspace: kommander or projects for the current workspace
+  LoggingStackAppDeploymentsUpdated=True Succeeded: logging stack apps deployment updated
+  GrafanaLokiV2Removed=False GrafanaLokiV2NotDeployed: No grafana loki v2 app deployments found
+  => GrafanaLokiV3Deployed=False with reason GrafanaLokiV2NotDeployed is normal when no Loki v2 existed (fresh 2.19 install). Only reason Failed is an error.
+Controller: kommander/loggingstack-controller-manager (image mesosphere/kommander2-core-installer:v2.19.0). Flux Kustomization kommander/logging-stack-operator Ready.
+KommanderCluster condition LoggingStackVersionReconciled=True.
+
+=== Ingresses (Starter) ===
+git-operator-git, dex, dex-k8s-authenticator, kommander-kommander-ui, kube-oidc-proxy, traefik-forward-auth-mgmt. All on the Traefik LB address. No grafana ingress on Starter.
+
+=== Images in kommander-image-bundle-v2.19.0.tar (from bundle-images.txt) ===
+prometheus/prometheus:v3.11.0  prometheus/alertmanager:v0.31.1  prometheus-operator/prometheus-operator:v0.92.1
+prometheus-operator/prometheus-config-reloader:v0.89.0  prometheus/node-exporter:v1.12.0-distroless
+kube-state-metrics/kube-state-metrics:v2.18.0  prometheus-adapter/prometheus-adapter:v0.12.0
+grafana/grafana:12.4.1  grafana/loki:3.6.7  thanos/thanos:v0.41.0  mesosphere/karma:v0.120-ntnx-server-name
+kube-logging/logging-operator:6.7.0  kube-logging/logging-operator/fluentd:6.7.0-full  kube-logging/logging-operator/config-reloader:6.7.0
+fluent/fluent-bit:5.0.5  fluent/fluent-bit:5.0.9
+mesosphere/insights:1.9.7  mesosphere/insights-management:1.9.7  mesosphere/insights:falco-0.42.1-1.9.7  aquasec/kube-bench:v0.14.0
+mesosphere/trivy-bundles:0.64.1-20260929T031542Z  opencost/opencost:1.121.0
+Charts: kube-prometheus-stack 87.16.0, thanos 17.3.1, karma 2.0.3, loki 6.55.0, grafana 11.3.3, logging-operator-logging 4.2.2, fluent-bit 0.57.9, prometheus-adapter 5.3.0, nkp-insights 1.9.7
+
+=== Guide app versions that are not in the 2.19.0 cluster ===
+guide: logging-operator-6.4.0 (live 6.7.0), fluent-bit-0.57.2 (live 0.57.9), kube-prometheus-stack-82.13.6 (live 87.16.0),
+       rook-ceph-cluster-1.19.6 (live 1.19.5), nkp-insights-1.4.4 example (live 1.9.7)
+
+=== Webhook check before the dry runs ===
+kommander-appmanagement-validating / -defaulting: appdeployments CREATE,UPDATE  sideEffects NoneOnDryRun
+kommander-validating: loggingstacks DELETE only  NoneOnDryRun
+gatekeeper validation.gatekeeper.sh / mutation.gatekeeper.sh: * CREATE,UPDATE  sideEffects None
+kommander-licensing-validating: licenses only  None
+
+=== Dry runs (logged) ===
+DRY1: kubectl -n kommander annotate loggingstack loggingstack-<mgmt-cluster> reconcile.loggingstack.nkp.nutanix.com/requestedAt="<utc time>" --overwrite --dry-run=server
+  -> loggingstack.loggingstack.nkp.nutanix.com/loggingstack-<mgmt-cluster> annotated (server dry run)
+DRY2: nkp create appdeployment logging-operator --app logging-operator-6.4.0 --workspace kommander-workspace --dry-run
+  -> ERR could not create AppDeployment: failed to get cluster app "logging-operator-6.4.0": ... not found. Nothing created (checked: appdeployment logging-operator NotFound).
+DRY3: nkp create appdeployment kube-prometheus-stack --app kube-prometheus-stack-87.16.0 --workspace kommander-workspace --dry-run | kubectl apply --dry-run=server -f -
+  -> appdeployment.apps.kommander.d2iq.io/kube-prometheus-stack created (server dry run). The API accepts a Pro app on Starter.
+DRY4: same with kube-prometheus-stack-82.13.6 -> the CLI prints no YAML ("no objects passed to apply"). Checked after: no kube-prometheus-stack AppDeployment.
+
+=== Monitoring ID ===
+kubectl get namespace kube-system -o jsonpath='{.metadata.uid}' -> a UUID (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+
+=== Batch 4 fix pass (observability), 2026-11-03: app tree reads (no cluster access) ===
+Source: ghcr.io/mesosphere/kommander-applications:v2.19.0 (digest = lab OCIRepository digest, gpu-ai.txt:4), extracted by the batch 4 reviewer.
+grafana-loki-v3/3.6.7/helmrelease/cm.yaml:
+  loki.annotations: secret.reloader.stakater.com/reload: dkp-loki
+  loki.storage.bucketNames.{chunks,ruler,admin}: dkp-loki ; s3.endpoint http://rook-ceph-rgw-dkp-object-store.<ns>.svc:80
+  extraEnvFrom.secretRef.name: dkp-loki in ingester, distributor, querier, queryFrontend, indexGateway, compactor, ruler (7)
+grafana-loki-v3/3.6.7/helmrelease/grafana-loki-v3.yaml valuesFrom: <release>-<version>-config-defaults only
+rook-ceph-cluster/1.19.5/objectbucketclaims/ceph-object-bucket-claim-config-defaults.yaml: OBC bucketName dkp-loki (Rook makes Secret dkp-loki)
+project-grafana-loki-v3/3.6.7/helmrelease/cm.yaml: dkp.project-grafana-loki-v3.additionalConfig.maxSize: "5G"
+project-grafana-loki-v3/3.6.7/helmrelease/object-bucket-claims.yaml: HelmRelease project-loki-v3-object-bucket-claims
+  valuesFrom: <release>-<version>-config-defaults ; project-grafana-loki-v3-overrides (optional: true)
+project-grafana-loki-v3/3.6.7/helmrelease/project-grafana-loki-v3.yaml valuesFrom: config-defaults only (+ AppDeployment overrides)
+logging-operator/6.7.0/logging-operator-logging/logging-operator-logging.yaml valuesFrom:
+  <release>-logging-config-defaults ; logging-operator-logging-overrides (optional: true)
+logging-operator/6.7.0/logging-operator/logging-operator.yaml valuesFrom: config-defaults only
+kube-prometheus-stack/87.16.0/helmrelease/kube-prometheus-stack.yaml valuesFrom:
+  <release>-<version>-config-defaults ; kube-prometheus-stack-mgmt-overrides (optional: true)
+nkp-insights/1.9.7/helmrelease/helmrelease.yaml valuesFrom: config-defaults only
+Chart kube-prometheus-stack 87.16.0 templates/alertmanager/secret.yaml:
+  rendered when alertmanager.enabled and not alertmanager.alertmanagerSpec.useExistingSecret (default false)

@@ -1,0 +1,99 @@
+
+--- page 63 ---
+6. (Optional) Add an additional name suffix to the OS image name:
+export EXTRA_BUILD_NAME=-custom
+Replace -custom with the additional name suffix to add to the OS image name.
+This command is used in the following scenarios:
+•
+To tag images with custom identifiers
+•
+To distinguish between different build variants
+•
+To track different versions
+7. Create an NKP compatible OS image with hidden and advanced flags:
+nkp create image nutanix ${OS_TYPE} \
+      --cluster ${NUTANIX_CLUSTER} \
+      --endpoint ${NUTANIX_ENDPOINT} \
+      --subnet ${SUBNET} \
+      --source-image ${SOURCE_IMAGE} \
+      ${DRY_RUN:+--dry-run} \
+      ${DEBUG:+--debug} \
+      ${OVERRIDES:+--overrides ${OVERRIDES}} \
+      ${EXTRA_BUILD_NAME:+--extra-build-name ${EXTRA_BUILD_NAME}} \
+The NKP CLI command creates an NKP compatible OS image with the hidden and advanced flags that
+you configured using environment variables.
+Note:  Ensure all the required environment variables from the Building a Custom Image with Nutanix
+on page 57 procedure are set before running this command (e.g., OS_TYPE, NUTANIX_CLUSTER,
+NUTANIX_ENDPOINT, SUBNET, SOURCE_IMAGE).
+Building a Custom Image with AWS
+You can build your own customized image with AWS based on your requirements.
+About this task
+To create a custom OS image, you can use the nkp create image aws command with required flags, or
+follow the comprehensive procedure below to configure all options using the environment variables:
+Procedure
+1.
+Open the terminal with access to NKP CLI.
+2.
+Choose the operating system:
+export OS_TYPE=Operating System Type
+For more information, see Supported Infrastructure Operating Systems on page 13.
+3.
+Configure AWS credentials:
+The NKP CLI uses AWS credentials to access AWS services. You can provide credentials in one of
+the following ways:
+•
+Set the AWS_SHARED_CREDENTIALS_FILE environment variable to point to your credentials file
+•
+Use the default location at ~/.aws/credentials
+The credentials file should contain your AWS access key ID and secret access key.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 63
+
+--- page 64 ---
+4.
+Choose the AWS region:
+export AWS_REGION=AWS region name
+Replace AWS region name with the name of the AWS region where you want to create the Amazon
+Machine Image (AMI). For example, us-west-2.
+The system creates the AMI in the specified AWS region.
+5.
+(Optional) To specify a custom instance type:
+export INSTANCE_TYPE=Instance type
+Replace Instance-type with the AWS instance type to use for building the image. For example,
+t3.small.
+If not specified, the default instance type is t3.small for regular builds or g4dn.2xlarge for GPU
+builds.
+6.
+(Optional) Specify a source AMI:
+export SOURCE_AMI=AMI ID
+Replace AMI ID with the ID of the AMI to use as the source.
+If not provided, a source AMI will be selected automatically based on the OS type.
+7.
+(Optional) Publish AMI to multiple regions:
+export AMI_REGIONS=region1,region2,region3
+Replace region1,region2,region3 with a comma-separated list of AWS regions where you want to
+publish the AMI.
+The AMI will be created in the primary region and then copied to the specified additional regions.
+8.
+(Required for air-gapped environment and optional for non-air-gapped environment) Create a package
+bundle:
+NKP requires Operating System packages to be available in the base image. These packages are
+available in the package repositories accessible over the internet. As air-gapped environments are
+restricted from accessing these package repositories, you must first create a package bundle where
+the repositories can be accessed. Then, transfer this bundle to an airgapped environment to build the
+OS image in an airgapped environment.
+Download the NKP air-gapped bundle from the Nutanix portal. For more information, see Downloading
+NKP on page 17. This air-gapped bundle contains the NKP artifacts to build the image. Run the
+following command in an environment with internet access to fetch and add the operating system
+packages, to create a package bundle for NKP.
+nkp create package-bundle ${OS_TYPE} --artifacts-directory nkp-nkp-version/image-
+artifacts/
+${FIPS_ENABLED:+--fips}
+Replace path_to_artifacts_bundle_DIR with the path to the artifacts bundle directory.
+The package bundle contains all the necessary packages and artifacts required to build an NKP
+compatible OS image in an air-gapped environment.
+9.
+(Required for air-gapped environment and optional for non-air-gapped environment) Set the artifacts
+directory:
+export ARTIFACTS_DIRECTORY=nkp-nkp-version/image-artifacts/
+The artifacts directory contains the packages and artifacts required to build the OS image.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 64

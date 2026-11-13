@@ -1,0 +1,120 @@
+=== Gatekeeper constrainttemplates ===
+NAME                         AGE
+requiredserviceaccountname   3d2h
+
+=== constraints (all) ===
+NAME                         ENFORCEMENT-ACTION   TOTAL-VIOLATIONS
+helmrelease-must-have-sa     deny                 0
+kustomization-must-have-sa   deny                 0
+
+=== kyverno pods ===
+(exit 1)
+
+=== kyverno crds/resources ===
+(exit 1)
+
+=== reports / wgpolicy ===
+
+=== priorityclasses ===
+NAME                      VALUE        GLOBAL-DEFAULT   AGE    PREEMPTIONPOLICY
+dkp-critical-priority     100002000    false            3d2h   PreemptLowerPriority
+dkp-high-priority         100001000    false            3d2h   PreemptLowerPriority
+system-cluster-critical   2000000000   false            3d2h   PreemptLowerPriority
+system-node-critical      2000001000   false            3d2h   PreemptLowerPriority
+
+=== mutatingwebhookconfigurations ===
+azureserviceoperator-mutating-webhook-configuration
+caaph-mutating-webhook-configuration
+capa-mutating-webhook-configuration
+capg-mutating-webhook-configuration
+capi-kubeadm-bootstrap-mutating-webhook-configuration
+capi-kubeadm-control-plane-mutating-webhook-configuration
+capi-mutating-webhook-configuration
+capi-operator-mutating-webhook-configuration
+capv-mutating-webhook-configuration
+capx-mutating-webhook-configuration
+capz-mutating-webhook-configuration
+cert-manager-webhook
+cluster-api-runtime-extensions-nutanix-mutating-webhook-configuration
+dex-dex-controller-mutating-webhook-configuration
+gatekeeper-mutating-webhook-configuration
+kommander-appmanagement-defaulting
+kommander-defaulting
+mutation.core.kubefed.io
+nkp-cluster-defaulting
+upgradeplan-defaulting
+
+=== validatingwebhookconfigurations ===
+azureserviceoperator-validating-webhook-configuration
+caaph-validating-webhook-configuration
+capa-validating-webhook-configuration
+capg-validating-webhook-configuration
+capi-host-agent-validating-webhook-configuration
+capi-kubeadm-bootstrap-validating-webhook-configuration
+capi-kubeadm-control-plane-validating-webhook-configuration
+capi-operator-validating-webhook-configuration
+capi-validating-webhook-configuration
+cappp-validating-webhook-configuration
+capv-validating-webhook-configuration
+capz-validating-webhook-configuration
+cert-manager-webhook
+cluster-api-runtime-extensions-nutanix-validating-webhook-configuration
+cluster-api-stack-operator-validating-webhook-configuration
+dex-dex-controller-validating-webhook-configuration
+externalsecret-validate
+gatekeeper-validating-webhook-configuration
+kommander-appmanagement-validating
+kommander-licensing-validating
+kommander-operator-webhook
+kommander-validating
+metallb-webhook-configuration
+nkp-cluster-validating
+nkp-management-plane-validating
+secretstore-validate
+upgradeplan-validating
+validations.core.kubefed.io
+
+=== podsecurityadmission on namespace kommander ===
+{"caren.nutanix.com/namespace-sync":"","kommander.mesosphere.io/flux-source-controller-ingress-access":"true","kommanderclusters.kommander.d2iq.io/cluster-type":"management","kubefed.io/managed":"true","kubernetes.io/metadata.name":"kommander","name":"kommander","nkp.nutanix.com/inject-registry-creds":"true","pod-security.kubernetes.io/enforce":"privileged","workspaces.kommander.mesosphere.io/workspace-name":"kommander-workspace"}
+
+=== encryption at rest / secretbox check ===
+[
+  "kube-apiserver",
+  "--advertise-address=<ip>",
+  "--allow-privileged=true",
+  "--authorization-mode=Node,RBAC",
+  "--client-ca-file=/etc/kubernetes/pki/ca.crt",
+  "--enable-bootstrap-token-auth=true",
+  "--etcd-cafile=/etc/kubernetes/pki/etcd/ca.crt",
+  "--etcd-certfile=/etc/kubernetes/pki/apiserver-etcd-client.crt",
+  "--etcd-keyfile=/etc/kubernetes/pki/apiserver-etcd-client.key",
+  "--etcd-servers=https://localhost:2379",
+  "--kubelet-client-certificate=/etc/kubernetes/pki/apiserver-kubelet-client.crt",
+  "--kubelet-client-key=/etc/kubernetes/pki/apiserver-kubelet-client.key",
+  "--kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname",
+  "--proxy-client-cert-file=/etc/kubernetes/pki/front-proxy-client.crt",
+  "--proxy-client-key-file=/etc/kubernetes/pki/front-proxy-client.key",
+  "--requestheader-allowed-names=front-proxy-client",
+  "--requestheader-client-ca-file=/etc/kubernetes/pki/front-proxy-ca.crt",
+  "--requestheader-extra-headers-prefix=X-Remote-Extra-",
+  "--requestheader-group-headers=X-Remote-Group",
+  "--requestheader-username-headers=X-Remote-User",
+  "--secure-port=6443",
+  "--service-account-issuer=https://kubernetes.default.svc.cluster.local",
+  "--service-account-key-file=/etc/kubernetes/pki/sa.pub",
+  "--service-account-signing-key-file=/etc/kubernetes/pki/sa.key",
+  "--service-cluster-ip-range=10.96.0.0/12",
+  "--tls-cert-file=/etc/kubernetes/pki/apiserver.crt",
+  "--tls-private-key-file=/etc/kubernetes/pki/apiserver.key",
+  "--admission-control-config-file=/etc/kubernetes/admission.yaml",
+  "--audit-log-compress=true",
+  "--audit-log-maxage=30",
+  "--audit-log-maxbackup=90",
+  "--audit-log-maxsize=100",
+  "--audit-log-path=/var/log/audit/kube-apiserver-audit.log",
+  "--audit-policy-file=/etc/kubernetes/audit-policy.yaml",
+  "--enable-admission-plugins=DenyServiceExternalIPs,EventRateLimit,NodeRestriction",
+  "--encryption-provider-config=/etc/kubernetes/pki/encryptionconfig.yaml",
+  "--profiling=false",
+  "--service-account-lookup=true",
+  "--tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"

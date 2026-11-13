@@ -1,0 +1,89 @@
+0002-contents.txt	pages 2-10	Contents
+0012-architecture.txt	pages 12-12	Architecture
+0013-supported-infrastructure-operating-systems.txt	pages 13-16	Supported Infrastructure Operating Systems
+0017-downloading-nkp-from-the-nutanix-portal.txt	pages 17-17	Downloading NKP from the Nutanix Portal
+0018-downloading-nkp-using-command-line.txt	pages 18-18	Downloading NKP Using Command Line
+0020-nkp-concepts-and-terms.txt	pages 20-25	NKP Concepts and Terms
+0026-licenses.txt	pages 26-33	Licenses
+0034-commands-within-a-kubeconfig-file.txt	pages 34-35	Commands within a kubeconfig File
+0036-storage.txt	pages 36-45	Storage
+0046-installing-nkp.txt	pages 46-47	Installing NKP
+0048-general-nutanix-kubernetes-platform-requirements.txt	pages 48-48	General Nutanix Kubernetes Platform Requirements
+0049-konvoy-component-requirements.txt	pages 49-50	Konvoy Component Requirements
+0051-kommander-component-requirements.txt	pages 51-52	Kommander Component Requirements
+0053-required-domains.txt	pages 53-54	Required Domains
+0055-using-an-image-provided-by-nutanix.txt	pages 55-56	Using an Image provided by Nutanix
+0057-building-a-custom-image-with-nutanix.txt	pages 57-62	Building a Custom Image with Nutanix
+0063-building-a-custom-image-with-aws.txt	pages 63-64	Building a Custom Image with AWS
+0065-building-a-custom-image-with-azure.txt	pages 65-66	Building a Custom Image with Azure
+0067-building-a-custom-image-with-gcp.txt	pages 67-67	Building a Custom Image with GCP
+0068-building-a-custom-image-with-vsphere.txt	pages 68-70	Building a Custom Image with vSphere
+0071-upload-artifacts-to-pre-provisioned-hosts.txt	pages 71-74	Upload artifacts to Pre-provisioned Hosts
+0075-redhat-subscription-manager-configuration-for-redhat-enterpr.txt	pages 75-75	RedHat Subscription Manager Configuration for RedHat Enterprise Linux Images
+0076-nutanix-installation-options.txt	pages 76-75	Nutanix Installation Options
+0076-pre-provisioned-installation-options.txt	pages 76-172	Pre-provisioned Installation Options
+0173-aws-installation-options.txt	pages 173-172	AWS Installation Options
+0173-eks-installation-options.txt	pages 173-193	EKS Installation Options
+0194-vsphere-installation-options.txt	pages 194-193	vSphere Installation Options
+0194-azure-installation-options.txt	pages 194-203	Azure Installation Options
+0204-aks-installation-options.txt	pages 204-214	AKS Installation Options
+0215-gcp-installation-options.txt	pages 215-226	GCP Installation Options
+0227-operations.txt	pages 227-270	Operations
+0271-applications.txt	pages 271-316	Applications
+0317-workspaces.txt	pages 317-368	Workspaces
+0369-projects.txt	pages 369-407	Projects
+0408-cluster-management.txt	pages 408-509	Cluster Management
+0510-nutanix-kubernetes-platform-backup-and-restore-management.txt	pages 510-545	Nutanix Kubernetes® Platform Backup and Restore Management
+0546-logging.txt	pages 546-574	Logging
+0575-security.txt	pages 575-588	Security
+0589-networking.txt	pages 589-606	Networking
+0607-gpu-management.txt	pages 607-620	GPU Management
+0621-ai-conformance-in-nutanix-kubernetes-platform.txt	pages 621-621	AI Conformance in Nutanix Kubernetes Platform
+0622-ai-catalog-applications.txt	pages 622-628	AI Catalog Applications
+0629-monitoring-and-alerts.txt	pages 629-645	Monitoring and Alerts
+0646-storage-for-applications.txt	pages 646-661	Storage for Applications
+0662-pulse-telemetry-in-nkp.txt	pages 662-664	Pulse Telemetry in NKP
+0665-universal-configurations-for-all-infrastructure-providers.txt	pages 665-689	Universal Configurations for all Infrastructure Providers
+0690-install-nutanix-kubernetes-platform-on-nutanix-infrastructur.txt	pages 690-740	Install Nutanix Kubernetes Platform on Nutanix Infrastructure
+0741-nutanix-kubernetes-platform-on-metal-infrastructure.txt	pages 741-764	Nutanix Kubernetes Platform on Metal Infrastructure
+0765-pre-provisioned-infrastructure.txt	pages 765-818	Pre-provisioned Infrastructure
+0819-install-nutanix-kubernetes-platform-on-aws-infrastructure.txt	pages 819-833	Install Nutanix Kubernetes Platform on AWS Infrastructure
+0834-install-nutanix-kubernetes-platform-on-vsphere-infrastructur.txt	pages 834-842	Install Nutanix Kubernetes Platform on vSphere Infrastructure
+0843-eks-infrastructure.txt	pages 843-870	EKS Infrastructure
+0871-azure-infrastructure.txt	pages 871-900	Azure Infrastructure
+0901-aks-infrastructure.txt	pages 901-909	AKS Infrastructure
+0910-google-cloud-platform-gcp-infrastructure.txt	pages 910-940	Google Cloud Platform (GCP) Infrastructure
+0941-kommander-installation-based-on-your-environment.txt	pages 941-956	Kommander Installation Based on Your Environment
+0957-kommander-customizations.txt	pages 957-986	Kommander Customizations
+0987-fips-140-3-compliance.txt	pages 987-989	FIPS 140-3 Compliance
+0990-registry-mirror-tools.txt	pages 990-992	Registry Mirror Tools
+0993-kubelet-configuration.txt	pages 993-994	Kubelet Configuration
+0995-seeding-the-registry-for-an-air-gapped-cluster.txt	pages 995-996	Seeding the Registry for an Air-gapped Cluster
+0997-control-plane-configuration.txt	pages 997-1002	Control Plane Configuration
+1003-updating-pod-disruption-budget.txt	pages 1003-1003	Updating Pod Disruption Budget
+1004-cluster-and-nkp-installation-verification.txt	pages 1004-1005	Cluster and NKP Installation Verification
+1006-gpu-for-konvoy.txt	pages 1006-1006	GPU for Konvoy
+1008-plan-the-upgrade.txt	pages 1008-1015	Plan the Upgrade
+1016-upgrade-nutanix-kubernetes-platform.txt	pages 1016-1034	Upgrade Nutanix Kubernetes Platform
+1035-upgrade-nutanix-kubernetes-platform-with-gitops-managed-work.txt	pages 1035-1042	Upgrade Nutanix Kubernetes Platform with GitOps-Managed Workload Clusters
+1043-monitoring-an-nkp-upgrade.txt	pages 1043-1043	Monitoring an NKP Upgrade
+1044-verifying-nutanix-kubernetes-platform-upgrade.txt	pages 1044-1046	Verifying Nutanix Kubernetes Platform Upgrade
+1047-troubleshoot-cluster-upgrades.txt	pages 1047-1048	Troubleshoot Cluster Upgrades
+1049-gather-environment-data-for-nutanix-nkp-support.txt	pages 1049-1055	Gather Environment Data for Nutanix NKP Support
+1056-common-information-discovery-commands.txt	pages 1056-1057	Common Information Discovery Commands
+1058-application-troubleshooting.txt	pages 1058-1063	Application Troubleshooting
+1064-application-yaml-customizations.txt	pages 1064-1067	Application YAML Customizations
+1068-object-locations-and-explanations.txt	pages 1068-1070	Object Locations and Explanations
+1071-troubleshooting-the-rook-ceph-install-error.txt	pages 1071-1072	Troubleshooting the Rook Ceph Install Error
+1073-ai-navigator-architecture-overview.txt	pages 1073-1073	AI Navigator Architecture Overview
+1074-ai-navigator-installation.txt	pages 1074-1074	AI Navigator installation
+1075-disabling-ai-navigator.txt	pages 1075-1074	Disabling AI Navigator
+1075-accessing-ai-navigator.txt	pages 1075-1075	Accessing AI Navigator
+1076-ai-navigator-guidelines.txt	pages 1076-1077	AI Navigator Guidelines
+1078-nkp-mcp-server-overview.txt	pages 1078-1080	NKP MCP Server Overview
+1081-connect-ai-navigator-with-your-own-azure-openai-service.txt	pages 1081-1085	Connect AI Navigator with Your Own Azure OpenAI Service
+1086-nutanix-kubernetes-platform-insights-overview.txt	pages 1086-1086	Nutanix Kubernetes Platform Insights Overview
+1087-nutanix-kubernetes-platform-insights-setup.txt	pages 1087-1092	Nutanix Kubernetes Platform Insights Setup
+1093-uninstall-nkp-insights.txt	pages 1093-1094	Uninstall NKP Insights
+1095-nkp-insights-bring-your-own-storage-byos-to-insights.txt	pages 1095-1100	NKP Insights Bring Your Own Storage (BYOS) to Insights​
+1101-nutanix-kubernetes-platform-insights-alerts.txt	pages 1101-1136	Nutanix Kubernetes Platform Insights Alerts

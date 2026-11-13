@@ -1,0 +1,1173 @@
+
+--- page 741 ---
+3. Update the infrastructure provider Kubernetes secret for NKP UI:
+a. Fetch the Infrastructure Provider Kubernetes secrets:
+kubectl get secret -A -l dkp-infrastructure-provider-type=nutanix-secret |
+ grep <Infrastructure Provider name>
+b. Update the secret to include the new SSL certificate base64 content under the
+additionalTrustBundle field:
+Verify the updated secret:
+kubectl get secret -n <namespace> <cluster-name> -oyaml
+apiVersion: v1
+data:
+  additionalTrustBundle: <New ssl cert base64 content>
+  insecure: ZmFsc2U=
+  password: <password>
+  prismURL: <prismURL>
+  username: <username>
+kind: Secret
+metadata:
+  labels:
+    dkp-infrastructure-provider-type: nutanix-secret
+  name: <name>
+  namespace: <namespace>
+type: Opaque
+4. Update the information in the Konnector-agent:
+a. Fetch the HelmChartProxy object belonging to the Konnector-agent:
+kubectl get hcp -n <cluster namespace> | grep konnector-agent
+b. Update the additionalTrustBundle field in the Konnector-agent's Helm Chart Proxy, located in
+spec.valuesTemplate by using the namespace and HCP name from the previous step:
+kubectl edit hcp -n <cluster namespace> <HCP Name>
+Nutanix Kubernetes Platform on Metal Infrastructure
+Installing Nutanix Kubernetes Platform (NKP) on Metal servers deploys NKP directly on physical servers,
+giving workloads direct access to compute, storage, network, and accelerator resources.
+NKP Metal installation combines host discovery, operating system provisioning, cluster creation, and
+host lifecycle management for Kubernetes clusters that run on physical servers. This deployment model
+supports workloads that require low latency, high throughput, or dedicated hardware, such as artificial
+intelligence, machine learning, GPU computing, and edge workloads.
+Foundation Central discovers and images the physical servers. After imaging, each physical server
+registers with the management cluster and becomes part of the available host inventory. Use an NKP
+management cluster to manage the Metal host inventory and to use those physical servers for creating
+workload clusters
+The supported deployment model determines where the control plane and worker nodes run:
+Full bare-metal workload cluster
+The control plane nodes and worker nodes run on physical servers.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 741
+
+--- page 742 ---
+Mixed workload cluster
+The control plane nodes and standard worker nodes run as virtual machines, and one or more
+additional worker node pools run on physical servers. This model keeps general cluster services
+virtualized while giving selected workloads direct hardware access.
+Workloads on physical servers use storage services that an Nutanix AOS cluster provides through the CSI
+Volume Driver (CSI). Storage connectivity and configuration depend on the selected topology.
+After installation, the management cluster maintains the desired cluster state and supports lifecycle
+operations, including scaling node pools and host operating system updates, and returning
+decommissioned hosts to the available inventory.
+NKP Metal Installation
+The following lists the tasks involved in preparing, installing, and managing NKP Metal clusters.
+Prerequisites and Planning
+•
+Nutanix Kubernetes Platform Metal Installation Prerequisites on page 742
+•
+Nutanix Kubernetes Platform Management Cluster Requirements on page 744
+Infrastructure Preparation
+•
+Downloading the Nutanix Kubernetes Platform Metal Operating System ISO Image and
+Metadata JSON File on page 744
+•
+Preparing a Local Registry Mirror on page 713 (Required for air-gapped, and optional for non-
+airgapped environments)
+•
+Pushing Images to the Registry on page 714 (Required for air-gapped, and optional for non-
+airgapped environments)
+•
+Bootstrap Token on page 745
+The Metal Host Inventory Management
+•
+Nutanix Kubernetes Platform Metal Host Onboarding and Imaging on page 747
+•
+Assigning Nutanix Kubernetes Platform Metal Host to a Workspace on page 747
+•
+Removing Nutanix Kubernetes Platform Metal Hosts from a Workspace on page 748
+•
+Adding Labels to Nutanix Kubernetes Platform Metal Host on page 749
+•
+Maintaining NKP Metal Hosts During Firmware Upgrades on page 749
+Installation
+•
+Mixed Workload Cluster on page 750
+•
+Full NKP Metal Workload Cluster on page 751
+Storage Management
+•
+Default Storage Providers on page 37 (Required for Full NKP Metal workload cluster)
+•
+Creating a Nutanix CSI Volume Driver StorageClass for Mixed Workload Clusters on page 750
+(Required for mixed workload clusters)
+Nutanix Kubernetes Platform Metal Installation Prerequisites
+Prepare the operating system image, network, infrastructure, management cluster, physical servers, and
+Foundation Central environment that Nutanix Kubernetes Platform (NKP) Metal workload clusters require.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 742
+
+--- page 743 ---
+Before you deploy an NKP Metal workload cluster, verify that your environment meets the following
+requirements.
+General Requirements
+•
+Use x86_64-based physical servers from a supported hardware generation for NKP Metal and the
+Foundation Central imaging workflow. For more information, see Hardware Compatibility List.
+•
+Download the following artifacts from the Nutanix Support Portal:
+•
+The NKP CLI binary for the target version. For more information, see Downloading NKP on page 17.
+•
+The NKP air-gapped bundle for the target version when you deploy in an environment without direct
+registry access. For more information, see Downloading and Extracting Air-Gapped Image Bundle
+on page 1012.
+In a non-air-gapped environment, the NKP Metal servers retrieve the host operating system ISO
+image from the configured registry. In an air-gapped environment, stage the host operating system
+ISO image and the required container images in the local registry or internal mirror registry. For
+more information, see Preparing a Local Registry Mirror on page 713 and Pushing Images to the
+Registry on page 714.
+•
+The NKP host operating system ISO image, based on Ubuntu 24.04 LTS, from the Nutanix Support
+Portal.
+For information about supported operating systems, see Supported Infrastructure Operating
+Systems.
+Note:  Nutanix does not support FIPS-enabled host images, customer-provided host images, or other
+additional operating systems.
+•
+The metadata JSON file that identifies the NKP host operating system ISO image to Foundation
+Central. For more information, see Downloading the Nutanix Kubernetes Platform Metal Operating
+System ISO Image and Metadata JSON File on page 744.
+Keep the ISO image and its metadata file together. Foundation Central requires both files when you
+add the NKP Host OS image, and the metadata file must describe the exact ISO image that you
+upload.
+•
+Include a container registry in your environment to store and manage container images.
+•
+Deploy a supported Foundation Central before you discover or image physical servers. For more
+information, see the Foundation Central Appliance documentation.
+•
+Open the ports required between NKP, the management cluster, physical servers, Foundation Central,
+management controllers, registries, and storage services. For more information, see Ports and
+Protocols on the Nutanix Support Portal.
+Networking Requirements
+•
+Ensure that the domain name system (DNS) and network time protocol (NTP) servers configured on the
+physical server are reachable.
+•
+Ensure that a subnet is available with unused IP addresses.
+Configure a dynamic host configuration protocol (DHCP) service on the host network to automatically
+assign IP addresses to the control plane nodes and worker nodes. Reserve the required static IP
+address for the control plane endpoint; this address must be on the physical server network, outside the
+DHCP address pool. NKP Metal supports only IPv4 addresses.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 743
+
+--- page 744 ---
+•
+Compute the number of required IP addresses:
+•
+Reserve one IP address for each node in the Kubernetes cluster.
+The default cluster size includes three control plane nodes and four worker nodes, requiring a total
+of seven IP addresses.
+•
+Reserve one IP address within the same classless inter-domain routing (CIDR) as the subnet, but
+outside the address pool, for the Kubernetes API server.
+•
+Reserve one IP address in the same CIDR as the subnet, but outside the address pool, for the
+default ingress.
+•
+Reserve additional IP addresses if your environment requires additional load balancer services.
+For example, if your subnet uses the CIDR 10.0.0.0/24 and DHCP assigns IP addresses from
+10.0.0.100 to 10.0.0.200, the system randomly selects the individual node IP addresses from that pool.
+If you use Nutanix IPAM instead of DHCP, configure an equivalent IP address pool.
+•
+For each physical server, provide the IP address and valid credentials for its baseboard management
+controller (BMC). Ensure that Foundation Central can reach the BMCs through the out-of-band
+management network.
+Assign each physical server a separate host IP address on the NKP node network. Ensure that the
+physical servers can communicate with the NKP management cluster and, for mixed clusters, with the
+other cluster nodes.
+Storage Requirements
+•
+NKP uses the CSI Volume Driver (CSI) 3.x as the default storage provider. For more information, see
+Default Storage Providers on page 37.
+Nutanix Kubernetes Platform Management Cluster Requirements
+Verify that your existing Nutanix Kubernetes Platform (NKP) management cluster meets the following
+requirements before you image NKP Metal servers for a workload cluster.
+•
+The management cluster runs on a supported NKP environment.
+•
+The management cluster uses an NKP Pro or NKP Ultimate license.
+•
+The management cluster and physical servers have network connectivity in air-gapped and non-air-
+gapped environments.
+•
+The management cluster has an associated kubeconfig file with the permissions required to create a
+bootstrap token and manage infrastructure providers, workspaces, hosts, and workload clusters. For
+more information about creating a bootstrap token, see Bootstrap Token on page 745.
+•
+The host running the NKP CLI has the supported kubectl version installed.
+•
+The management cluster meets the resource requirements for its license tier and the number of clusters
+that it manages. For more information, see Pro and Ultimate Nutanix Kubernetes Platform Cluster
+Minimum Requirements on page 696.
+For other requirements and prerequisites and more information about creating a management cluster, see
+Install Nutanix Kubernetes Platform on Nutanix Infrastructure on page 690.
+Downloading the Nutanix Kubernetes Platform Metal Operating System ISO Image and
+Metadata JSON File
+Download the supported Ubuntu ISO image and its matching metadata file that Foundation Central uses to
+image your Nutanix Kubernetes Platform (NKP) Metal servers.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 744
+
+--- page 745 ---
+Before you begin
+Verify that you have access to the Nutanix Support Portal with permission to download operating system
+image bundles.
+About this task
+NKP supports automated imaging of Metal servers only with Ubuntu 24.04 LTS. For more information, see
+Supported Infrastructure Operating Systems.
+Important:  Nutanix does not support FIPS-enabled host images, customized or customer-provided host
+images, or other operating systems for NKP Metal imaging.
+Procedure
+1. Log in to the Nutanix Support Portal with your Nutanix credentials.
+2. From the Product dropdown list, select Nutanix Kubernetes Platform (NKP).
+3. From the dropdown list, select NKP Operating System Images.
+4. In the Latest tab, click Download on the NKP Node OS ISO Image.
+5. Download the metadata JSON file provided for the NKP Node OS ISO Image.
+Save the ISO image and its metadata JSON file together in the location on your local media that you
+can use to upload images in Foundation Central.
+Bootstrap Token
+You can create a bootstrap token using the Nutanix Kubernetes Platform (NKP) UI or the CLI. NKP Metal
+uses this token to let imaged Metal servers register securely with your management cluster.
+The bootstrap token contains configuration and credentials for one NKP management cluster. Foundation
+Central adds this information to the host image during imaging. After the host is imaged, the host agent
+uses the information to authenticate with the management cluster and register the host.
+Both methods produce a token that NKP Metal uses in the same way. Choose the method that fits your
+environment:
+•
+NKP UI: Download the token from the NKP dashboard. For more information, see Creating a Bootstrap
+Token Using the Nutanix Kubernetes Platform UI on page 745.
+•
+NKP CLI: Generate the token from a terminal. For more informations, see Creating a Bootstrap Token
+Using the Nutanix Kubernetes Platform CLI on page 746.
+Important:  Use the bootstrap token only with the management cluster that generated it. The token file
+contains authentication credentials. Store and transfer the file securely.
+After you create the token, provide it when you image the NKP Metal physical servers using Foundation
+Central. Do not modify the token file.
+Creating a Bootstrap Token Using the Nutanix Kubernetes Platform UI
+Download the credentials that allow imaged Metal physical servers to register securely with an Nutanix
+Kubernetes Platform (NKP) management cluster.
+Before you begin
+Ensure that you have the following:
+•
+Use an NKP management cluster with an Ultimate or Pro license that supports NKP Metal.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 745
+
+--- page 746 ---
+•
+Set up NKP UI access. For more information, see Setting up the Nutanix Kubernetes Platform User
+Interface Access on page 729.
+About this task
+The bootstrap token contains configuration and credentials for one NKP management cluster. Foundation
+Central adds this information to the host image during imaging. After the host is imaged, the host agent
+uses the information to authenticate with the management cluster and register the host.
+Important:  Use the bootstrap token only with the management cluster that generated it. The downloaded
+file contains authentication credentials. Store and transfer the file securely.
+To create a bootstrap token using the NKP UI , follow these steps:
+Procedure
+1. Log in to the NKP UI.
+The Global workspace is displayed by default.
+2. In the navigation menu, select Administration > Metal Host Inventory.
+3. On the Metal Host Inventory page, click Download Token.
+Your browser downloads the bootstrap-token.yaml file to your local media.
+What to do next
+When you image the NKP Metal physical servers using Foundation Central, provide the downloaded token.
+Do not modify the token file.
+Creating a Bootstrap Token Using the Nutanix Kubernetes Platform CLI
+Generate the credentials that allow imaged Metal physical servers to register securely with an Nutanix
+Kubernetes Platform (NKP) management cluster, directly from the NKP CLI.
+About this task
+Before NKP Metal physical servers can self-register with the management cluster, a bootstrap token must
+exist in that cluster. Foundation Central embeds the token in the host operating system image so that host
+agents can authenticate their initial certificate signing request (CSR) against the management cluster API
+server during TLS bootstrapping.
+Before you begin
+Ensure that you have the following:
+•
+A terminal with the NKP CLI binary installed.
+•
+Administrative access and the kubeconfig file for the target NKP management cluster.
+To create a bootstrap token using the NKP CLI , follow these steps:
+Procedure
+1. Open a terminal session on your administration node.
+2. Create a bootstrap token:
+nkp create bootstrap-token --kubeconfig ~/.kube/management.conf > bootstrap.conf
+Note:  The bootstrap token uses the standard Kubernetes format.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 746
+
+--- page 747 ---
+What to do next
+When you image the NKP Metal physical servers using Foundation Central, provide the generated token.
+Do not modify the token file.
+Nutanix Kubernetes Platform Metal Host Onboarding and Imaging
+Foundation Central discovers physical servers, collects their inventory, and installs the NKP host operating
+system before the hosts register with an Nutanix Kubernetes Platform (NKP) management cluster.
+Use the procedures for your supported Foundation Central versions to complete the following operations:
+1. Onboard the supported physical servers using Foundation Central. Onboarding establishes a
+connection to the baseboard management controllers and collects information about the physical
+servers.
+2. Image the selected physical servers. Imaging applies the network and registration configuration, and
+then installs the supported NKP Host operating system on the selected servers.
+For more information, see the Foundation Central documentation.
+After imaging completes, each physical server starts the NKP host operating system. The host agent reads
+the registration configuration, authenticates with the NKP management cluster using the bootstrap token,
+and reports the hardware inventory. The registered hosts appear on the Metal Host Inventory page in the
+NKP dashboard.
+Workspace assignment for NKP Metal physical servers depends on your NKP license tier:
+•
+In NKP Ultimate, assign the NKP Metal physical servers to a workspace before you use them in an NKP
+Metal workload cluster or node pool.
+•
+In NKP Pro, NKP Metal physical servers are automatically assigned to a workspace when they appear
+on the Metal Host Inventory page in the NKP dashboard.
+Foundation Central must remain available for initial imaging and reimaging. After the hosts register with
+the management cluster, the management cluster handles cluster creation and normal host lifecycle
+operations.
+Assigning Nutanix Kubernetes Platform Metal Host to a Workspace
+Assign the imaged Nutanix Kubernetes Platform (NKP) Metal host to a workspace so that you can use
+them in an NKP Metal workload cluster.
+Before you begin
+•
+Ensure that you have administrator privileges in the NKP UI.
+•
+Ensure that the he NKP Metal host are imaged and available in the host inventory.
+About this task
+Note:  Perform this procedure for NKP Ultimate. In NKP Pro, NKP Metal host in the inventory are
+automatically allocated, which eliminates the need to manually assign hosts to a workspace.
+To assign the NKP Metal host to a workspace, follow these steps:
+Procedure
+1. Log in to the NKP UI as an administrator.
+The Global workspace is displayed by default.
+2. In the left navigation menu, select Administration > Metal Host Inventory.
+The Metal Host Inventory page displays all imaged NKP Metal host.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 747
+
+--- page 748 ---
+3. In the Usage column, locate the hosts marked Unassigned.
+You can also filter the list to display only unassigned hosts.
+4. Assign the hosts:
+»
+Single host: Click the vertical three-dot menu icon for the host, then select Move to Workspace.
+»
+Multiple hosts: Select the checkboxes for the hosts, then click Move to Workspace.
+5. From the Workspace dropdown list, select the target workspace, then click Move.
+What to do next
+To verify the assignment, follow these steps:
+1. From the workspace dropdown list, select the target workspace.
+2. In the left navigation menu, select Administration > Metal Host Inventory.
+3. Confirm that the assigned hosts appear in the inventory.
+Removing Nutanix Kubernetes Platform Metal Hosts from a Workspace
+Perform this procedure only when you want to remove an Nutanix Kubernetes Platform (NKP) Metal host
+from a workspace to decommission the workspace or reallocate the hardware.
+Before you begin
+The NKP Metal host that you plan to remove must be in the Available state.
+To remove the NKP Metal host from a workspace, follow these steps:
+Procedure
+1. Log in to the NKP UI as an administrator.
+The Global workspace is displayed by default.
+2. From the workspace dropdown list, select the target workspace where you assigned the NKP Metal
+host.
+3. In the left navigation menu, select Administration > Metal Host Inventory.
+The Metal Host Inventory page displays all imaged NKP Metal hosts.
+4. Select the hosts that you plan to remove and verify that each host is in the Available state.
+5. Click the vertical three-dot menu icon for the host that you plan to remove and select Remove from
+Workspace.
+6. In the confirmation prompt, confirm the action.
+NKP removes the host from the workspace and returns it to the Unassigned status in the Global
+workspace inventory.
+Nutanix Kubernetes Platform Metal Host Labels
+Nutanix Kubernetes Platform (NKP) manages Metal host labels at the global and workspace levels through
+system-managed and user-defined label types.
+System-managed labels
+The local bootstrap agent automatically discovers and applies these labels to the host during self-
+registration. These labels describe hardware specifications, such as the vendor, CPU model, CPU
+count, RAM capacity, system disk, and peripheral accelerators. Workspace-level tenant users
+cannot modify these read-only labels.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 748
+
+--- page 749 ---
+User-defined labels
+Workspace administrators apply these labels at the workspace level. These labels represent logical
+groupings rather than physical hardware characteristics.
+For more information on adding labels, see Adding Labels to Nutanix Kubernetes Platform Metal Host on
+page 749
+Adding Labels to Nutanix Kubernetes Platform Metal Host
+Adding labels to Nutanix Kubernetes Platform (NKP) Metal host allows you to dynamically select them
+during workload cluster or node pool creation.
+About this task
+NKP manages labels at the Global and workspace levels. For more information about system-managed
+and user-defined labels, see Nutanix Kubernetes Platform Metal Host Labels on page 748.
+To add a label to NKP Metal hosts, follow these steps:
+Procedure
+1. Log in to the NKP UI.
+The Global workspace is displayed by default.
+2. From the workspace dropdown list, select the target workspace.
+3. In the navigation menu, select Administration > Metal Host Inventory.
+The Metal Host Inventory page displays all the assigned NKP Metal host.
+4. Identify the physical hosts by its host name.
+5. In the Labels column, click the vertical three-dot menu icon, then click Edit Labels.
+6. On the Edit Labels page, do the following:
+a. Click + Add Label.
+b. Enter the key-value pair for the label.
+For example, enter environment as the key and production as the value.
+7. Click Save.
+NKP writes the labels to the host inventory and merges them with the underlying cluster host resources.
+Maintaining NKP Metal Hosts During Firmware Upgrades
+Prepare an Nutanix Kubernetes Platform (NKP) Metal host for a firmware upgrade and return the host to
+service after the upgrade.
+About this task
+Perform maintenance on one host at a time. The kubectl drain command cordons the node and evicts
+its workload pods. After the firmware upgrade completes, verify that the node is ready before you allow
+Kubernetes to schedule new workloads on it.
+To upgrade firmware on an NKP Metal host, follow these steps:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 749
+
+--- page 750 ---
+Procedure
+1. In a terminal that uses the workload cluster kubeconfig, drain the target node:
+kubectl drain <node-name>
+Note:  The kubectl drain command also cordons the node. Do not continue until the command
+completes successfully.
+2. Upgrade the firmware on the physical host by using the procedure from the hardware vendor.
+3. Verify that the target node returns to the Ready state:
+kubectl get nodes <node-name>
+4. Uncordon the target node:
+kubectl uncordon <node-name>
+Kubernetes can schedule new workloads on the node.
+Mixed Workload Cluster
+In a mixed workload cluster, the control plane nodes and standard worker nodes run as virtual machines,
+and one or more additional worker node pools run on Nutanix Kubernetes Platform (NKP) Metal host.
+A mixed workload cluster runs the control plane nodes and standard worker nodes as virtual machines
+on a Nutanix AHV cluster. One or more additional worker node pools run on NKP Metal hosts that are
+registered in the Metal host inventory. This model keeps general cluster services virtualized while giving
+selected workloads direct hardware access.
+Use a mixed workload cluster when most of your workloads run well on virtual machines, but specific
+workloads, such as GPU-intensive or latency-sensitive applications, require dedicated physical hardware.
+To create and manage a mixed workload cluster, follow the steps in the following procedure:
+1. Create the workload cluster. For information, see Creating a Managed Nutanix Cluster Through the
+Nutanix Kubernetes® Platform UI on page 408
+2. Add more worker node pools to the cluster. For more information, see Adding a Node Pool to an
+Nutanix Kubernetes Platform Cluster on page 758
+3. Verify that the node pool is added. For more information, see Verifying an Nutanix Kubernetes Platform
+Node Pool on page 762
+4. Create a StorageClass for workloads that run on the Metal node pool of a mixed workload cluster. For
+more information, see Creating a Nutanix CSI Volume Driver StorageClass for Mixed Workload Clusters
+on page 750
+Creating a Nutanix CSI Volume Driver StorageClass for Mixed Workload Clusters
+Create a dedicated StorageClass for workloads that run on the Metal node pool of a mixed workload
+cluster.
+About this task
+When you create a mixed workload cluster, Nutanix Kubernetes Platform (NKP) creates a default
+StorageClass for the virtual machine control plane and worker nodes. This default StorageClass uses
+hypervisor-attached volumes and cannot provision storage for workloads that run on the Metal node pool,
+because those Metal hosts have no hypervisor. Create a separate StorageClass for the Metal node pool,
+and configure any workload on those nodes that requires a persistent volume to use this StorageClass
+instead.
+To create Nutanix CSI Volume Driver (CSI) StorageClass for mixed workload clusters, do the following:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 750
+
+--- page 751 ---
+Procedure
+1. Create a YAML file that defines the StorageClass:
+allowVolumeExpansion: true
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nutanix-volume-metal
+parameters:
+  csi.storage.k8s.io/controller-expand-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/controller-expand-secret-namespace: ntnx-system
+  csi.storage.k8s.io/fstype: xfs
+  csi.storage.k8s.io/node-publish-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/node-publish-secret-namespace: ntnx-system
+  csi.storage.k8s.io/provisioner-secret-name: nutanix-csi-credentials
+  csi.storage.k8s.io/provisioner-secret-namespace: ntnx-system
+  fileSystem: ext4
+  prismElementRef: <Prism Element UUID>
+  storageContainer: <Storage Container name>
+  storageType: NutanixVolumes
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete
+volumeBindingMode: WaitForFirstConsumer
+Replace the prismElementRef and storageContainer placeholder values with the Prism Element
+UUID and storage container name for your environment.
+2. Apply the StorageClass to the mixed workload cluster:
+kubectl apply -f storageclass-file-name.yaml
+Full NKP Metal Workload Cluster
+In a full Nutanix Kubernetes Platform (NKP) Metal workload cluster, the control plane nodes and worker
+nodes run directly on Metal hosts.
+A full NKP Metal workload cluster runs the control plane nodes and worker nodes directly on Metal
+hosts that are registered in the Metal Host Inventory. Every node in the cluster has direct access to the
+underlying compute, storage, network, and accelerator resources, without a hypervisor layer.
+Use a full NKP Metal workload cluster for workloads that require the highest performance, the lowest
+latency, or direct hardware access, such as GPU-intensive artificial intelligence or machine learning
+workloads.
+To create and manage a mixed workload cluster, do the following:
+1. Create the cluster use one of the following methods:
+•
+NKP UI: For instructions, see Creating an Nutanix Kubernetes Platform Metal Workload Cluster
+Using the UI on page 751.
+•
+NKP CLI: For instructions, see Creating an Nutanix Kubernetes Platform Metal Workload Cluster
+Using the CLI on page 756.
+2. Add more worker node pools to the cluster. For more information, see Adding a Node Pool to an
+Nutanix Kubernetes Platform Cluster on page 758.
+3. Verify that the node pool is added. For more information, see Verifying an Nutanix Kubernetes Platform
+Node Pool on page 762
+Creating an Nutanix Kubernetes Platform Metal Workload Cluster Using the UI
+You can create an Nutanix Kubernetes Platform (NKP) Metal workload cluster using the NKP UI.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 751
+
+--- page 752 ---
+Before you begin
+•
+Ensure that you onboarded and imaged the physical servers using Foundation Central. For more
+information, see Nutanix Kubernetes Platform Metal Host Onboarding and Imaging on page 747.
+•
+Ensure that you assigned the imaged NKP Metal host to the target workspace. For more information,
+see Assigning Nutanix Kubernetes Platform Metal Host to a Workspace on page 747.
+About this task
+The Metal infrastructure type appears only after you image NKP Metal hosts using Foundation Central and
+register them in the NKP Metal Host Inventory.
+To create an NKP Metal workload cluster, follow these steps:
+Procedure
+1.
+Log in to the NKP UI.
+The Global workspace is displayed by default.
+2.
+From the workspace dropdown list, select the target workspace.
+3.
+In the left navigation menu, select Clusters.
+4.
+At the top right corner of the cluster page, select the Add Cluster button.
+5.
+In the Add Cluster page, click the Create Cluster from Infrastructure Provider checkbox.
+6.
+Select Nutanix Metal as the infrastructure type.
+7.
+In the Basic Configuration tab, provide the following details:
+•
+Infrastructure Provider Type: The value of this field corresponds to the Nutanix Metal
+infrastructure provider that you created.
+•
+Cluster Name: A valid Kubernetes name for the NKP Metal workload cluster.
+•
+Add Labels: Add any required labels that the cluster needs for your environment by selecting the +
+Add Label link.
+Adding a cluster label might add the cluster to NKP projects.
+•
+Kubernetes Version: Displays a supported Kubernetes version for your NKP release.
+•
+SSH Username: Name of the SSH user to create or use.
+Leaving this field blank creates the default user name konvoy for the specified SSH public key.
+•
+SSH Public Key: Paste the SSH public key that specifies your authorized key.
+8.
+Click Next.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 752
+
+--- page 753 ---
+9.
+In the Node Pools tab, to configure the node pool information for your control plane and worker
+nodes, follow these steps:
+a. Configure the control plane node pool:
+•
+Control Plane Endpoint IP: Enter the virtual IP address used for the NKP Kubernetes API
+endpoint.
+Note:  Nutanix recommends using an IP address outside the DHCP range and Nutanix IPAM
+address pool.
+•
+Control Plane Endpoint Port: Enter the port for the NKP Kubernetes API server.
+For the default port details, see Ports and Protocols on the Nutanix Support Portal.
+•
+In the Select Nodes section, provide the following details:
+•
+Individually: Select specific hosts from the Metal Host Inventory.
+•
+By Labels: Select a label.
+NKP selects hosts that match the label filter.
+•
+If you selected Individually, click + Select Nodes, and follow these steps:
+1. (Optional) Use Filter by Labels or the search field to filter the available hosts.
+2. Select the checkboxes for the hosts that you want to add to the node pool.
+3. Click Save.
+•
+If you selected By Labels, follow these steps:
+1. For a fixed-size node pool, enter the Number of Nodes.
+2. (Optional) For an automatically scaled node pool, select Enable Autoscaling, and enter
+the Minimum Number of Nodes and Maximum Number of Nodes.
+3. In the Filter By Labels field, select the labels that identify the eligible hosts.
+4. (Optional) Click Preview All Available Hosts to review the eligible hosts.
+b. Configure the worker node pool:
+•
+Node Pool Name: Enter a name for the worker node pool.
+•
+In the Select Nodes section, choose one of the following:
+•
+Individually: Select specific hosts from the Metal Host Inventory.
+•
+By Labels: Select a label.
+NKP selects hosts that match the label filter.
+•
+If you selected Individually, click + Select Nodes, and follow these steps:
+1. (Optional) Use Filter by Labels or the search field to filter the available hosts.
+2. Select the checkboxes for the hosts that you want to add to the node pool.
+3. Click Save.
+•
+If you selected By Labels, follow these steps:
+1. For a fixed-size node pool, enter the Number of Nodes.
+2. (Optional) For an automatically scaled node pool, select Enable Autoscaling, and enter the
+Minimum Number of Nodes and Maximum Number of Nodes.
+3. In the Filter By Labels field, select the labels that identify the eligible hosts.
+4. (Optional) Click Preview All Available Hosts to review the eligible hosts.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 753
+
+--- page 754 ---
+•
+(Optional) To add labels, in the Labels section, click + Add a Label, then enter a Key and
+Value that identify a node attribute.
+The key must use the *.nutanix.com/ prefix, where * is a namespace such as metal or nkp.
+For example, enter metal.nutanix.com/workload as the key and ai as the value to identify
+nodes intended for AI workloads.
+•
+(Optional) To add taints, in the Taints section, click + Add a Taint, enter a Key and Value, then
+select an effect from the Effect dropdown list.
+The key must use the *.nutanix.com/ prefix, where * is a namespace such as metal or nkp.
+For example, enter metal.nutanix.com/dedicated as the key, gpu as the value, and select
+No-Schedule. Only pods with a matching toleration can be scheduled on these nodes.
+c. Click Next.
+10. In the Storage tab, configure the storage settings:
+•
+Nutanix Infrastructure Credentials: From the dropdown list, select the Prism Central credentials
+to use for this cluster.
+•
+AOS Cluster: Select the Nutanix AOS cluster that hosts the worker node virtual machines.
+If you select a Nutanix Prism project, the list shows only the AOS clusters associated with that
+project.
+•
+Nutanix Storage Container: Select the pre-created storage container to use for Nutanix Volumes
+creation.
+•
+Reclaim Policy: Select Retain or Delete as the persistent volume reclaim policy.
+The default value is Delete.
+•
+File System: Select ext4 or xfs as the file system.
+Note:  Hypervisor-attached volume options are unavailable for Metal hosts. The volume data traffic
+goes directly to Prism Element.
+11. Click Next.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 754
+
+--- page 755 ---
+12. In the Networking tab, configure the network settings:
+•
+Pod Network: Enter the Kubernetes pod network CIDR.
+The default value is 192.168.0.0/16.
+Note:  Ensure that this CIDR does not overlap with a host subnet. You cannot change the CIDR
+after cluster creation.
+•
+Service Network: Enter the Kubernetes service network CIDR.
+The default value is 10.96.0.0/12.
+Note:  Ensure that this CIDR does not overlap with a host subnet. You cannot change the CIDR
+after cluster creation.
+•
+Kubernetes Service Load Balancer Starting IP: Enter the first IP address in the private range
+that you allocate for load balancing.
+Note:  Nutanix recommends using an IP address outside the DHCP range or Nutanix IPAM address
+pool.
+•
+Kubernetes Service Load Balancer Ending IP: Enter the last IP address in the private range that
+you allocate for load balancing.
+Note:  Nutanix recommends using an IP address outside the DHCP range or Nutanix IPAM address
+pool.
+13. Click Next.
+14. (Optional) In the Image Registries tab, configure the image registry settings:
+•
+Image Registry Mirror: Configure a local copy of public registries:
+•
+URL: Enter the URL of the image registry mirror.
+•
+Username: Enter the username for the image registry mirror.
+•
+Password: Enter the password for the image registry mirror.
+•
+Show CA Certificate: Click Show CA Certificate and enter the certificate authority certificate
+for a registry that uses a self-signed certificate.
+•
+Private Registry: Configure a private registry for your application images:
+•
+URL: Enter the URL of the private registry.
+•
+Username: Enter the username for the private registry.
+•
+Password: Enter the password for the private registry.
+•
+Show CA Certificate: Click Show CA Certificate and enter the certificate authority certificate
+for a registry that uses a self-signed certificate.
+Defining a mirror registry is required if you have an air-gapped environment.
+15. Click Create.
+NKP creates the NKP Metal cluster in the target workspace.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 755
+
+--- page 756 ---
+Creating an Nutanix Kubernetes Platform Metal Workload Cluster Using the CLI
+Create a full Nutanix Kubernetes Platform (NKP) Metal workload cluster, with control plane and worker
+nodes running directly on physical hosts, using the CLI.
+Before you begin
+Ensure that your environment meets the following requirements:
+•
+You have the NKP CLI installed and a kubeconfig for the management cluster.
+•
+You onboarded and imaged the physical hosts and assigned them to the target workspace in the Metal
+Host Inventory. For more information, see Nutanix Kubernetes Platform Metal Host Onboarding and
+Imaging on page 747 and Assigning Nutanix Kubernetes Platform Metal Host to a Workspace on
+page 747.
+•
+The target workspace has enough available hosts for the control plane and worker roles.
+•
+If you plan to select hosts by label, you applied labels that identify each role to the corresponding hosts.
+For more information, see Adding Labels to Nutanix Kubernetes Platform Metal Host on page 749.
+•
+You created a storage container on the AOS cluster that the CSI Volume Driver uses for persistent
+volumes.
+•
+You reserved a control plane endpoint IP address and a contiguous IP address range for the
+Kubernetes service load balancer. Neither range overlaps the DHCP range or the Prism Central IP
+address management (IPAM) pool.
+About this task
+To create an NKP Metal workload cluster using the NKP CLI, do the following:
+Procedure
+1. Set the cluster name and the target workspace namespace:
+export CLUSTER_NAME="metal-workload-01"
+export WORKSPACE_NAMESPACE="workspace-prod"
+2. Set the Prism Central connection details that the CSI driver uses for persistent storage:
+export NUTANIX_ENDPOINT="<prism-central-ip-or-fqdn>"
+export NUTANIX_PORT="9440"
+export NUTANIX_STORAGE_CONTAINER_NAME="<storage-container-name>"
+export NUTANIX_PRISM_ELEMENT_CLUSTER_NAME="<prism-element-cluster-name>"
+3. (Optional) To identify the label selectors for the control plane and worker roles, retrieve the labels of the
+available hosts in the workspace namespace:
+kubectl get hosts -n ${WORKSPACE_NAMESPACE} --show-labels
+4. Set the host selectors for the control plane and worker roles:
+export CONTROL_PLANE_HOST_SELECTOR="<label-key>=<label-value>"
+export WORKER_HOST_SELECTOR="<label-key>=<label-value>"
+5. Create the NKP Metal workload cluster:
+nkp create cluster metal \
+  --control-plane-host-selector ${CONTROL_PLANE_HOST_SELECTOR} \
+  --worker-host-selector ${WORKER_HOST_SELECTOR} \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${WORKSPACE_NAMESPACE} \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 756
+
+--- page 757 ---
+  --control-plane-endpoint-ip <control-plane-endpoint-ip> \
+  --kubernetes-service-load-balancer-ip-range=<load-balancer-start-ip>-<load-
+balancer-end-ip> \
+  --csi-prism-central-endpoint ${NUTANIX_ENDPOINT}:${NUTANIX_PORT} \
+  --csi-storage-container ${NUTANIX_STORAGE_CONTAINER_NAME} \
+  --csi-prism-element-cluster ${NUTANIX_PRISM_ELEMENT_CLUSTER_NAME}
+The command uses the following parameters:
+•
+--control-plane-host-selector: A label selector that matches the physical hosts to use for the
+control plane nodes.
+•
+--worker-host-selector: A label selector that matches the physical hosts to use for the worker
+nodes.
+•
+--cluster-name: The name of the NKP Metal workload cluster.
+•
+--namespace: The namespace assigned to the workspace.
+The workload clusters and physical hosts are managed in a workspace-specific namespace.
+•
+--control-plane-endpoint-ip: The virtual IP address for the NKP Kubernetes API endpoint.
+Nutanix recommends using an IP address outside the DHCP range and the Prism Central IPAM
+address pool.
+•
+--kubernetes-service-load-balancer-ip-range: A contiguous IP address range for the
+Kubernetes service load balancer, in start-ip-end-ip format.
+Nutanix recommends using an IP address range outside the DHCP range and the Prism Central
+IPAM address pool.
+•
+--csi-prism-central-endpoint: The Prism Central endpoint and port that the CSI driver uses to
+manage storage.
+•
+--csi-storage-container: The pre-created storage container that the CSI driver uses for Nutanix
+Volumes creation.
+•
+--csi-prism-element-cluster: The name of the Prism Element cluster that hosts the storage
+container.
+Note:  For the full list of cluster creation options, including image registry and air-gapped options, run nkp
+create cluster metal --help.
+6. Monitor the cluster control plane until it becomes available:
+kubectl wait --for=condition=Available=True "clusters/${CLUSTER_NAME}" -n
+ ${WORKSPACE_NAMESPACE} --timeout=30m
+Note:  Depending on the number of hosts and the imaging state of each host, cluster creation can take
+several minutes.
+7. Retrieve the kubeconfig file for the new cluster:
+nkp get kubeconfig --cluster-name ${CLUSTER_NAME} -n ${WORKSPACE_NAMESPACE} >
+ ${CLUSTER_NAME}.conf
+8. Verify that the control plane and worker hosts joined the cluster and are in the Ready state:
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get nodes
+The NKP Metal workload cluster is created in the target workspace.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 757
+
+--- page 758 ---
+Adding a Node Pool to an Nutanix Kubernetes Platform Cluster
+You can add a worker node pool to an existing Nutanix Kubernetes Platform (NKP) Metal workload cluster
+using the NKP UI or the NKP CLI.
+In an NKP Metal deployment, node pools group worker nodes that share physical or operational
+characteristics. Cluster API (CAPI) MachineDeployments configure node pools by using targeted
+templates, such as NutanixBareMetalMachineTemplate and HostAgentMachineTemplate. Changing
+the replica count scales the node pool. Match rules select available physical servers from the Global or
+workspace host inventory and assign them to the node pool.
+Both methods add a worker node pool to the NKP cluster. Choose the method that fits your environment:
+•
+NKP UI: Add the node pool from the cluster details page using the NKP dashboard. For instructions,
+see Adding a Node Pool to an Nutanix Kubernetes Platform Cluster Using the UI on page 758.
+•
+NKP CLI: Add the node pool from a terminal. For instructions, see Adding a Node Pool to an Nutanix
+Kubernetes Platform Cluster Using the CLI on page 760.
+Adding a Node Pool to an Nutanix Kubernetes Platform Cluster Using the UI
+Add a Nutanix AHV or Metal worker node pool to an existing Nutanix Kubernetes® Platform (NKP)
+workload cluster using the UI.
+Before you begin
+Before adding a worker node pool, ensure that you have the following:
+•
+The target cluster is active, and you have permission to manage it.
+•
+For a Nutanix AHV node pool: The AOS cluster, subnet, and operating system image are available
+to the Prism Central project that the existing cluster uses. A cluster and all its node pools must use the
+same project.
+•
+For a Metal node pool: The Metal Host Inventory contains enough available hosts in the target
+workspace.
+About this task
+To add a Nutanix AHV or Metal worker node pool to an existing NKP workload cluster using the UI, do the
+following:
+Procedure
+1.
+Log in to the NKP UI.
+The Global workspace is displayed by default.
+2.
+From the workspace dropdown list, select the workspace that contains the target cluster.
+3.
+In the navigation menu, select Clusters.
+4.
+For the target cluster, click View Details.
+5.
+On the cluster details page, click the Nodepools tab.
+6.
+In the Add Node Pool dropdown list, select Nutanix AHV or Metal Host Inventory based on your
+infrastructure.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 758
+
+--- page 759 ---
+7.
+If you selected Nutanix AHV, provide the following details:
+•
+Node Pool Name: Enter a unique name for the worker node pool.
+•
+Nutanix Prism Project: Select the project that the existing cluster uses.
+Note:
+•
+You can select either the default Prism Central project (_internal) or one user-
+defined project. If you do not select a project, NKP uses the default project.
+•
+A cluster uses only one project. This project applies to the control plane, every worker
+node pool, and any node pool that you add later.
+•
+Continue to use the default project for a cluster that already uses it.
+•
+Assign all cluster resources to a single project.
+•
+NKP does not support switching an existing cluster from one project to another.
+•
+Create a new cluster to use a different project.
+•
+After you upgrade Prism Central to version 7.6 or later, existing clusters in non-default
+projects continue to operate without changes.
+•
+Nutanix AOS Cluster: Select the AOS cluster that hosts the worker node virtual machines.
+If you select a Prism Central project, the list displays only the AOS clusters associated with that
+project.
+•
+Subnet: Select the subnet for the worker nodes.
+•
+OS Image: Select an NKP-compliant operating system image.
+•
+Nutanix Prism Categories: Add any existing categories to the worker node virtual machines.
+The categories must exist in Prism Central.
+•
+Configure the number of worker nodes:
+•
+For a fixed-size node pool, enter the Worker Node Count.
+•
+For an automatically scaled node pool, select Worker Node Autoscaling, and enter the
+Minimum Number Of Nodes and Maximum Number Of Nodes.
+Autoscaling is disabled by default.
+•
+Enter the capacity of each worker node in the CPU Per Node (vCPU), Memory Per Node (GiB),
+and Disk Size Per Node (GiB) fields.
+•
+From the GPU Mode dropdown list, select the GPU configuration for the worker nodes.
+You can select None if the node pool does not require GPUs. Available options depend on your
+environment.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 759
+
+--- page 760 ---
+8.
+If you selected Metal Host Inventory, provide the following details:
+•
+Node Pool Name: Enter a unique name for the worker node pool.
+•
+In the Select Nodes section, select how to assign hosts:
+•
+Individually: Select specific hosts from the Metal Host Inventory.
+•
+By Labels: Select the host that matches the label filter.
+•
+If you selected Individually, click Select Nodes, and follow these steps:
+1. (Optional) Use Filter by Labels or the table search field to filter the available hosts.
+2. Select the hosts that you want to add to the node pool.
+3. Click Save.
+•
+If you selected By Labels, follow these steps:
+1. For a fixed-size node pool, enter the Number of Nodes.
+2. (Optional) For an automatically scaled node pool, select Enable Autoscaling, and enter the
+Minimum Number of Nodes and Maximum Number of Nodes.
+3. In the Filter By Labels field, select the labels that identify the eligible hosts.
+4. (Optional) Click Preview All Available Hosts to review the eligible hosts.
+9.
+(Optional) To add a label, in the Labels section, click + Add a Label, then enter a Key and Value that
+identify a node attribute.
+The key must use the *.nutanix.com/ prefix, where * is a namespace such as metal or nkp. For
+example, enter metal.nutanix.com/workload as the key and ai as the value to identify nodes
+intended for AI workloads.
+10. ((Optional) To add a taint, in the Taints section, click + Add a Taint, enter a Key and Value, then
+select an effect from the Effect dropdown list.
+The key must use the *.nutanix.com/ prefix, where * is a namespace such as metal or nkp.
+For example, enter metal.nutanix.com/dedicated as the key, gpu as the value, and select No-
+Schedule. Only pods with a matching toleration can be scheduled on these nodes.
+11. Click Add.
+The new worker node pool appears on the Nodepools tab.
+Adding a Node Pool to an Nutanix Kubernetes Platform Cluster Using the CLI
+Add a worker node pool to an existing Nutanix Kubernetes Platform (NKP) cluster from the NKP CLI.
+Before you begin
+•
+Ensure that you have the NKP CLI installed and a kubeconfig for the management cluster.
+•
+Ensure that the target workspace has enough unassigned hosts available in the Metal Host Inventory.
+About this task
+To add the worker node pool to an existing NKP cluster using NKP CLI, follow these steps:
+Procedure
+1. Set the workspace namespace, workload cluster name, and node pool name:
+export WORKSPACE_NAMESPACE="workspace-prod"
+export CLUSTER_NAME="production-workload"
+export NODEPOOL_NAME="metal-pool-01"
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 760
+
+--- page 761 ---
+export HOST_NAMES="host-01,host-02"
+2. Retrieve the names or UUIDs of the available, unassigned hosts in the workspace namespace:
+kubectl get hosts -n ${WORKSPACE_NAMESPACE}
+3. Create the node pool for the NKP Metal workload cluster:
+nkp create nodepool metal ${NODEPOOL_NAME} \
+  --cluster-name=${CLUSTER_NAME} \
+  --namespace=${WORKSPACE_NAMESPACE} \
+  --hosts=${HOST_NAMES} \ or --host-selector=${LABEL_SELECTOR}
+  --labels nkp.nutanix.com/node=metal \
+  --taints nkp.nutanix.com/node=metal:NoSchedule
+The command uses the following parameters:
+•
+NODEPOOL_NAME: The unique name of the MachineDeployment that represents the node pool on the
+cluster.
+•
+--cluster-name: The name of the target cluster to which the node pool workers attach.
+•
+--namespace: The namespace assigned to the workspace.
+The workload clusters and physical servers are managed in a workspace-specific namespace.
+•
+Include one of the following flags to select the hosts for the node pool:
+•
+--hosts: A comma-separated list of host names or UUIDs.
+Use this flag to select hosts individually, for example --hosts=host-01,host-02.
+•
+--host-selector: A label selector.
+Use this flag to let NKP automatically select hosts that match the specified labels, for example --
+host-selector=nkp.nutanix.com/node=metal.
+Note:  Include only one of these two flags. NKP does not support using --hosts and --host-
+selector in the same command.
+•
+--labels: Key-value labels added to the resulting Kubernetes Node objects. Use these labels with
+nodeSelector to target workloads to specific nodes.
+The label key must use the *.nutanix.com/ prefix, where * is a namespace such as metal or nkp,
+for example nkp.nutanix.com/node=metal.
+•
+--taints: Taints in key=value:effect format that prevent unauthorized workloads from using the
+nodes.
+The taint key must use the *.nutanix.com/ prefix, where * is a namespace such as metal or nkp,
+for example nkp.nutanix.com/node=metal:NoSchedule.
+4. Verify the node pool registration status from the management cluster:
+nkp get nodepools -n ${WORKSPACE_NAMESPACE} --cluster-name=${CLUSTER_NAME}
+5. Monitor the boot and imaging status of the Cluster API machine objects:
+kubectl get machines -n ${WORKSPACE_NAMESPACE} -l cluster.x-k8s.io/cluster-name=
+${CLUSTER_NAME}
+6. Verify that the servers joined the workload cluster and are in the Ready state:
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get nodes
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 761
+
+--- page 762 ---
+Verifying an Nutanix Kubernetes Platform Node Pool
+Verify that a node pool was added to an Nutanix Kubernetes Platform (NKP) workload cluster using the UI.
+About this task
+To verify that the node pool added to an NKP workload cluster, follow these steps:
+Procedure
+1. Log in to the NKP UI.
+The Global workspace is displayed by default.
+2. From the workspace dropdown list, select the target workspace.
+3. In the left navigation menu, select Clusters.
+4. Select the target cluster, then click View Details.
+5. On the General Cluster Configuration page, select the Nodepools tab.
+The node pool information for the NKP Metal cluster is displayed.
+Scaling Up Nutanix Kubernetes Platform Metal Node Pools
+Increase the number of worker nodes in an Nutanix Kubernetes Platform (NKP) Metal node pool in either
+an NKP Metal or a Nutanix workload cluster.
+Before you begin
+•
+Ensure that you have the NKP CLI installed and a kubeconfig for the management cluster.
+•
+Ensure that you know the cluster name and namespace of the node pool that you want to scale.
+Procedure
+1. List the node pools in the cluster and identify the node pool that you want to scale:
+nkp get nodepools \
+  --cluster-name $CLUSTER_NAME \
+  --namespace ${CLUSTER_NAMESPACE}
+Example output:
+NODEPOOL               DESIRED               READY               KUBERNETES VERSION
+worker-0               4                     4                   v1.36.2
+worker-gpu             1                     1                   v1.36.2
+2. Scale the node pool up to the target number of replicas:
+nkp scale nodepool worker-0 \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${WORKSPACE_NAMESPACE} \
+  --replicas 5
+For example, the following command scales the worker-0 node pool up to 5 replicas.
+If the node pool was created using a label selector for the hosts, and an Available host matches the
+labels, NKP selects a new host at random. However, if the node pool was created using host names,
+you must also update the NKPCluster custom resource and add a new host to the list.
+You can identify the type of node pool by inspecting the NKPCluster custom resource.
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 762
+
+--- page 763 ---
+metadata:
+  name: scalin-by-name
+  namespace: kommander-default-workspace
+spec:
+    topology:
+      workers:
+        machineDeployments:
+        - class: host-agent-worker
+          metadata:
+            annotations:
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "3"
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "3"
+          name: worker-0
+          variables:
+            overrides:
+            - name: workerConfig
+              value:
+                hostAgent:
+                  hostSelector:
+                    names:
+                    - c4b084ee-c5a0-4a35-9a0c-e439641c4f8c
+                    - 0707f116-6703-488f-8764-2b3c1377021e
+                    - 838f80b2-2878-4840-b304-1563b28b568c
+                    - 066d22f5-5511-4895-8811-879c63845596
+        - class: host-agent-worker
+          metadata:
+            annotations:
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "1"
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "1"
+          name: worker-gpu
+          variables:
+            overrides:
+            - name: workerConfig
+              value:
+                hostAgent:
+                  hostSelector:
+                    matchLabels:
+                      gpu: nvidia
+For example, in the following NKPCluster, worker-0 uses hostSelector.names with host names and
+requires updating. The worker-gpu node pool uses labels and does not need further changes.
+To find a host to add, run the following command, identify an Available host, and add it to the
+NKPCluster custom resource under topology.workers.machineDeployments:
+kubectl get assignedhosts \
+  --namespace ${CLUSTER_NAMESPACE}
+  --field-selector spec.hostname=${NODE_NAME} \
+  -o jsonpath='{.items[0].metadata.name}'
+Scaling Down Nutanix Kubernetes Platform Metal Node Pools
+Decrease the number of worker nodes in an Nutanix Kubernetes Platform (NKP) Metal node pool in either
+an NKP Metal or a Nutanix workload cluster.
+Before you begin
+•
+Ensure that you have the NKP CLI installed and a kubeconfig for the management cluster.
+•
+Ensure that you know the cluster name and namespace of the node pool that you want to scale.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 763
+
+--- page 764 ---
+Procedure
+1. List the node pools in the cluster and identify the node pool that you want to scale:
+nkp get nodepools \
+  --cluster-name $CLUSTER_NAME \
+  --namespace ${CLUSTER_NAMESPACE}
+Example output:
+NODEPOOL               DESIRED               READY               KUBERNETES VERSION
+worker-0               4                     4                   v1.36.2
+worker-gpu             1                     1                   v1.36.2
+2. Scale the node pool down to the target number of replicas:
+nkp scale nodepool worker-0 \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${WORKSPACE_NAMESPACE} \
+  --replicas 3
+For example, the following command scales the worker-0 node pool down to 3 replicas.
+a. (Optional) Pass in the node name or names to scale down.
+The node names must match the host names that you provided when you imaged the bare-metal
+servers. If you do not provide a node name, NKP deletes a randomly selected node.
+  --nodes-to-delete ${NODE_NAME}
+3. If the node pool was created using host names, remove the released host from the NKPCluster custom
+resource.
+If the node pool was created using a label selector for the hosts, NKP resets the corresponding host
+and makes it available for reuse by other node pools or clusters. However, if the node pool was
+created using host names, you must also update the NKPCluster custom resource and remove the
+corresponding host from the list.
+You can identify the type of node pool by inspecting the NKPCluster custom resource:
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: scalin-by-name
+  namespace: kommander-default-workspace
+spec:
+    topology:
+      workers:
+        machineDeployments:
+        - class: host-agent-worker
+          metadata:
+            annotations:
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "3"
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "3"
+          name: worker-0
+          variables:
+            overrides:
+            - name: workerConfig
+              value:
+                hostAgent:
+                  hostSelector:
+                    names:
+                    - c4b084ee-c5a0-4a35-9a0c-e439641c4f8c
+                    - 0707f116-6703-488f-8764-2b3c1377021e
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 764

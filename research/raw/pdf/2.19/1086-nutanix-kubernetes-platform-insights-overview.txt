@@ -1,0 +1,43 @@
+
+--- page 1086 ---
+14
+NUTANIX KUBERNETES PLATFORM
+INSIGHTS GUIDE
+Nutanix Kubernetes Platform Insights (NKP Insights) tool is a predictive analytics solution for the NKP .
+Kubernetes® is a registered trademark of The Linux Foundation in the United States and other countries
+and is used pursuant to a license from The Linux Foundation.
+NKP Insights is a predictive analytics capability that detects anomalies that occur either in the present or
+future. When NKP Insights detects an anomaly, an insight alert appears in a table and an alert details page
+to view root cause analysis and recommended steps to resolve the alert, from both Management Clusters
+and Managed or Attached Clusters. This enables you to save a lot of time and, therefore, money.
+Nutanix Kubernetes Platform Insights Overview
+Nutanix Kubernetes Platform Insights (NKP Insights) is a predictive analytics solution that detects current
+and future anomalies in workload configurations or Kubernetes clusters that can or could occur.
+It consists of two components:
+•
+NKP Insights Management runs on the NKP Management cluster.
+•
+NKP Insights Engine runs on each Attached or Managed Kubernetes cluster or on the NKP
+Management cluster for NKP Pro (single-cluster environments) customers.
+When the NKP Insights engine detects an anomaly, it sends an insight alert to NKP Management and
+displays a summary in the Insights Alert table.
+An Insight alert details corresponding to an insight alert provide the anomaly description, root cause
+analysis, and recommended steps to resolve the anomaly at a much lower Mean Time To Repair (MTTR)
+in a Management Cluster and Managed or Attached Clusters. This maximizes your production environment
+uptime and saves you time and money.
+NKP Insights assists Kubernetes Administrators or Application Owners with routine tasks such as:
+•
+Resolving common anomalies
+•
+Checking security issues
+•
+Verifying whether workloads follow best practices
+Access the NKP Insights Alert table by selecting Insights from the left-side navigation menu.
+You must explicitly enable the NKP Insights Engine to explicitly allow the NKP to Insights Engine on each
+Attached cluster or Management cluster. The NKP Insights Setup and Configuration on page 1088 section
+contains instructions for configuring these components.
+NKP Insights Alert Table
+The Nutanix Kubernetes Platform Insights(NKP Insights) Alert table provides an overview of all insight
+alerts, such as the type of the alert and some basic summary information. From the Alert table, select an
+insight alert to view the details.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1086

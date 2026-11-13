@@ -1,0 +1,144 @@
+
+--- page 68 ---
+2. Choose the operating system:
+export OS_TYPE=Operating System Type
+For more information, see Supported Infrastructure Operating Systems on page 13.
+3. Configure GCP credentials:
+Set the GOOGLE_APPLICATION_CREDENTIALS environment variable to point to your GCP service account
+key file:
+export GOOGLE_APPLICATION_CREDENTIALS=Path to service account key file
+Replace Path to service account key file with the path to your GCP service account JSON key
+file. The NKP CLI uses these credentials to access GCP services.
+4. Choose the GCP project ID:
+export GCP_PROJECT_ID=GCP project ID
+Replace GCP project ID with your GCP project ID where you want to create the image.
+5. Choose the GCP region:
+export GCP_REGION=GCP region
+Replace GCP region with the GCP region where you want to launch the instance for building the image.
+For example, us-west1.
+If not specified, the default value is us-west1.
+6. (Optional) Specify a custom network:
+export NETWORK=Network path
+Replace Network path with the path to the GCP network to create an image.
+The network path format is: projects/PROJECT_ID/global/networks/NETWORK_NAME
+If not specified, the default network will be used.
+7. (Optional) Specify image storage locations:
+export IMAGE_STORAGE_LOCATIONS=location1,location2,location3
+Replace location1,location2,location3 with a comma-separated list of GCP locations where you
+want to store the image.
+The image will be stored in the specified locations for better availability and performance.
+8. Create an NKP compatible OS image:
+nkp create image gcp ${OS_TYPE} \
+     --project-id ${GCP_PROJECT_ID} \
+     ${GCP_REGION:+--region ${GCP_REGION}} \
+     ${NETWORK:+--network ${NETWORK}} \
+     ${IMAGE_STORAGE_LOCATIONS:+--image-storage-locations ${IMAGE_STORAGE_LOCATIONS}}
+The NKP CLI command creates an NKP compatible OS image with the configuration and environment
+variables that you exported in GCP. This image can be used to create new NKP clusters.
+To view all the flags and their purpose, run the following command:
+nkp create image gcp --help
+For the steps to create a cluster, see GCP Creating a Cluster.
+Building a Custom Image with vSphere
+You can build your own customized image with VMware vSphere based on your requirements.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 68
+
+--- page 69 ---
+Before you begin
+Before creating an image, ensure your base template meets the following requirements:
+•
+The base template must be a vSphere VM template (not a VM) and must be powered-off.
+•
+The template must be accessible from the vCenter server and located in the specified datacenter.
+•
+The default user must have sudo privileges.
+•
+Ensure that you install and enable the SSH server.
+•
+Ensure that you install and configure cloud-init.
+•
+Ensure that you install Python version 3.x and it is accessible.
+•
+Ensure availability of at least 20 GB of disk space on the root file system.
+•
+Network configuration must allow SSH access during the build process.
+•
+Ensure that no existing Kubernetes components are present.
+•
+The template must have VMware Tools installed (recommended for optimal performance).
+About this task
+To create a custom OS image, you can use the nkp create image vsphere command with required flags,
+or follow the comprehensive procedure below to configure all options using the environment variables:
+Procedure
+1.
+Open the terminal with access to NKP CLI.
+2.
+Choose the operating system:
+export OS_TYPE=Operating System Type
+For more information, see Supported Infrastructure Operating Systems on page 13.
+3.
+Provide vCenter server credentials:
+export VSPHERE_USERNAME=vCenter username
+export VSPHERE_PASSWORD=vCenter password
+Replace:
+•
+vCenter username with the username to access vCenter
+•
+vCenter password with the password to access vCenter
+The NKP CLI needs these credentials to access vCenter.
+4.
+Provide the vCenter server host:
+export VCENTER_SERVER=vCenter server host or IP
+Replace vCenter server host or IP with the host IP or FQDN of the vCenter API server.
+5.
+Choose the base template:
+export TEMPLATE=Base template name
+Replace Base template name with the name of the base template to use for creating the VM.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 69
+
+--- page 70 ---
+6.
+Choose the vSphere cluster:
+export VSPHERE_CLUSTER=vSphere cluster name
+Replace vSphere cluster name with the name of the vSphere cluster.
+7.
+Choose the datacenter:
+export DATACENTER=Datacenter name
+Replace Datacenter name with the name of the vSphere datacenter.
+8.
+Choose the resource pool:
+export RESOURCE_POOL=Resource pool name
+Replace Resource pool name with the name of the vSphere resource pool.
+9.
+Choose the datastore:
+export DATASTORE=Datastore name
+Replace Datastore name with the name of the vSphere datastore.
+10. Choose the network:
+export NETWORK=Network name
+Replace Network name with the name of the vSphere network.
+11. Choose the folder:
+export FOLDER=Folder name
+Replace Folder name with the name of the vSphere folder.
+12. (Optional) Use insecure connection (self-signed certificates):
+export INSECURE=true
+The NKP CLI can only verify server certificates signed by a trusted CA. Ensure that you allow
+insecure access to the vCenter endpoint if the vCenter server certificate is not signed by a trusted CA
+certificate.
+If the vCenter endpoint uses a self-signed CA certificate, the CA certificate is untrusted.
+13. (Required for air-gapped environment and optional for non-air-gapped environment) Create a package
+bundle:
+NKP requires Operating System packages to be available in the base image. These packages are
+available in the package repositories accessible over the internet. As air-gapped environments are
+restricted from accessing these package repositories, you must first create a package bundle where
+the repositories can be accessed. Then, transfer this bundle to an air-gapped environment to build the
+OS image in an air-gapped environment.
+Download the NKP air-gapped bundle from the Nutanix portal. For more information, see Downloading
+NKP on page 17. This air-gapped bundle contains the NKP artifacts to build the image. Run the
+following command in an environment with internet access to fetch and add the operating system
+packages, to create a package bundle for NKP.
+nkp create package-bundle ${OS_TYPE} --artifacts-
+directory path_to_artifacts_bundle_DIR
+${FIPS_ENABLED:+--fips}
+Replace path_to_artifacts_bundle_DIR with the path to the artifacts bundle directory.
+The package bundle contains all the necessary packages and artifacts required to build an NKP
+compatible OS image in an air-gapped environment.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 70

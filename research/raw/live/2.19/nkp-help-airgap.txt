@@ -1,0 +1,157 @@
+########## nkp create package-bundle --help ##########
+Create Operating System package bundle for one of [oracle-8.9, oracle-9.4, rhel-8.10, rhel-9.6, rhel-9.8, rocky-9.8, ubuntu-22.04, ubuntu-24.04]
+
+Usage:
+  nkp create package-bundle OSName [flags]
+
+Flags:
+      --artifacts-directory string   Path to a directory for storing OS package bundles. The directory must already exist.
+      --container-image string       A container image to use for building the package bundles
+      --fips                         Creats FIPS compliant packages
+      --from-directory string        Build using the scripts and configuration files in this directory instead of the embedded defaults. Typically the files are first produced and customized via --output-directory. The directory must already exist. Mutually exclusive with --output-directory.
+  -h, --help                         Help for package-bundle
+      --kubernetes-version string    Kubernetes version used to build packages (default "1.36.2")
+      --output-directory string      Extract the scripts and configuration files used for the build into this directory and exit without building. Review and customize the extracted files, then pass the same directory to --from-directory on a later run to build from your customized files. The directory must already exist. Mutually exclusive with --from-directory.
+  -v, --verbose int                  Output verbosity
+
+########## nkp create image nutanix --help ##########
+Create Nutanix Machine Image for one of [rhel-8.10, rhel-9.6, rhel-9.8, rocky-9.8, ubuntu-22.04, ubuntu-24.04]
+
+Usage:
+  nkp create image nutanix OSName [flags]
+
+Flags:
+      --artifacts-directory string      Path to a directory containing the artifacts needed to build the OS image. Useful in an air-gapped environment
+      --bastion-host string             IP or hostname for bastion
+      --bastion-port int                SSH port of the bastion host (default 22)
+      --bastion-private-key-file file   Path to a PEM encoded private key file to use to authenticate with the bastion host
+      --bastion-username string         The username to connect to the bastion host
+      --bundle fileSlice                Path to a container image bundle tarball to load in the OS image. Multiple bundles can be provided with a comma separated list. File must be a '.tar' format. Useful in an air-gapped environment (default [])
+      --cluster string                  Name of the Nutanix cluster.
+      --debug                           Run packer in debug mode. user will be prompted after each step while building the image.
+      --dry-run                         Do not create artifacts, or delete them after creating. Recommended for tests.
+      --endpoint string                 Host URL or IP for the Nutanix Prism Central instance.
+      --extra-build-name string         Additional name to add in the OS image name
+      --fips                            Enable FIPS support
+      --gpu-profile-name string         GPU profile name to assign on the temporary VM. Mutually exclusive with --gpu-name.
+  -h, --help                            Help for nutanix
+      --import-source string            Custom URL or local path to import a qcow2 image directly to Prism Central.
+      --insecure                        Connect with Prism without verifying CA certificates.
+      --kubernetes-version string       Kubernetes version used to build packages (default "1.36.2")
+      --overrides fileSlice             A comma separated list of override YAML files. (default [])
+      --pc-project string               Nutanix project name used for project-aware image build workflows.
+      --pc-project-uuid string          Nutanix project UUID used for project-aware image build and import workflows.
+      --port int                        Port for the Nutanix Prism Central instance. (default 9440)
+      --source-image string             Base Image name or UUID used as a disk source. If the image name is not provided then upstream base image for the OS will be downloaded.
+      --subnet string                   Nutanix subnet name or UUID to use with the virtual machine.
+      --vgpu-runfile file               Local path to runfile for vGPU driver.
+      --work-directory string           Path to a directory to use as a workspace to build the OS image. The directory must already exist.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp upload image-artifacts --help ##########
+Upload artifacts to remote hosts
+
+Usage:
+  nkp upload image-artifacts [flags]
+
+Flags:
+      --artifacts-directory string      Path to a directory containing the artifacts needed to build the OS image. Useful in an air-gapped environment
+      --bastion-host string             IP or hostname for bastion
+      --bastion-port int                SSH port of the bastion host (default 22)
+      --bastion-private-key-file file   Path to a PEM encoded private key file to use to authenticate with the bastion host
+      --bastion-username string         The username to connect to the bastion host
+      --bundle fileSlice                Path to a container image bundle tarball to load in the OS image. Multiple bundles can be provided with a comma separated list. File must be a '.tar' format. Useful in an air-gapped environment (default [])
+      --debug                           Run packer in debug mode. user will be prompted after each step while building the image.
+      --dry-run                         Do not create artifacts, or delete them after creating. Recommended for tests.
+      --extra-build-name string         Additional name to add in the OS image name
+      --fips                            Enable FIPS support
+  -h, --help                            Help for image-artifacts
+      --kubernetes-version string       Kubernetes version used to build packages (default "1.36.2")
+      --nvidia-runfile file             path to NVIDIA runfile to to upload to remote hosts
+      --overrides fileSlice             A comma separated list of override YAML files. (default [])
+      --provider string                 An optional provider hint when installing provider specific utilities.
+      --ssh-host strings                IP or hostname of the remote host(s). A comma separated list can be provided for multiple hosts. (default [])
+      --ssh-password string             Password to use for SSH authentication (not recommended)
+      --ssh-port int                    SSH port of the remote host (default 22)
+      --ssh-private-key-file file       Path to a PEM encoded private key file to use to authenticate with the remote host
+      --ssh-username string             The username to connect to the remote host
+      --work-directory string           Path to a directory to use as a workspace to build the OS image. The directory must already exist.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp push bundle --help ##########
+Push from bundles into an existing OCI registry
+
+Usage:
+  nkp push bundle [flags]
+
+Flags:
+      --bundle strings                         Tarball containing list of images to push. Can also be a glob pattern. (default [])
+      --ecr-lifecycle-policy-file string       File containing ECR lifecycle policy for newly created repositories (only applies if target registry is hosted on ECR, ignored otherwise)
+      --force-oci-media-types                  force OCI media types
+  -h, --help                                   Help for bundle
+      --image-push-concurrency int             Image push concurrency (default 1)
+      --kubeconfig file                        If pushing to a registry running in a Kubernetes cluster, the kubeconfig file for the cluster. If unspecified, default discovery rules apply.
+      --on-existing-tag string                 how to handle existing tags: one of "overwrite", "error", or "skip" (default "overwrite")
+      --to-internal-registry-mirror            Push to an internal registry mirror running in a Kubernetes cluster.
+      --to-registry string                     Registry to push images to. TLS verification will be skipped when using an http:// registry.
+      --to-registry-ca-cert-file string        CA certificate file used to verify TLS verification of registry to push images to
+      --to-registry-insecure-skip-tls-verify   Skip TLS verification of registry to push images to (also use for non-TLS http registries)
+      --to-registry-password string            Password to use to log in to destination registry
+      --to-registry-username string            Username to use to log in to destination registry
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp create catalog-bundle --help ##########
+Bundle up the catalog application(s) including container images & any OCI artifacts
+
+Usage:
+  nkp create catalog-bundle [flags]
+
+Flags:
+      --airgapped                    Create an airgapped bundle that includes container images and OCI artifacts
+      --apps strings                 Applications to include (name=version). Accepts comma-separated values or can be repeated
+      --collection-tag string        Tag to assign to the catalog collection. Required when bundling multiple applications.
+      --constraint strings           Constraints to filter the applications that are selected (e.g., nkpVersion=2.16)
+  -h, --help                         Help for catalog-bundle
+      --image-pull-concurrency int   Image pull concurrency (default 1)
+  -o, --output-file string           Path to the output file for the generated bundle
+      --platform platformSlice       platforms to download images for (required format: <os>/<arch>[/<variant>]) (default [linux/amd64])
+      --repo-dir string              Path to the catalog repository in which to generate the files. (default to current working directory)
+  -v, --verbose int                  Output verbosity
+
+########## nkp create catalog-app --help ##########
+Create a catalog application or collection in project or workspace namespace (creation in kommander namespace propagates to all workspaces/projects)
+
+Usage:
+  nkp create catalog-app [flags]
+
+Aliases:
+  catalog-app, catalog-application, catalog-applications, catalog-apps, catalog-collection
+
+Flags:
+      --cert-ref string             the name of a secret to use for TLS certificates. If specified, --skip-oci-registry-patches is implied
+      --config string               Config file to use (default "/home/runner/.kommander/config")
+      --context string              The name of the kubeconfig context to use
+      --dry-run                     Export in YAML format to stdout
+  -h, --help                        Help for catalog-app
+      --insecure                    for when connecting to a non-TLS registries over plain HTTP
+      --interval duration           Interval for flux source-controller check for updates in the catalog repository (default 6h0m0s)
+      --kubeconfig string           Path to the kubeconfig file to use for CLI requests.
+  -o, --output string               Output format. One of: yaml|json (default "yaml")
+  -p, --project string              Name of the Project to create for the catalog repository. Requires workspace flag (workspace that the project belongs to)
+      --proxy-secret-ref string     the name of an existing secret containing the proxy address and credentials. If specified, --skip-oci-registry-patches is implied.
+      --request-timeout string      The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+      --secret-ref string           the name of the Kubernetes image pull secret (type 'kubernetes.io/dockerconfigjson'). If specified, --skip-oci-registry-patches is implied.
+      --service-account string      the name of the Kubernetes service account that refers to an image pull secret. If specified, --skip-oci-registry-patches is implied.
+      --skip-oci-registry-patches   skips patching OCIRepository with credentials from CAPI Cluster
+      --tag string                  the OCI artifact tag
+      --timeout duration            Timeout for flux source-controller check for updates in the catalog repository (default 1m0s)
+      --url string                  the OCI repository URL
+  -v, --verbose int                 Output verbosity
+  -w, --workspace string            Name of the Workspace to create for the catalog repository.
+

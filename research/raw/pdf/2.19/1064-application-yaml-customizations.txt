@@ -1,0 +1,198 @@
+
+--- page 1064 ---
+workspace-test-vjsfq    operator     True    Release reconciliation succeeded   7m3s
+Application YAML Customizations
+Customized application deployment objects establish how applications are deployed.
+NKP allows configuring an application for all clusters in a workspace and a subset of clusters in a
+workspace. You can also apply customizations per cluster or workspace.
+An AppDeployment object creates a local HelmRelease YAML file that establishes how an Application
+is deployed. To further customize the application, you can create a ConfigMap object with overriding
+configuration.
+You can apply the same ConfigMap to several clusters in a workspace or create different customizations in
+individual ConfigMaps for each cluster.
+The AppDeployment specifies the name of the app, the version of the app, and the workspace where it
+applies. Additionally, you can specify a subset of clusters where it should be deployed and, if required, any
+customizations.
+For example, this is the default AppDeployment for the Kube Prometheus Stack Platform Application:
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-46.8.0
+    kind: ClusterApp
+Overriding the Clusters Within a Workspace
+Customize an application configuration across all clusters in a Workspace by referencing a ConfigMap of
+override values from the AppDeployment.
+About this task
+To change the default configuration of an application across all clusters in a Workspace, follow these steps:
+Procedure
+1. Choose a ConfigMap that contains your override values.
+2. In the AppDeployment, set the configOverrides field to the name of the ConfigMap.
+The following example customizes the Kube Prometheus Stack AppDeployment:
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-46.8.0
+    kind: ClusterApp
+  configOverrides:
+    name: kube-prometheus-stack-overrides-attached
+EOF
+Note:  The configOverrides.name field references the ConfigMap that contains the customization.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1064
+
+--- page 1065 ---
+3. Create the ConfigMap using the name specified in the previous step to provide the custom configuration
+in addition to the default configuration:
+cat <<EOF > kube-prometheus-stack-overrides-attached | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: kube-prometheus-stack-overrides-attached
+data:
+  values.yaml: |
+    prometheus:
+      prometheusSpec:
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              resources:
+                requests:
+                  storage: 150Gi
+EOF
+On refresh, the AppDeployment includes references to the ConfigMap, which overrides the application
+configuration for all clusters within the Workspace unless the spec.clusterSelector field specifies
+otherwise.
+Available Customizations
+Application YAML can be customized, but which customizations can you do, and why would you
+customize? Take a look below for the answers.
+•
+Why Customize? Your environment and provider, combined with various image locations or security
+requirements, might dictate the why behind customizing your Applications.
+•
+Enable certain images
+•
+Provide more storage
+•
+Bump memory resources
+Depending on which level you need your customizations determines the how. Refer to the pages that
+follow for specifics about how to customize your Applications.
+Custom Configurations
+About this task
+To get started, create a ConfigMap. A ConfigMap lets you decouple environment-specific configuration
+from your container images, making your applications easily portable. Use a ConfigMap to set
+configuration data separate from the Application code. Provide the name of a ConfigMap in the
+AppDeployment, which provides custom configuration on top of the default configuration.
+This is an example of how to customize the AppDeployment of the Kube Prometheus Stack:
+Procedure
+1. Create the ConfigMap, which provides the custom configuration on top of the default configuration:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1065
+
+--- page 1066 ---
+  name: kube-prometheus-stack-overrides-attached
+data:
+  values.yaml: |
+    prometheus:
+      prometheusSpec:
+        storageSpec:
+          volumeClaimTemplate:
+            spec:
+              resources:
+                requests:
+                  storage: 150Gi
+EOF
+2. Provide the name of a ConfigMap with the custom configuration in the AppDeployment. Override the
+default configuration of an Application by setting the configOverrides field on the AppDeployment to
+that ConfigMap.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-46.8.0
+    kind: ClusterApp
+  configOverrides:
+    name: kube-prometheus-stack-overrides-attached
+EOF
+Note:
+•
+The changes are applied only if the YAML file has a valid syntax.
+•
+Set up only one cluster override ConfigMap per cluster. Only one will be applied if several
+ConfigMaps are configured for a cluster.
+•
+Cluster override ConfigMaps must be created on the Management cluster.
+Related Topics
+•
+Customizing an Application Per Cluster on page 323
+•
+Disabling the Custom Configuration of an Application Per Cluster on page 326
+Enable or Disable an App per Cluster
+For newly attached clusters into the workspace, all Applications enabled for the Workspace are
+automatically enabled on and deployed to the new clusters. If you want to see what clusters your
+application is currently deployed in, follow the steps below.
+Print and Review the Current State of an AppDeployment Resource
+If you want to know how the AppDeployment resource is currently configured, use the commands below
+to print a table of the declared information. If the AppDeployment is configured for several clusters in a
+workspace, a column will display a list of the clusters.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1066
+
+--- page 1067 ---
+Review all AppDeployments in a workspace
+About this task
+To review the state of the AppDeployment resource for a specific workspace, complete this task.
+Procedure
+Run the command with the name of your workspace.
+nkp get appdeployments -w kommander-workspace
+The output should contain a list of all your applications, as shown in this example:
+NAME                   APP                             CLUSTERS
+[...]
+kube-oidc-proxy                 kube-oidc-proxy-0.3.2           management
+kube-prometheus-stack           kube-prometheus-stack-46.8.0    management
+[...]
+Review a specific AppDeployment of an application in a workspace
+About this task
+To review the state of a specific AppDeployment of an application, complete this task.
+Procedure
+Run the nkp get appdeployment kube-prometheus-stack -w kommander-workspace command with
+the name of the application and your workspace, as in this example:
+Example output
+NAME               APP                      CLUSTERS
+kube-prometheus-stack kube-prometheus-stack-46.8.0 management
+Deployment Scope
+In a single-cluster environment with a Pro license, AppDeployments enable customizing any platform
+application.
+In a multi-cluster environment with an Ultimate license, AppDeployments can be customized with Control
+Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on page 694,
+Project Applications on page 370, and Cluster-scoped Application for Existing AppDeployments on
+page 321.
+Define a Custom Configuration
+Enable or Disable an Application per Cluster after enabling it at the workspace level. You can enable
+or disable applications at any time. After you have enabled the application at the workspace level, the
+spec.clusterSelector field populates.
+Edit the AppDeployment YAML by adding or removing the names of the clusters where you want to enable
+your application in the clusterSelector section.
+The following snippet is an example. To customize, replace the following according to your requirements:
+•
+Application name
+•
+Version
+•
+Workspace name
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1067

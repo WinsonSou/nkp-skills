@@ -1,0 +1,1143 @@
+
+--- page 173 ---
+9.
+Create this nkpcluster object to attach the cluster to the workspace.
+cat << EOF | kubectl apply -f -
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: ${MANAGED_CLUSTER_NAME}
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  capiClusterRef:
+    name: ${MANAGED_CLUSTER_NAME}
+    namespace: default
+  kommanderCluster:
+    spec:
+      kubeconfigRef:
+        name: ${MANAGED_CLUSTER_NAME}-kubeconfig
+      clusterRef:
+        capiCluster:
+          name: ${MANAGED_CLUSTER_NAME}
+EOF
+10. You can now view this cluster in your Workspace in the UI, and you can confirm its status by running
+the command below. It might take a few minutes to reach "Joined" status.
+kubectl get nkpclusters -A
+If you have several Pro Clusters and want to turn one of them into a Managed Cluster to be centrally
+administrated by a Management Cluster, see Platform Expansion: Conversion of an NKP Pro Cluster
+to an NKP Ultimate Managed Cluster on page 472.
+AWS Installation Options
+For information on how to install NKP on AWS Infrastructure, see Install Nutanix Kubernetes Platform on
+AWS Infrastructure on page 819.
+EKS Installation Options
+For an environment that is on the EKS Infrastructure, install options based on those environment variables
+are provided for you in this location.
+Remember, there are always more options for custom YAML in the Custom Installation and Additional
+Infrastructure Tools section, but this will get you operative in the most common scenarios.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+Note:  An EKS cluster cannot be a Management or a Pro cluster. For more information, see NKP Concepts
+and Terms on page 20. To install NKP on your EKS cluster, first ensure you have a Management cluster
+with NKP and the Kommander component installed, that handles the lifecycle of your EKS cluster.
+For a list of all the NKP supported environment combinations, see Supported Infrastructure Operating
+Systems on page 13.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 173
+
+--- page 174 ---
+EKS Installation
+This installation provides instructions to install NKP in an AWS non-air-gapped environment.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+Note:  Ensure that the KUBECONFIG environment variable is set to the Management cluster by running
+export KUBECONFIG=<Management_cluster_kubeconfig>.conf.
+AWS Prerequisites
+Before you begin using Konvoy with AWS, you must:
+1. A Management cluster with the Kommander component installed.
+2. You have a valid AWS account with credentials configured that can manage CloudFormation Stacks,
+IAM Policies, and IAM Roles.
+3. You will need to have the AWS CLI utility installed.
+4. Install aws-iam-authenticator. This binary is used to access your cluster using kubectl.
+Note:  An EKS cluster cannot be a Management or Pro cluster. To install NKP on your EKS cluster, first,
+ensure you have a Management cluster with NKP and the Kommander component installed that handles the
+life cycle of your EKS cluster.
+In order to install Kommander, you need to have CAPI components, cert-manager, etc on a self-managed
+cluster. The CAPI components mean you can control the life cycle of the cluster, and other clusters.
+However, because EKS is semi-managed by AWS, the EKS clusters are under AWS control and don’t have
+those components. Therefore, Kommander will not be installed and these clusters will be attached to the
+management cluster.
+EKS: Minimal User Permission for Cluster Creation
+The following is a CloudFormation stack which adds a policy named eks-bootstrapper to manage EKS
+cluster to the nkp-bootstrapper-role created by the CloudFormation stack for AWS in the Minimal
+Permissions and Role to Create Cluster section.
+Consult the Leveraging the Role section for an example of how to use this role and how a system
+administrator wants to expose using the permissions.
+EKS CloudFormation Stack:
+Note:  If your role is not named nkp-bootstrapper-role change the parameter on line 6 of the file.
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  existingBootstrapperRole:
+    Type: CommaDelimitedList
+    Description: 'Name of existing minimal role you want to add to add EKS cluster
+ management permissions to'
+    Default: NKP-bootstrapper-role
+Resources:
+  EKSMinimumPermissions:
+    Properties:
+      Description: Minimal user policy to manage eks clusters
+      ManagedPolicyName: eks-bootstrapper
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 174
+
+--- page 175 ---
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 'ssm:GetParameter'
+            Effect: Allow
+            Resource:
+              - 'arn:*:ssm:*:*:parameter/aws/service/eks/optimized-ami/*'
+          - Action:
+              - 'iam:CreateServiceLinkedRole'
+            Condition:
+              StringLike:
+                'iam:AWSServiceName': eks.amazonaws.com
+            Effect: Allow
+            Resource:
+              - >-
+                arn:*:iam::*:role/aws-service-role/eks.amazonaws.com/
+AWSServiceRoleForAmazonEKS
+          - Action:
+              - 'iam:CreateServiceLinkedRole'
+            Condition:
+              StringLike:
+                'iam:AWSServiceName': eks-nodegroup.amazonaws.com
+            Effect: Allow
+            Resource:
+              - >-
+                arn:*:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/
+AWSServiceRoleForAmazonEKSNodegroup
+          - Action:
+              - 'iam:CreateServiceLinkedRole'
+            Condition:
+              StringLike:
+                'iam:AWSServiceName': eks-fargate.amazonaws.com
+            Effect: Allow
+            Resource:
+              - >-
+                arn:aws:iam::*:role/aws-service-role/eks-fargate-pods.amazonaws.com/
+AWSServiceRoleForAmazonEKSForFargate
+          - Action:
+              - 'iam:GetRole'
+              - 'iam:ListAttachedRolePolicies'
+            Effect: Allow
+            Resource:
+              - 'arn:*:iam::*:role/*'
+          - Action:
+              - 'iam:GetPolicy'
+            Effect: Allow
+            Resource:
+              - 'arn:aws:iam::aws:policy/AmazonEKSClusterPolicy'
+          - Action:
+              - 'eks:DescribeCluster'
+              - 'eks:ListClusters'
+              - 'eks:CreateCluster'
+              - 'eks:TagResource'
+              - 'eks:UpdateClusterVersion'
+              - 'eks:DeleteCluster'
+              - 'eks:UpdateClusterConfig'
+              - 'eks:UntagResource'
+              - 'eks:UpdateNodegroupVersion'
+              - 'eks:DescribeNodegroup'
+              - 'eks:DeleteNodegroup'
+              - 'eks:UpdateNodegroupConfig'
+              - 'eks:CreateNodegroup'
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 175
+
+--- page 176 ---
+              - 'eks:AssociateEncryptionConfig'
+              - 'eks:ListIdentityProviderConfigs'
+              - 'eks:AssociateIdentityProviderConfig'
+              - 'eks:DescribeIdentityProviderConfig'
+              - 'eks:DisassociateIdentityProviderConfig'
+            Effect: Allow
+            Resource:
+              - 'arn:*:eks:*:*:cluster/*'
+              - 'arn:*:eks:*:*:nodegroup/*/*/*'
+          - Action:
+              - 'ec2:AssociateVpcCidrBlock'
+              - 'ec2:DisassociateVpcCidrBlock'
+              - 'eks:ListAddons'
+              - 'eks:CreateAddon'
+              - 'eks:DescribeAddonVersions'
+              - 'eks:DescribeAddon'
+              - 'eks:DeleteAddon'
+              - 'eks:UpdateAddon'
+              - 'eks:TagResource'
+              - 'eks:DescribeFargateProfile'
+              - 'eks:CreateFargateProfile'
+              - 'eks:DeleteFargateProfile'
+            Effect: Allow
+            Resource:
+              - '*'
+          - Action:
+              - 'iam:PassRole'
+            Condition:
+              StringEquals:
+                'iam:PassedToService': eks.amazonaws.com
+            Effect: Allow
+            Resource:
+              - '*'
+          - Action:
+              - 'kms:CreateGrant'
+              - 'kms:DescribeKey'
+            Condition:
+              'ForAnyValue:StringLike':
+                'kms:ResourceAliases': alias/cluster-api-provider-aws-*
+            Effect: Allow
+            Resource:
+              - '*'
+        Version: 2012-10-17
+      Roles: !Ref existingBootstrapperRole
+    Type: 'AWS::IAM::ManagedPolicy'
+To create the resources in the cloudformation stack, copy the contents above into a file. Before executing
+the following command, replace MYFILENAME.yaml and MYSTACKNAME with the intended values for your
+system when running the command to create the AWS cloudformation stack:
+aws cloudformation create-stack --template-body=file://MYFILENAME.yaml --stack-
+name=MYSTACKNAME --capabilities CAPABILITY_NAMED_IAM
+EKS: Cluster IAM Policies and Roles
+You can create IAM policies and instance profiles to manage cluster access in Nutanix Kubernetes®
+Platform (NKP. The control plane and worker nodes of a cluster use the IAM role defined through the AWS
+CloudFormation stack for EKS. The CloudFormation stack also includes additional permissions to delegate
+access roles to other users.
+Prerequisites from AWS:
+Before you begin, ensure that you meet the following AWS prerequisites:
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 176
+
+--- page 177 ---
+•
+The user you delegate from your role must have a minimum set of permissions. For more information,
+see User Roles and Instance Profiles.
+•
+Create an IAM policy for the clusters in your AWS account. For more information, see AWS
+Prerequisites on page 820.
+EKS IAM Artifacts
+Policies:
+•
+controllers-eks.cluster-api-provider-aws.sigs.k8s.io: Defines the actions required by
+the managed cluster to create and modify EKS clusters in the AWS account of the user. This role is
+attached to the existing control-plane.cluster-api-provider-aws.sigs.k8s.io.
+•
+eks-nodes.cluster-api-provider-aws.sigs.k8s.io: Defines the actions required by the worker
+nodes of the EKS managed cluster. This role is attached to the existing nodes.cluster-api-
+provider-aws.sigs.k8s.io.
+Roles:
+•
+eks-controlplane.cluster-api-provider-aws.sigs.k8s.io - A role that is associated with EKS
+cluster control planes.
+Note:  Configure the cluster identity and access management (IAM) policies and roles for Kubernetes on
+AWS. After you configure, the cluster API provider for AWS (CAPA) automatically creates and configures
+control-plane.cluster-api-provider-aws.sigs.k8s.io and nodes.cluster-api-
+provider-aws.sigs.k8s.io roles. For more information, see AWS Prerequisites on page 820.
+•
+The following CloudFormation stack defines the IAM policies and roles required to set up Amazon EKS
+clusters:
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  existingControlPlaneRole:
+    Type: CommaDelimitedList
+    Description: 'Names of existing Control Plane Role you want to add to the newly
+ created EKS Managed Policy for AWS cluster API controllers'
+    Default: control-plane.cluster-api-provider-aws.sigs.k8s.io
+  existingNodeRole:
+    Type: CommaDelimitedList
+    Description: 'ARN of existing node IAM Role to attach the managed policy to'
+    Default: nodes.cluster-api-provider-aws.sigs.k8s.io
+Resources:
+  AWSIAMManagedPolicyControllersEKS:
+    Properties:
+      Description: For the Kubernetes Cluster API Provider AWS Controllers
+      ManagedPolicyName: controllers-eks.cluster-api-provider-aws.sigs.k8s.io
+      PolicyDocument:
+        Statement:
+          - Action:
+              - 'ssm:GetParameter'
+            Effect: Allow
+            Resource:
+              - 'arn:*:ssm:*:*:parameter/aws/service/eks/optimized-ami/*'
+          - Action:
+              - 'iam:CreateServiceLinkedRole'
+            Condition:
+              StringLike:
+                'iam:AWSServiceName': eks.amazonaws.com
+            Effect: Allow
+            Resource:
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 177
+
+--- page 178 ---
+              - >-
+                arn:*:iam::*:role/aws-service-role/eks.amazonaws.com/
+AWSServiceRoleForAmazonEKS
+          - Action:
+              - 'iam:CreateServiceLinkedRole'
+            Condition:
+              StringLike:
+                'iam:AWSServiceName': eks-nodegroup.amazonaws.com
+            Effect: Allow
+            Resource:
+              - >-
+                arn:*:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/
+AWSServiceRoleForAmazonEKSNodegroup
+          - Action:
+              - 'iam:CreateServiceLinkedRole'
+            Condition:
+              StringLike:
+                'iam:AWSServiceName': eks-fargate.amazonaws.com
+            Effect: Allow
+            Resource:
+              - >-
+                arn:aws:iam::*:role/aws-service-role/eks-fargate-pods.amazonaws.com/
+AWSServiceRoleForAmazonEKSForFargate
+          - Action:
+              - 'iam:GetRole'
+              - 'iam:ListAttachedRolePolicies'
+            Effect: Allow
+            Resource:
+              - 'arn:*:iam::*:role/*'
+          - Action:
+              - 'iam:GetPolicy'
+            Effect: Allow
+            Resource:
+              - 'arn:aws:iam::aws:policy/AmazonEKSClusterPolicy'
+          - Action:
+              - 'eks:DescribeCluster'
+              - 'eks:ListClusters'
+              - 'eks:CreateCluster'
+              - 'eks:TagResource'
+              - 'eks:UpdateClusterVersion'
+              - 'eks:DeleteCluster'
+              - 'eks:UpdateClusterConfig'
+              - 'eks:UntagResource'
+              - 'eks:UpdateNodegroupVersion'
+              - 'eks:DescribeNodegroup'
+              - 'eks:DeleteNodegroup'
+              - 'eks:UpdateNodegroupConfig'
+              - 'eks:CreateNodegroup'
+              - 'eks:AssociateEncryptionConfig'
+              - 'eks:ListIdentityProviderConfigs'
+              - 'eks:AssociateIdentityProviderConfig'
+              - 'eks:DescribeIdentityProviderConfig'
+              - 'eks:DisassociateIdentityProviderConfig'
+            Effect: Allow
+            Resource:
+              - 'arn:*:eks:*:*:cluster/*'
+              - 'arn:*:eks:*:*:nodegroup/*/*/*'
+          - Action:
+              - 'ec2:AssociateVpcCidrBlock'
+              - 'ec2:DisassociateVpcCidrBlock'
+              - 'eks:ListAddons'
+              - 'eks:CreateAddon'
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 178
+
+--- page 179 ---
+              - 'eks:DescribeAddonVersions'
+              - 'eks:DescribeAddon'
+              - 'eks:DeleteAddon'
+              - 'eks:UpdateAddon'
+              - 'eks:TagResource'
+              - 'eks:DescribeFargateProfile'
+              - 'eks:CreateFargateProfile'
+              - 'eks:DeleteFargateProfile'
+            Effect: Allow
+            Resource:
+              - '*'
+          - Action:
+              - 'iam:PassRole'
+            Condition:
+              StringEquals:
+                'iam:PassedToService': eks.amazonaws.com
+            Effect: Allow
+            Resource:
+              - '*'
+          - Action:
+              - 'kms:CreateGrant'
+              - 'kms:DescribeKey'
+            Condition:
+              'ForAnyValue:StringLike':
+                'kms:ResourceAliases': alias/cluster-api-provider-aws-*
+            Effect: Allow
+            Resource:
+              - '*'
+        Version: 2012-10-17
+      Roles: !Ref existingControlPlaneRole
+    Type: 'AWS::IAM::ManagedPolicy'
+  AWSIAMManagedEKSNodesPolicy:
+    Properties:
+      Description: Additional Policies to nodes role to work for EKS
+      ManagedPolicyName: eks-nodes.cluster-api-provider-aws.sigs.k8s.io
+      PolicyDocument:
+        Statement:
+          - Action:
+              - "ec2:AssignPrivateIpAddresses"
+              - "ec2:AttachNetworkInterface"
+              - "ec2:CreateNetworkInterface"
+              - "ec2:DeleteNetworkInterface"
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeTags"
+              - "ec2:DescribeNetworkInterfaces"
+              - "ec2:DescribeInstanceTypes"
+              - "ec2:DetachNetworkInterface"
+              - "ec2:ModifyNetworkInterfaceAttribute"
+              - "ec2:UnassignPrivateIpAddresses"
+            Effect: Allow
+            Resource:
+              - '*'
+          - Action:
+              - ec2:CreateTags
+            Effect: Allow
+            Resource:
+              - arn:aws:ec2:*:*:network-interface/*
+          - Action:
+              - "ec2:DescribeInstances"
+              - "ec2:DescribeInstanceTypes"
+              - "ec2:DescribeRouteTables"
+              - "ec2:DescribeSecurityGroups"
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 179
+
+--- page 180 ---
+              - "ec2:DescribeSubnets"
+              - "ec2:DescribeVolumes"
+              - "ec2:DescribeVolumesModifications"
+              - "ec2:DescribeVpcs"
+              - "eks:DescribeCluster"
+            Effect: Allow
+            Resource:
+              - '*'
+        Version: 2012-10-17
+      Roles: !Ref existingNodeRole
+    Type: 'AWS::IAM::ManagedPolicy'
+  AWSIAMManagedPolicyALBController:
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      Description: IAM policy for AWS Load Balancer Controller (ALB/NLB)
+      ManagedPolicyName: alb-controller.cluster-api-provider-aws.sigs.k8s.io
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - iam:CreateServiceLinkedRole
+            Resource: "*"
+            Condition:
+              StringEquals:
+                iam:AWSServiceName: elasticloadbalancing.amazonaws.com
+          - Effect: Allow
+            Action:
+              - ec2:DescribeAccountAttributes
+              - ec2:DescribeAddresses
+              - ec2:DescribeAvailabilityZones
+              - ec2:DescribeInternetGateways
+              - ec2:DescribeVpcs
+              - ec2:DescribeVpcPeeringConnections
+              - ec2:DescribeSubnets
+              - ec2:DescribeSecurityGroups
+              - ec2:DescribeInstances
+              - ec2:DescribeNetworkInterfaces
+              - ec2:DescribeTags
+              - ec2:GetCoipPoolUsage
+              - ec2:DescribeCoipPools
+              - ec2:GetSecurityGroupsForVpc
+              - ec2:DescribeIpamPools
+              - ec2:DescribeRouteTables
+              - elasticloadbalancing:DescribeLoadBalancers
+              - elasticloadbalancing:DescribeLoadBalancerAttributes
+              - elasticloadbalancing:DescribeListeners
+              - elasticloadbalancing:DescribeListenerCertificates
+              - elasticloadbalancing:DescribeSSLPolicies
+              - elasticloadbalancing:DescribeRules
+              - elasticloadbalancing:DescribeTargetGroups
+              - elasticloadbalancing:DescribeTargetGroupAttributes
+              - elasticloadbalancing:DescribeTargetHealth
+              - elasticloadbalancing:DescribeTags
+              - elasticloadbalancing:DescribeTrustStores
+              - elasticloadbalancing:DescribeListenerAttributes
+              - elasticloadbalancing:DescribeCapacityReservation
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - cognito-idp:DescribeUserPoolClient
+              - acm:ListCertificates
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 180
+
+--- page 181 ---
+              - acm:DescribeCertificate
+              - iam:ListServerCertificates
+              - iam:GetServerCertificate
+              - waf-regional:GetWebACL
+              - waf-regional:GetWebACLForResource
+              - waf-regional:AssociateWebACL
+              - waf-regional:DisassociateWebACL
+              - wafv2:GetWebACL
+              - wafv2:GetWebACLForResource
+              - wafv2:AssociateWebACL
+              - wafv2:DisassociateWebACL
+              - shield:GetSubscriptionState
+              - shield:DescribeProtection
+              - shield:CreateProtection
+              - shield:DeleteProtection
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:RevokeSecurityGroupIngress
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateSecurityGroup
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - ec2:CreateTags
+            Resource: arn:aws:ec2:*:*:security-group/*
+            Condition:
+              StringEquals:
+                ec2:CreateAction: CreateSecurityGroup
+              Null:
+                aws:RequestTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+              - ec2:CreateTags
+              - ec2:DeleteTags
+            Resource: arn:aws:ec2:*:*:security-group/*
+            Condition:
+              Null:
+                aws:RequestTag/elbv2.k8s.aws/cluster: "true"
+                aws:ResourceTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+              - ec2:AuthorizeSecurityGroupIngress
+              - ec2:RevokeSecurityGroupIngress
+              - ec2:DeleteSecurityGroup
+            Resource: "*"
+            Condition:
+              Null:
+                aws:ResourceTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:CreateLoadBalancer
+              - elasticloadbalancing:CreateTargetGroup
+            Resource: "*"
+            Condition:
+              Null:
+                aws:RequestTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 181
+
+--- page 182 ---
+              - elasticloadbalancing:CreateListener
+              - elasticloadbalancing:DeleteListener
+              - elasticloadbalancing:CreateRule
+              - elasticloadbalancing:DeleteRule
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:AddTags
+              - elasticloadbalancing:RemoveTags
+            Resource:
+              - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+              - arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*
+              - arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*
+            Condition:
+              Null:
+                aws:RequestTag/elbv2.k8s.aws/cluster: "true"
+                aws:ResourceTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:AddTags
+              - elasticloadbalancing:RemoveTags
+            Resource:
+              - arn:aws:elasticloadbalancing:*:*:listener/net/*/*/*
+              - arn:aws:elasticloadbalancing:*:*:listener/app/*/*/*
+              - arn:aws:elasticloadbalancing:*:*:listener-rule/net/*/*/*
+              - arn:aws:elasticloadbalancing:*:*:listener-rule/app/*/*/*
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:ModifyLoadBalancerAttributes
+              - elasticloadbalancing:SetIpAddressType
+              - elasticloadbalancing:SetSecurityGroups
+              - elasticloadbalancing:SetSubnets
+              - elasticloadbalancing:DeleteLoadBalancer
+              - elasticloadbalancing:ModifyTargetGroup
+              - elasticloadbalancing:ModifyTargetGroupAttributes
+              - elasticloadbalancing:DeleteTargetGroup
+              - elasticloadbalancing:ModifyListenerAttributes
+              - elasticloadbalancing:ModifyCapacityReservation
+              - elasticloadbalancing:ModifyIpPools
+            Resource: "*"
+            Condition:
+              Null:
+                aws:ResourceTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:AddTags
+            Resource:
+              - arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+              - arn:aws:elasticloadbalancing:*:*:loadbalancer/net/*/*
+              - arn:aws:elasticloadbalancing:*:*:loadbalancer/app/*/*
+            Condition:
+              StringEquals:
+                elasticloadbalancing:CreateAction:
+                  - CreateTargetGroup
+                  - CreateLoadBalancer
+              Null:
+                aws:RequestTag/elbv2.k8s.aws/cluster: "false"
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:RegisterTargets
+              - elasticloadbalancing:DeregisterTargets
+            Resource: arn:aws:elasticloadbalancing:*:*:targetgroup/*/*
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 182
+
+--- page 183 ---
+          - Effect: Allow
+            Action:
+              - elasticloadbalancing:SetWebAcl
+              - elasticloadbalancing:ModifyListener
+              - elasticloadbalancing:AddListenerCertificates
+              - elasticloadbalancing:RemoveListenerCertificates
+              - elasticloadbalancing:ModifyRule
+              - elasticloadbalancing:SetRulePriorities
+            Resource: "*"
+      Roles: !Ref existingNodeRole
+  AWSIAMRoleEKSControlPlane:
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service:
+                - eks.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AmazonEKSClusterPolicy'
+      RoleName: eks-controlplane.cluster-api-provider-aws.sigs.k8s.io
+    Type: 'AWS::IAM::Role'
+For more information, see CloudFormation stack.
+To create the resources in the CloudFormation stack, copy its contents into a file and replace
+MYFILENAME.yaml and MYSTACKNAME with the intended values:
+ aws cloudformation create-stack --template-body=file://MYFILENAME.yaml --stack-
+name=MYSTACKNAME --capabilities  CAPABILITY_NAMED_IAM
+Add EKS CSI Policy
+AWS CloudFormation does not support attaching an existing IAM Policy to an existing IAM Role. Add the
+necessary IAM policy to your worker instance profile using the aws CLI:
+aws iam attach-role-policy --role-name nodes.cluster-api-provider-aws.sigs.k8s.io --
+policy-arn arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy
+In other infrastructures, the next step is to create a custom image. However, AWS EKS best practices
+discourage this approach. The Amazon EKS Optimized AMI is the recommended way to deploy containers
+on EKS. Customizing the image can disrupt autoscaling and security capabilities of EKS. Therefore,
+proceed directly to creating your EKS cluster. For more information, see Amazon EKS Optimized AMI.
+EKS: Creating an Image
+AWS EKS best practices discourage building custom images. The Amazon EKS Optimized AMI https://
+docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html is the preferred way to deploy
+containers for EKS. If the image is customized, it breaks some of the autoscaling and security capabilities
+of EKS.
+EKS: Creating an EKS Cluster
+You can create EKS clusters from the Nutanix Kubernetes® Platform (NKP) UI or CLI.
+About this task
+To access your cluster, use the previously installed AWS IAM authenticator using Kubectl. For more
+information, see Amazon EKS. Amazon EKS uses IAM policies and roles to provide authentication to your
+Kubernetes cluster.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 183
+
+--- page 184 ---
+Procedure
+1. Create minimum user permissions for EKS cluster creation.
+For more information, see EKS: Minimal User Permission for Cluster Creation on page 174.
+2. Create IAM policies and roles for EKS.
+For more information, see EKS: Cluster IAM Policies and Roles on page 176.
+3. Export the AWS region:
+export AWS_REGION=us-west-2
+Set the region where you want to deploy the cluster.
+4. Export the AWS credentials you want to use for creating a Kubernetes cluster:
+export AWS_ACCESS_KEY_ID=<aws_access_key_id>
+export AWS_SECRET_ACCESS_KEY=<aws_secret_access_key>
+# optional
+export AWS_SESSION_TOKEN=<aws_session_token>
+export AWS_PROFILE=<profile_name>
+For more information about AWS credentials, see AWS Environment Variables.
+Creating a Managed EKS Cluster from the CLI
+You can create a managed EKS cluster using the Nutanix Kubernetes® Platform (NKP) CLI.
+About this task
+If you prefer using the NKP UI, create a cluster following the steps in Create an EKS Cluster from the NKP
+UI.
+To create a EKS cluster, follow these steps:
+Procedure
+1. Set the environment variable to the name of your cluster:
+export CLUSTER_NAME=<eks-example>
+Note:  The cluster name must only contain the characters such as a-z, 0-9, ., and -. Cluster creation fails
+when the name has capital letters. For more information, see Kubernetes.
+2. Set the kubeconfig to an existing management cluster:
+export KUBECONFIG=<path to management cluster's kubeconfig>
+The EKS cluster is a managed clusters and you must create it from a management cluster.
+Ensure that the management cluster is available in any supported infrastructure before you proceed
+with cluster creation.
+3. Update your AWS credentials:
+nkp update bootstrap credentials aws
+Refresh the credentials only if you use access keys. For more information, see AWS Prerequisites on
+page 820. If you use role-based authentication on a bastion host, skip this step and continue to cluster
+creation.
+4. (Optional) Use an existing AWS ECR as registry mirror to pull images:
+For example,
+export REGISTRY_MIRROR_FLAGS="
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 184
+
+--- page 185 ---
+--registry-mirror-url=<ECR URL> \
+--registry-mirror-username=AWS \
+--registry-mirror-password=$(aws ecr get-login-password) \
+"
+You can pull images directly from AWS ECR registry or configure ECR as a mirror to pull images.
+5. To create an EKS cluster, choose one of the following:
+»
+Create an EKS cluster with the Kubernetes version 1.34 or later:
+nkp create cluster eks \
+--cluster-name=${CLUSTER_NAME} \
+--kubeconfig=${KUBECONFIG} \
+${REGISTRY_MIRROR_FLAGS}
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -
+https-proxy, and --no-proxy with their values in the command to ensure it runs successfully. For
+more information, see Configuring an HTTP or HTTPS Proxy on page 665.
+»
+To create an EKS cluster with Kubernetes version earlier than 1.34:
+nkp legacy create cluster eks \
+--cluster-name=${CLUSTER_NAME} \
+--kubeconfig=${KUBECONFIG} \
+${REGISTRY_MIRROR_FLAGS}
+NKP supports creating an EKS cluster with Kubernetes version 1.34 or later. NKP deprecates
+creating an EKS cluster with Kubernetes version earlier than 1.34. For more information, see
+Supported Kubernetes Versions section in the NKP Release Notes.
+6. Check the current status of the cluster:
+nkp describe cluster -c ${CLUSTER_NAME}
+NAME                                                               READY  SEVERITY 
+ REASON  SINCE  MESSAGE
+Cluster/eks-example                                                True              
+       10m
+##ControlPlane - AWSManagedControlPlane/eks-example-control-plane  True              
+       10m
+##Workers
+  ##MachineDeployment/eks-example-md-0                             True              
+       26s
+ ##Machine/eks-example-md-0-78fcd7c7b7-66ntt                    True                 
+    84s
+ ##Machine/eks-example-md-0-78fcd7c7b7-b9qmc                    True                 
+    84s
+ ##Machine/eks-example-md-0-78fcd7c7b7-v5vfq                    True                 
+    84s
+ ##Machine/eks-example-md-0-78fcd7c7b7-zl6m2                    True                 
+    84s
+Known Limitations
+About this task
+Be aware of the following limitations for the current NKP version:
+Procedure
+•
+The NKP version you use to create a managed cluster must match the NKP version you use to delete it.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 185
+
+--- page 186 ---
+•
+You cannot self-manage EKS clusters.
+•
+Cluster Verification: To monitor or verify the installation of your clusters, see Cluster and NKP
+Installation Verification on page 1004 and Installing NKP on page 46.
+EKS: Granting Cluster Access
+This topic explains how to Grant Cluster Access.
+About this task
+You can access your cluster using AWS IAM roles in the dashboard. When you create an EKS cluster, the
+IAM entity is granted system:masters permissions in Kubernetes Role Based Access Control (RBAC)
+configuration.
+Note:  More information about the configuration of the EKS control plane can be found on the EKS Cluster
+IAM Policies and Roles page.
+If the EKS cluster was created as a cluster using a self-managed AWS cluster that uses IAM Instance
+Profiles, you will need to modify the IAMAuthenticatorConfig field in the AWSManagedControlPlane API
+object to allow other IAM entities to access the EKS managed cluster. Follow the steps below:
+Procedure
+1. Run the following command with your KUBECONFIG configured to select the self-managed cluster
+previously used to create the workload EKS cluster. Ensure you substitute ${CLUSTER_NAME} and
+${CLUSTER_NAMESPACE} with their corresponding values for your cluster.
+kubectl edit awsmanagedcontrolplane ${CLUSTER_NAME}-control-plane -n
+ ${CLUSTER_NAMESPACE}
+2. Edit the IamAuthenticatorConfig field with the IAM Role to the corresponding Kubernetes Role. In
+this example, the IAM role arn:aws:iam::111122223333:role/PowerUser is granted the cluster role
+system:masters. Note that this example uses example AWS resource ARNs, remember to substitute
+real values in the corresponding AWS account.
+iamAuthenticatorConfig:
+    mapRoles:
+      - groups:
+        - system:bootstrappers
+        - system:nodes
+        rolearn: arn:aws:iam::111122223333:role/my-node-role
+        username: system:node:{{EC2PrivateDNSName}}
+      - groups:
+        - system:masters
+        rolearn: arn:aws:iam::111122223333:role/PowerUser
+        username: admin
+For further instructions on changing or assigning roles or clusterroles to which you can map IAM
+users or roles, see Amazon Enabling IAM access to your cluster.
+EKS: Retrieving kubeconfig for EKS Cluster
+This guide explains how to use the command line to interact with your newly deployed Kubernetes cluster.
+About this task
+Before you start, make sure you have created a managed cluster, as described in EKS: Create an EKS
+Cluster.
+To explore the new Kubernetes cluster, follow these steps:
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 186
+
+--- page 187 ---
+Procedure
+1. Get a kubeconfig file for the managed cluster from the Secret, and write it to a file using this command.
+When the managed cluster is created, the cluster life cycle services generate a kubeconfig file for the
+managed cluster, and write it to a Secret. The kubeconfig file is scoped to the cluster administrator.
+Get the kubeconfig from the Secret, and write it to a file, using this command:
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+2. List the Nodes using this command.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get nodes
+Output will be similar to:
+NAME                                         STATUS   ROLES    AGE   VERSION
+ip-10-0-122-211.us-west-2.compute.internal   Ready    <none>   35m   kubernetes-
+version-eks-ae9a62a
+ip-10-0-127-74.us-west-2.compute.internal    Ready    <none>   35m   kubernetes-
+version-eks-ae9a62a
+ip-10-0-71-155.us-west-2.compute.internal    Ready    <none>   35m   kubernetes-
+version-eks-ae9a62a
+ip-10-0-93-47.us-west-2.compute.internal     Ready    <none>   35m   kubernetes-
+version-eks-ae9a62a
+Note:  It may take a few minutes for the Status to move to Ready while the Pod network is deployed. The
+node status will change to Ready soon after the calico-node DaemonSet Pods are Ready.
+3. List the Pods using this command.
+kubectl --kubeconfig=${CLUSTER_NAME}.conf get --all-namespaces pods
+Output will be similar to:
+NAMESPACE                NAME                                            READY  
+ STATUS     RESTARTS      AGE
+calico-system            calico-kube-controllers-7d6749878f-ccsx9        1/1    
+ Running    0             34m
+calico-system            calico-node-2r6l8                               1/1    
+ Running    0             34m
+calico-system            calico-node-5pdlb                               1/1    
+ Running    0             34m
+calico-system            calico-node-n24hh                               1/1    
+ Running    0             34m
+calico-system            calico-node-qrh7p                               1/1    
+ Running    0             34m
+calico-system            calico-typha-7bbcb87696-7pk45                   1/1    
+ Running    0             34m
+calico-system            calico-typha-7bbcb87696-t4c8r                   1/1    
+ Running    0             34m
+calico-system            csi-node-driver-bz48k                           2/2    
+ Running    0             34m
+calico-system            csi-node-driver-k5mmk                           2/2    
+ Running    0             34m
+calico-system            csi-node-driver-nvcck                           2/2    
+ Running    0             34m
+calico-system            csi-node-driver-x4xnh                           2/2    
+ Running    0             34m
+kube-system              aws-node-2xp86                                  1/1    
+ Running    0             35m
+kube-system              aws-node-5f2kx                                  1/1    
+ Running    0             35m
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 187
+
+--- page 188 ---
+kube-system              aws-node-6lzm7                                  1/1    
+ Running    0             35m
+kube-system              aws-node-pz8c6                                  1/1    
+ Running    0             35m
+kube-system              cluster-autoscaler-789d86b489-sz9x2             0/1    
+ Init:0/1   0             36m
+kube-system              coredns-57ff979f67-pk5cg                        1/1    
+ Running    0             75m
+kube-system              coredns-57ff979f67-sf2j9                        1/1    
+ Running    0             75m
+kube-system              ebs-csi-controller-5f6bd5d6dc-bplwm             6/6    
+ Running    0             36m
+kube-system              ebs-csi-controller-5f6bd5d6dc-dpjt7             6/6    
+ Running    0             36m
+kube-system              ebs-csi-node-7hmm5                              3/3    
+ Running    0             35m
+kube-system              ebs-csi-node-l4vfh                              3/3    
+ Running    0             35m
+kube-system              ebs-csi-node-mfr7c                              3/3    
+ Running    0             35m
+kube-system              ebs-csi-node-v8krq                              3/3    
+ Running    0             35m
+kube-system              kube-proxy-7fc5x                                1/1    
+ Running    0             35m
+kube-system              kube-proxy-vvkmk                                1/1    
+ Running    0             35m
+kube-system              kube-proxy-x6hcc                                1/1    
+ Running    0             35m
+kube-system              kube-proxy-x8frb                                1/1    
+ Running    0             35m
+kube-system              snapshot-controller-8ff89f489-4cfxv             1/1    
+ Running    0             36m
+kube-system              snapshot-controller-8ff89f489-78gg8             1/1    
+ Running    0             36m
+node-feature-discovery   node-feature-discovery-master-7d5985467-52fcn   1/1    
+ Running    0             36m
+node-feature-discovery   node-feature-discovery-worker-88hr7             1/1    
+ Running    0             34m
+node-feature-discovery   node-feature-discovery-worker-h95nq             1/1    
+ Running    0             35m
+node-feature-discovery   node-feature-discovery-worker-lfghg             1/1    
+ Running    0             34m
+node-feature-discovery   node-feature-discovery-worker-prc8p             1/1    
+ Running    0             35m
+tigera-operator          tigera-operator-6dcd98c8ff-k97hq                1/1    
+ Running    0             36m
+EKS: Attach a Cluster
+You can attach existing Kubernetes clusters to the Management Cluster with the instructions below.
+About this task
+After attaching the cluster, you can use the UI to examine and manage this cluster. For more information,
+see Management Cluster on page 497. The following procedure shows how to attach an existing
+Amazon Elastic Kubernetes Service (EKS) cluster.
+Note:  This procedure assumes you have an existing and spun up Amazon EKS cluster(s) with
+administrative privileges. Refer to the Amazon EKS for setup and configuration information.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 188
+
+--- page 189 ---
+Before you begin
+Install AWS IAM-authenticator. For more information, see aws-iam-authenticator. This binary is used to
+access your cluster using kubectl.
+About this task
+Attach a Pre-existing EKS Cluster
+Ensure that the KUBECONFIG environment variable is set to the Management cluster before attaching by
+running:
+Note:
+export KUBECONFIG=<Management_cluster_kubeconfig>.conf
+Access Your EKS Clusters
+Procedure
+1. Ensure you are connected to your EKS clusters. Enter the following commands for each of your
+clusters.
+kubectl config get-contexts
+kubectl config use-context <context for first eks cluster>
+2. Confirm kubectl can access the EKS cluster.
+kubectl get nodes
+Create a kubeconfig File
+About this task
+To get started, ensure you have kubectl set up and configured with ClusterAdmin for the cluster you want
+to connect to Kommander.
+Procedure
+1. Create the necessary service account.
+kubectl -n kube-system create serviceaccount kommander-cluster-admin
+2. Create a token secret for the serviceaccount.
+kubectl -n kube-system create  -f - <<EOF
+apiVersion: v1
+kind: Secret
+metadata:
+  name: kommander-cluster-admin-sa-token
+  annotations:
+    kubernetes.io/service-account.name: kommander-cluster-admin
+type: kubernetes.io/service-account-token
+EOF
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 189
+
+--- page 190 ---
+3. Verify that the serviceaccount token is ready by running this command.
+kubectl -n kube-system get secret kommander-cluster-admin-sa-token -oyaml
+Verify that the data.token field is populated.
+Example output:
+apiVersion: v1
+data:
+  ca.crt: LS0tLS1CRUdJTiBDR...
+  namespace: ZGVmYXVsdA==
+  token: ZXlKaGJHY2lPaUpTVX...
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: kommander-cluster-admin
+    kubernetes.io/service-account.uid: b62bc32e-b502-4654-921d-94a742e273a8
+  creationTimestamp: "2022-08-19T13:36:42Z"
+  name: kommander-cluster-admin-sa-token
+  namespace: default
+  resourceVersion: "8554"
+  uid: 72c2a4f0-636d-4a70-9f1c-55a75f15e520
+type: kubernetes.io/service-account-token
+4. Configure the new service account for cluster-admin permissions.
+cat << EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kommander-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: kommander-cluster-admin
+  namespace: kube-system
+EOF
+5. Set up the following environment variables with the access data that is needed for producing a new
+kubeconfig file.
+export USER_TOKEN_VALUE=$(kubectl -n kube-system get secret/kommander-cluster-admin-
+sa-token -o=go-template='{{.data.token}}' | base64 --decode)
+export CURRENT_CONTEXT=$(kubectl config current-context)
+export CURRENT_CLUSTER=$(kubectl config view --raw -o=go-
+template='{{range .contexts}}{{if eq .name "'''${CURRENT_CONTEXT}'''"}}
+{{ index .context "cluster" }}{{end}}{{end}}')
+export CLUSTER_CA=$(kubectl config view --raw -o=go-template='{{range .clusters}}{{if
+ eq .name "'''${CURRENT_CLUSTER}'''"}}"{{with index .cluster "certificate-authority-
+data" }}{{.}}{{end}}"{{ end }}{{ end }}')
+export CLUSTER_SERVER=$(kubectl config view --raw -o=go-template='{{range .clusters}}
+{{if eq .name "'''${CURRENT_CLUSTER}'''"}}{{ .cluster.server }}{{end}}{{ end }}')
+6. Confirm these variables have been set correctly.
+export -p | grep -E 'USER_TOKEN_VALUE|CURRENT_CONTEXT|CURRENT_CLUSTER|CLUSTER_CA|
+CLUSTER_SERVER'
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 190
+
+--- page 191 ---
+7. Generate a kubeconfig file that uses the environment variable values from the previous step.
+Caution:  Nutanix support is unable to recover forgotten credentials. Prevent Kommander UI lockouts
+with the following best practices.
+•
+Backup the kubeconfig file.
+•
+Save your credentials.
+•
+Configure an IDP (identity provider) instead of using a username and password credentials.
+cat << EOF > kommander-cluster-admin-config
+apiVersion: v1
+kind: Config
+current-context: ${CURRENT_CONTEXT}
+contexts:
+- name: ${CURRENT_CONTEXT}
+  context:
+    cluster: ${CURRENT_CONTEXT}
+    user: kommander-cluster-admin
+    namespace: kube-system
+clusters:
+- name: ${CURRENT_CONTEXT}
+  cluster:
+    certificate-authority-data: ${CLUSTER_CA}
+    server: ${CLUSTER_SERVER}
+users:
+- name: kommander-cluster-admin
+  user:
+    token: ${USER_TOKEN_VALUE}
+EOF
+8. This process produces a file in your current working directory called kommander-cluster-admin-
+config. The contents of this file are used in Kommander to attach the cluster.
+Before importing this configuration, verify the kubeconfig file can access the cluster.
+kubectl --kubeconfig $(pwd)/kommander-cluster-admin-config get all --all-namespaces
+What to do next
+There are two options to attach the cluster. Choose from one of the following based on your preference.
+•
+EKS: Attaching a Cluster Manually Using the CLI on page 192
+•
+EKS: Attaching a Cluster from the UI Dashboard on page 191
+EKS: Attaching a Cluster from the UI Dashboard
+Attach your new EKS cluster using the UI.
+About this task
+Now that you have a kubeconfig, go to the NKP UI and follow these steps below:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. On the Dashboard page, select the Add Cluster option in the Actions dropdown list at the top right.
+3. Select Attach Cluster.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 191
+
+--- page 192 ---
+4. Select the No additional networking restrictions card.
+Alternatively, if you must use network restrictions, stop following the steps below, and see the
+instructions on the page Attach a cluster WITH network restrictions. See Cluster Attachment with
+Networking Restrictions on page 445.
+5. Upload the kubeconfig file you created in the previous section (or copy its contents) into the Cluster
+Configuration section.
+6. The Cluster Name field automatically populates with the name of the cluster in the kubeconfig. You can
+edit this field with the name you want for your cluster.
+7. Add labels to classify your cluster as needed.
+8. Select Create to attach your cluster.
+Note:  If a cluster has limited resources to deploy all the federated platform services, it will fail to stay
+attached in the NKP UI. If this happens, ensure your system has sufficient resources for all pods.
+EKS: Attaching a Cluster Manually Using the CLI
+These steps are only applicable if you do not set a WORKSPACE_NAMESPACE when creating a cluster. If you
+already set a WORKSPACE_NAMESPACE, then you do not need to perform these steps since the cluster is
+already attached to the workspace.
+About this task
+When you create a Managed Cluster with the NKP CLI, it attaches automatically to the Management
+Cluster after a few moments.
+However, if you do not set a workspace, the attached cluster will be created in the default workspace.
+To ensure that the attached cluster is created in your desired workspace namespace, follow these
+instructions:
+Procedure
+1.
+Confirm you have your MANAGED_CLUSTER_NAME variable set with the following command.
+echo ${MANAGED_CLUSTER_NAME}
+2.
+Retrieve your kubeconfig from the cluster you have created without setting a workspace.
+nkp get kubeconfig --cluster-name ${MANAGED_CLUSTER_NAME} >
+ ${MANAGED_CLUSTER_NAME}.conf
+3.
+You can now either attach it in the UI, or attach your cluster to the workspace you want in the CLI.
+Note:  This is only necessary if you never set the workspace of your cluster upon creation.
+4.
+Retrieve the workspace where you want to attach the cluster:
+kubectl get workspaces -A
+5.
+Set the WORKSPACE_NAMESPACE environment variable.
+export WORKSPACE_NAMESPACE=<workspace-namespace>
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 192
+
+--- page 193 ---
+6.
+You need to create a secret in the desired workspace before attaching the cluster to that workspace.
+Retrieve the kubeconfig secret value of your cluster.
+kubectl -n default get secret ${MANAGED_CLUSTER_NAME}-kubeconfig -o go-
+template='{{.data.value}}{{ "\n"}}'
+7.
+This will return a lengthy value. Copy this entire string for a secret using the template below as a
+reference. Create a new attached-cluster-kubeconfig.yaml file.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <your-managed-cluster-name>-kubeconfig
+  labels:
+    cluster.x-k8s.io/cluster-name: <your-managed-cluster-name>
+type: cluster.x-k8s.io/secret
+data:
+  value: <value-you-copied-from-secret-above>
+8.
+Create this secret in the desired workspace.
+kubectl apply -f attached-cluster-kubeconfig.yaml --namespace
+ ${WORKSPACE_NAMESPACE}
+9.
+Create this nkpcluster object to attach the cluster to the workspace.
+cat << EOF | kubectl apply -f -
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: ${MANAGED_CLUSTER_NAME}
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  capiClusterRef:
+    name: ${MANAGED_CLUSTER_NAME}
+    namespace: default
+  kommanderCluster:
+    spec:
+      kubeconfigRef:
+        name: ${MANAGED_CLUSTER_NAME}-kubeconfig
+      clusterRef:
+        capiCluster:
+          name: ${MANAGED_CLUSTER_NAME}
+EOF
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 193

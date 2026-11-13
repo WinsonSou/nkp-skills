@@ -1,0 +1,1163 @@
+
+--- page 665 ---
+8
+CUSTOM INSTALLATION AND
+INFRASTRUCTURE TOOLS
+Nutanix Kubernetes Platform (NKP) cluster can be customized for different environments and
+infrastructures depending on your network technology choices. If you have already installed using Basic
+Installations by Infrastructure on page 76 instructions, you might find helpful tools in this section. However,
+if you have not already installed NKP with the Basic installation instructions, find your infrastructure and
+begin the process of custom NKP installation in this area.
+See the following sections for details on custom installation options and infrastructure-specific details.
+Universal Configurations for all Infrastructure Providers
+Several areas of Nutanix Kubernetes Platform (NKP) configuration are shared amongst all infrastructure
+providers. Some of the universal configurations related to environment variables, flags for cluster creation,
+local registries and more are described in this section.
+For more information regarding global configurations, customization of specific components, or additional
+Konvoy customizations, see Additional Konvoy Configurations on page 987.
+Container Engine
+Supported CRI options for NKP bootstrap machine.
+A container engine is required on the bootstrap machine to install Nutanix Kubernetes Platform (NKP). You
+can select one of these supported container engines:
+•
+Docker container engine version 27.4.0 installed for Linux or MacOS. On MacOS, Docker runs inside a
+VM that you need to configure with at least 8 GB of memory. For more information, see Docker Engine.
+•
+Podman Version 4.0 or later for Linux. For more information, see Podman Installation and host
+requirements in kind .
+Note:  Installation of Podman is different for different OS environments. For more information, see
+Podman Installation.
+Tip:
+You will need to restart your machine after following the Host Requirements to add the /
+etc/systemd/system/user@.service.d/delegate.conf and the /etc/modules-load.d/
+iptables.conf files. On Linux, this will mean restarting the host. On MacOS, it means restarting
+the Docker or Podman VM.
+Configuring an HTTP or HTTPS Proxy
+HTTP and HTTPS proxy settings are needed when creating an NKP Cluster in an environment where
+internet access requires going through a proxy.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 665
+
+--- page 666 ---
+When creating a Nutanix Kubernetes Platform (NKP) cluster in environments that use an HTTP or HTTPS
+proxy, you must provide proxy details. The proxy values are strings that list a set of proxy servers, URLs, or
+wildcard addresses specific to your environment.
+When creating a NKP cluster in a proxied environment, you need to specify proxy settings for the following:
+•
+Bootstrap cluster
+•
+CAPI components
+•
+NKP Kommander component
+When you create a NKP cluster through the nkp create cluster command, the bootstrap cluster and
+Cluster API (CAPI) components are created for you automatically, and use the HTTP and HTTPS proxy
+settings you specify in the nkp create cluster <provider>... command through the flags --http-
+proxy, --https-proxy, and --no-proxy.
+You can also create the bootstrap cluster and CAPI components manually, using the appropriate
+commands: nkp create bootstrap and nkp create capi-components , respectively, combined with the
+command line flags as shown above to include your HTTP, HTTPS and no-proxy information.
+You can also specify HTTP or HTTPS proxy information in an override file when using Nutanix Image
+Builder (NIB). .
+Without these values provided as part of the relevant nkp create command, NKP cannot create the
+requisite parts of your new cluster correctly. This is true of both management and managed clusters alike.
+Note:  For NKP installation, create the bootstrap cluster from within the same network where the new cluster
+will run. Using a bootstrap cluster on a laptop with different proxy settings, for example, or residing in a
+different network, can cause problems.
+To modify HTTP or HTTPS proxy settings after initial deployment, see Adding or Modifying HTTP Proxy
+Settings After Deployment on page 670.
+Bootstrap Cluster HTTP Proxy Settings
+When creating a bootstrap cluster, you must locate the device used to create the bootstrap in the same
+proxied environment in which the managed cluster will run. Nutanix does not recommend creating a
+bootstrap cluster from outside a proxied environment.
+The Application Programming Interface (API) server doesn’t exist yet in the bootstrap environment before
+you install Nutanix Kubernetes Platform (NKP) because the API server is created during cluster creation.
+To create a bootstrap server in a proxied environment, you need to include the following flags:
+•
+--http-proxy <<http proxy list>>
+•
+--https-proxy <<https proxy list>>
+•
+--no-proxy <<no proxy list>>
+The following is an example of the nkp create bootstrap command’s syntax, with the HTTP proxy
+settings included.
+nkp create bootstrap --http-proxy <<http proxy list>> --https-proxy <<https proxy
+ list>> --no-proxy <<no proxy list>>
+Creating a Bootstrap Cluster with HTTP Proxy Settings
+Steps used to create a bootstrap cluster with HTTP Proxy settings.
+Before you begin
+If an HTTP proxy is required, locate the values to use for the http_proxy, https_proxy, and no_proxy
+flags. They will be built into the bootstrap cluster during cluster creation.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 666
+
+--- page 667 ---
+About this task
+The flags can include a mix of IP addresses and domain names. Note that the delimiter between each
+proxy value within a flag is a comma (,) with no space character following it.
+Procedure
+Create a bootstrap cluster and any other flags you need using the command.
+nkp create bootstrap --kubeconfig $HOME/.kube/config \
+  --http-proxy <string> \
+  --https-proxy <string> \
+  --no-proxy <string>
+Example output shows values for the proxy settings:
+nkp create bootstrap \
+   --http-proxy 10.0.0.15:3128 \
+   --https-proxy  10.0.0.15:3128 \
+   --no-proxy
+ 127.0.0.1,192.168.0.0/16,10.0.0.0/16,10.96.0.0/12,169.254.169.254,169.254.0.0/24,localhost,kuberne
+operator-logging-fluentd.kommander.svc.cluster.local,elb.amazonaws.com
+Creating CAPI Components with HTTP or HTTPS Proxy Settings
+Creating CAPI components for an NKP cluster from the command line requires HTTP or HTTPS proxy
+information if your environment is proxied.
+About this task
+If you created a cluster without using the --self-managed flag, the cluster will not have any Cluster API
+(CAPI) controllers or the cert-manager component. This means that the cluster will be managed from the
+context of the cluster from which it was created, such as the bootstrap cluster. However, you can transform
+the cluster to a self-managed cluster by performing the commands nkp create capi-components --
+kubeconfig=<newcluster> and nkp move --to-kubeconfig=<newcluster>. This combination of actions
+is sometimes called a pivot.
+When creating the CAPI components for a proxied environment using the Nutanix Kubernetes Platform
+(NKP) command line interface, you must include the following flags :
+•
+--http-proxy <<http proxy list>>
+•
+--https-proxy <<https proxy list>>
+•
+--no-proxy <<no proxy list>>
+The following is an example nkp create capi-components command’s syntax with the HTTP proxy
+settings included:
+Note:
+nkp create capi-components --http-proxy <<http proxy list>> --https-proxy
+ <<https proxy list>> --no-proxy <<no proxy list>>
+Create CAPI Components with HTTP Proxy Settings
+Note that the delimiter between each proxy value within a flag is a comma ( , ) with no space character
+following it. The flags can include a mix of IP addresses and domain names.
+Procedure
+1. If an HTTP proxy is required, locate the values to use for the http_proxy, https_proxy, and no_proxy
+flags. They will be built into the CAPI components during their creation.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 667
+
+--- page 668 ---
+2. Create CAPI components using this command syntax and any other flags you might need.
+nkp create capi-components --kubeconfig $HOME/.kube/config \
+  --http-proxy <string> \
+  --https-proxy <string> \
+  --no-proxy <string>
+This code sample shows the command with example values for the proxy settings:
+nkp create capi-components \
+   --http-proxy 10.0.0.15:3128 \
+   --https-proxy  10.0.0.15:3128 \
+   --no-proxy
+ 127.0.0.1,192.168.0.0/16,10.0.0.0/16,10.96.0.0/12,169.254.169.254,169.254.0.0/24,localhost,kube
+operator-logging-fluentd.kommander.svc.cluster.local,elb.amazonaws.com
+Cluster Creation with HTTP or HTTPS Proxy
+During cluster creation, you might need to configure the control plane and worker nodes to use an HTTP
+proxy. This can occur during installation of the Konvoy component of Nutanix Kubernetes Platform (NKP)
+or when creating a managed cluster.
+If you require HTTP proxy configurations, you can apply them during the NKP create cluster operation
+by adding the appropriate flags to the command example below:
+Table 63: Nutanix Infrastructure
+Proxy configuration
+Flag
+HTTP proxy for all nodes in the cluster
+--http-proxy string
+HTTPS proxy for all nodes in the cluster
+--https-proxy string
+No Proxy list for all nodes in the cluster
+--no-proxy strings
+Table 64: AWS, Azure, GCP, VSphere, and Preprovisoned Infrastructures
+Proxy configuration
+Flag
+HTTP proxy for control plane machines
+--control-plane-http-proxy string
+HTTPS proxy for control plane machines
+--control-plane-https-proxy string
+No Proxy list for control plane machines
+--control-plane-no-proxy strings
+HTTP proxy for worker machines
+--worker-http-proxy string
+HTTPS proxy for worker machines
+--worker-https-proxy string
+No Proxy list for worker machines
+--worker-no-proxy strings
+Note:  Using an HTTP override file, you must apply the same configuration to any custom machine images
+built with the Nutanix Image Builder (NIB).
+Configure the Control Plane and Worker Nodes to Use HTTP/S Proxy
+This method uses environment variables to configure the HTTP proxy values. (You are not required to use
+this method.)
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 668
+
+--- page 669 ---
+Review this sample code to configure environment variables for the control plane and worker nodes,
+considering the list of considerations that follow the sample.
+export HTTP_PROXY=http://example.org:8080
+export HTTPS_PROXY=http://example.org:8080
+export 
+NO_PROXY="example.org,example.com,example.net,localhost,127.0.0.1,10.96.0.0/12,192.168.0.0/16,kuber
+export WORKER_HTTP_PROXY=http://example.org:8080
+export WORKER_HTTPS_PROXY=http://example.org:8080
+export 
+WORKER_NO_PROXY="example.org,example.com,example.net,localhost,127.0.0.1,10.96.0.0/12,192.168.0.0/1
+HTTP proxy configuration considerations to ensure the core components work correctly
+•
+Replace example.org,example.com,example.net with your internal addresses
+•
+localhost and 127.0.0.1 addresses that can be accessed directly, not through the proxy.
+•
+10.96.0.0/12 is the default Kubernetes service subnet
+•
+192.168.0.0/16 is the default Kubernetes pod subnet
+•
+kubernetes,kubernetes.default,kubernetes.default.svc,kubernetes.default.svc.cluster,kubernetes.d
+are the internal Kubernetes kube-apiserver services
+•
+The entries .svc,.svc.cluster,.svc.cluster.local are the internal Kubernetes services
+•
+Auto-IP addresses 169.254.169.254 for any cloud provider
+•
+169.254.169.254 is the AWS metadata server
+•
+.elb.amazonaws.com is for the worker nodes to allow them to communicate directly to the kube-
+apiserver ELB
+Example of Creating a Cluster Using the Configured HTTP Proxy Variables
+Nutanix Infrastructure: The following is an example of a nkp create cluster... command that uses the
+values set in the environment variables from the code sample.
+nkp create cluster nutanix \
+  --cluster-name ${CLUSTER_NAME} \
+  --http-proxy="${HTTP_PROXY}" \
+  --https-proxy="${HTTPS_PROXY}" \
+  --no-proxy="${NO_PROXY}"
+AWS, Azure, GCP, VSphere, and Preprovisoned Infrastructures: The following is an example of a nkp
+create cluster... command that uses the values set in the environment variables from the code sample
+above. Use the appropriate infrastructure provider name in line 1 from the choices listed:
+nkp create cluster [aws, azure, gcp, preprovisoned, vsphere] \
+  --cluster-name ${CLUSTER_NAME} \
+  --control-plane-http-proxy="${HTTP_PROXY}" \
+  --control-plane-https-proxy="${HTTPS_PROXY}" \
+  --control-plane-no-proxy="${NO_PROXY}" \
+  --worker-http-proxy="${WORKER_HTTP_PROXY}" \
+  --worker-https-proxy="${WORKER_HTTPS_PROXY}" \
+  --worker-no-proxy="${WORKER_NO_PROXY}"
+HTTP or HTTPS Proxy Configuration for the NKP Kommander Component
+After the cluster is running in the Konvoy component; you need to configure the NO_PROXY variable for each
+provider.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 669
+
+--- page 670 ---
+For example, in addition to the values above for Amazon Web Services (AWS), you need the following
+settings:
+•
+The default VPC Classless Inter-Domain Routing (CIDR) range of 10.0.0.0/16
+•
+kube-apiserver internal or external ELB address
+Warning:  The NO_PROXY variable contains the Kubernetes Services CIDR. This example uses the default
+CIDR, 10.96.0.0/12. If your cluster's CIDR differs, update the value in the NO_PROXY field.
+Set the httpProxy and httpsProxy environment variables to the address of the HTTP and HTTPS
+proxy servers, respectively. (Frequently, environments use the same values for both.) Set the noProxy
+environment variable to the addresses that can be accessed directly and not through the proxy.
+For the Kommander component of Nutanix Kubernetes Platform (NKP), refer to more HTTP Proxy
+information in Configuring HTTP proxy for the Kommander Clusters on page 980.
+Nutanix Image Builder HTTP or HTTPS Proxy
+In some networked environments, the machines used for building images can reach the Internet, but only
+through an HTTP or HTTPS proxy. For Nutanix Kubernetes Platform (NKP) to operate in these networks,
+you need a way to specify what proxies to use; see Configuring an HTTP or HTTPS Proxy on page 665.
+You can use an HTTP proxy override file to specify that proxy. When NIB tries installing a particular OS
+package, it uses that proxy to reach the Internet to download it.
+Warning:  The proxy setting specified here is NOT “baked into” the image - it is only used while the image is
+being built. The settings are removed before the image is finalized.
+While it might seem logical to include the proxy information in the image, the reality is that many
+companies have multiple proxies - one perhaps for each geographical region or maybe even a proxy per
+datacenter or office datacenter. All network traffic to the Internet goes through the proxy. If you were in
+Germany, you probably would not want to send all your traffic to a U.S.-based proxy. Doing that slows
+traffic down and consumes too many network resources. If you bake the proxy settings into the image,
+you must create a separate image for each region. Creating an image without a proxy makes more sense,
+but remember that you still need a proxy to access the Internet. Thus, when creating the cluster (and
+installing the Kommander component of NKP), you must specify the correct proxy settings for the network
+environment into which you install the cluster. You will use the same base image for that cluster installed in
+an environment with different proxy settings.
+Adding or Modifying HTTP Proxy Settings After Deployment
+Modify HTTP proxy settings on Kubernetes components after your initial deployment. These settings apply
+to HTTP/HTTPS requests from kubelet or containerd.
+Before you begin
+•
+Ensure that the proxy server works correctly.
+•
+Identify any addresses or domain suffixes that need to be added to NO_PROXY. See Cluster Creation
+with HTTP or HTTPS Proxy on page 668.
+About this task
+NKP clusters support modifying HTTP proxy settings through the Cluster API. To add or modify HTTP
+proxy settings after deployment, follow these steps:
+Procedure
+1. Set your new proxy configuration as environment variables.
+export HTTP_PROXY=http://example.org:8080
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 670
+
+--- page 671 ---
+export HTTPS_PROXY=http://example.org:8080
+export
+ NO_PROXY="example.org,example.com,example.net,localhost,127.0.0.1,10.96.0.0/12,192.168.0.0/16,k
+2. Apply the new environment variables to the CAPI provider deployments and the git operator.
+kubectl set env deployment/caaph-controller-manager -n caaph-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capa-controller-manager -n capa-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capg-controller-manager -n capg-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capi-kubeadm-bootstrap-controller-manager -n capi-
+kubeadm-bootstrap-system HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}"
+ NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capi-kubeadm-control-plane-controller-manager -n capi-
+kubeadm-control-plane-system HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}"
+ NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capi-controller-manager -n capi-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/cappp-controller-manager -n cappp-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capv-controller-manager -n capv-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capx-controller-manager -n capx-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/capz-controller-manager -n capz-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env deployment/cluster-api-runtime-extensions-nutanix -n caren-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+kubectl set env statefulset/git-operator-git -n git-operator-system
+ HTTP_PROXY="${HTTP_PROXY}" HTTPS_PROXY="${HTTPS_PROXY}" NO_PROXY="${NO_PROXY}"
+Note:  If you are upgrading CAPI components as part of an NKP upgrade, use nkp upgrade capi-
+components with the proxy flags instead of applying the environment variables individually:
+nkp upgrade capi-components \
+  --http-proxy "${HTTP_PROXY}" \
+  --https-proxy "${HTTPS_PROXY}" \
+  --no-proxy "${NO_PROXY}"
+3. Update the gatekeeper-overrides ConfigMap to apply the new proxy settings to Kommander
+applications.
+See Creating Gatekeeper ConfigMap in the Kommander Namespace on page 982 for detailed steps.
+Note:  If a gatekeeper-overrides ConfigMap already exists in the kommander namespace, running
+the command in that procedure updates it in place.
+4. Update proxy configurations for kubelet and containerd by editing the Cluster resource.
+kubectl edit nkpcluster CLUSTER_NAME -n NAMESPACE
+Include the following proxy configurations in the spec:
+spec:
+  topology:
+    variables:
+    - name: clusterConfig
+      value:
+        proxy:
+          http: http://example.com
+          https: http://example.com
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 671
+
+--- page 672 ---
+          additionalNo:
+          - no-proxy-1.example.com
+          - no-proxy-2.example.com
+Note:  After applying the new manifests, Cluster API recreates nodes with the new settings.
+Load Balancers
+In a Kubernetes cluster, depending on the flow of traffic direction, there are two kinds of load balancing:
+•
+Internal load balancing for the traffic within a Kubernetes cluster
+•
+External load balancing for the traffic coming from outside the cluster
+Nutanix Kubernetes Platform (NKP) includes both internal and external load balancing solutions for the
+supported cloud infrastructure providers and pre-provisioned environments. For more information, see
+Load Balancing on page 593.
+MetalLB
+MetalLB is an external load balancer that NKP deploys by default on supported clusters to allocate virtual
+IP addresses for Kubernetes services. You can create additional MetalLB configuration as needed.
+MetalLB advertises virtual IP addresses using the following protocols:
+•
+Layer 2, with Address Resolution Protocol (ARP)
+•
+Border Gateway Protocol (BGP)
+Important:
+Do not edit the default MetalLB IPAddressPool and L2Advertisement on a cluster. Modifying
+these default objects to host additional IP address pools for applications will cause the cluster
+upgrade process to stall and fail.
+When configuring MetalLB for your applications, always create a new IPAddressPool and a new
+L2Advertisement instead of modifying the default objects.
+Select one of the following procedures to create your MetalLB manifest.
+Layer 2 Configuration
+Layer 2 mode is the simplest to configure. In many cases, you do not need any protocol-specific
+configuration, only IP addresses.
+Layer 2 mode does not require IP addresses to be bound to the network interfaces of your worker nodes. It
+responds to ARP requests on the local network and gives clients the machine's MAC address.
+Note the following requirements for MetalLB IP address ranges:
+•
+MetalLB IP address ranges or CIDRs must be within the node's primary network subnet.
+•
+MetalLB IP address ranges, CIDRs, and node subnets must not conflict with the Kubernetes cluster pod
+and service subnets.
+For example, the following configuration gives MetalLB control over IP addresses from 192.168.1.240 to
+192.168.1.250 and configures layer 2 mode. Replace the values with values specific to your environment.
+cat << EOF > metallb-conf.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: example
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 672
+
+--- page 673 ---
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.1.240-192.168.1.250
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: example
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - example
+EOF
+After this completes, run the following kubectl command.
+kubectl apply -f metallb-conf.yaml
+BGP Configuration
+For a basic BGP configuration featuring one router and one IP address range, you need the following
+information:
+•
+The router IP address that MetalLB needs to connect to.
+•
+The router's autonomous systems (AS) number.
+•
+The MetalLB AS number.
+•
+An IP address range expressed as a Classless Inter-Domain Routing (CIDR) prefix.
+For example, if you specify 192.168.10.0/24 as the MetalLB range, 64500 as the MetalLB AS number,
+10.0.0.1 as the router IP address, and 64501 as the router AS number, your configuration looks like this:
+cat << EOF > metallb-conf.yaml
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: example
+  namespace: metallb-system
+spec:
+  myASN: 64500
+  peerASN: 64501
+  peerAddress: 10.0.0.1
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: example
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.10.0/24
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: example
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - example
+EOF
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 673
+
+--- page 674 ---
+After this completes, run the following kubectl command.
+kubectl apply -f metallb-conf.yaml
+Registry and Registry Mirrors
+In an air-gapped environment, you need a local repository to store Helm charts, Docker images, and
+other artifacts. In an environment with access to the Internet, you can retrieve artifacts from specialized
+repositories dedicated to them, such as Docker images contained in DockerHub and Helm Charts that
+come from a dedicated Helm Chart repository.
+Nutanix Kubernetes Platform (NKP) supports operation with several local Registry Mirror Tools on
+page 990.
+•
+Registry Mirrors are local copies of images from a public registry that follow (or mirror) the file
+structure of a public registry. If you need to set up a private registry with a registry mirror or details on
+using the flag(s), see Using a Registry Mirror on page 992.
+•
+Container registries are collections of container repositories and can also offer API paths and access
+rules.
+•
+Container repositories are a collection of related container images. The container image has
+everything the software might need to run, including code, resources, and tools. Container repositories
+store container images for setup and deployment, and you use the repositories to manage, pull, and
+push images during cluster operations.
+Kubernetes does not natively provide a registry for hosting the container images you will use to run the
+applications you want to deploy on Kubernetes. Instead, Kubernetes requires you to use an external
+solution to store and share container images. A variety of Kubernetes-compatible registry options are
+compatible with NKP.
+How the Registry Mirror Works
+The first time you request an image from your local registry mirror, it pulls the image from the public registry
+(such as Docker) and stores it locally before handing it back to you. On subsequent requests, the local
+registry mirror can serve the image from its storage.
+Air-gapped vs. Non-air-gapped Environments
+In a non-air-gapped environment, you can access the Internet. You retrieve artifacts from specialized
+repositories dedicated to them, such as Docker images contained in DockerHub and Helm Charts that
+come from a dedicated Helm Chart repository. You can also create your local repository to hold the
+downloaded container images needed or any custom images you have created with the Nutanix Image
+Builder on page 55 tool.
+In an air-gapped environment, you need a local repository to store Helm charts, Docker images, and
+other artifacts. Private registries provide security and privacy in enterprise container image storage,
+whether hosted remotely or on-premises locally in an air-gapped environment. NKP in an air-gapped
+environment requires a local container registry of trusted images to enable production-level Kubernetes
+cluster management. However, a local registry is also an option in a non-air-gapped environment for speed
+and security.
+If you want to use images from this local registry to deploy applications inside your Kubernetes cluster, you
+will need to set up a secret for a private registry. The secret contains your login data, which Kubernetes
+needs to connect to your private repository. It is not required to export any variables for most of the
+command examples. However, the export, along with an arbitrary variable name, primarily clarifies what
+values in the commands need to be substituted. Also, that makes it easier to copy and paste the examples.
+Furthermore, if multiple steps in a procedure need you to specify a variable, you export it once with the
+following export command and then reuse it in future commands.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 674
+
+--- page 675 ---
+For example,
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+To run the create cluster command using that variable created above, use the example command
+replacing azure with your choice of provider gcp, vsphere, vcd, pre-provisioned, aws:
+nkp create cluster azure --registry-mirror-url=${REGISTRY_URL}
+A cluster administrator uses NKP CLI commands to upload the image bundle to your registry with the
+parameters:
+nkp push bundle --bundle <bundle> --to-registry=${REGISTRY_URL}
+Parameter definitions:
+•
+--bundle <bundle> the group of images. The example below is for the NKP air-gapped environment
+bundle
+•
+Either use exported variable ${REGISTRY_URL} or --to-registry=<registry-address>/<registry-
+name> to provide registry location for push
+Command example:
+nkp push bundle --bundle container-images/konvoy-image-bundle-nkp-version.tar --to-
+registry=333000009999.dkr.ecr.us-west-2.amazonaws.com/can-test
+Any URL can contain an optional port specification. If no port is specified, then the default port for the
+protocol is assumed. For example, for HTTPS protocol, port 443 is the default, meaning these two URLs
+are equivalent:
+https://docs.nutanix.com
+https://docs.nutanix.com:443
+A port specification is only required if the URL target uses a port number other than the default.
+Related Information
+•
+Registry Mirror Tools on page 990
+•
+Using a Registry Mirror on page 992
+•
+Seeding the Registry for an Air-gapped Cluster on page 995
+•
+Images Download into Your Registry: Air-gapped Environments on page 944
+Docker Hub Registry Credentials
+A connected Nutanix Kubernetes Platform cluster uses a Nutanix Docker Hub access token to pull platform
+images when no registry mirror is configured.
+NKP authenticates to the Nutanix Docker Hub registry at docker.io/nutanix to pull platform images.
+Provide the Docker Hub user name and access token when you create the management cluster. NKP
+stores the credentials on the management cluster and uses those credentials for platform image pulls.
+Provide the credentials on a connected cluster that does not use a registry mirror. When the cluster uses a
+registry mirror, these credentials are optional.
+Workload clusters inherit the credentials from the management cluster. To use different credentials on one
+workload cluster, update the credentials for that cluster. You can also update credentials after deployment
+when you rotate or replace a token.
+In an air-gapped environment, configure an internal registry mirror and pull platform images from that
+mirror. An air-gapped cluster does not pull platform images from Docker Hub.
+Note:  An organization can generate a maximum of two Nutanix Docker Hub access tokens.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 675
+
+--- page 676 ---
+Generating a Docker Hub Access Token
+Create a Nutanix Docker Hub access token on the Nutanix Support Portal, and record the Docker Hub user
+name for that token.
+Before you begin
+Verify the following requirements:
+•
+Ensure that you have the required access and can sign in to the Nutanix Support Portal.
+•
+Ensure that you have permission to generate and manage Nutanix Docker Hub access tokens.
+The flags used in this procedure are different from registry-url flags, and are not a replacement.
+About this task
+Use the token and the associated Docker Hub user name when you create the management cluster or
+when you update credentials on an existing cluster.
+Procedure
+1. Sign in to the NKP downloads page on the Nutanix Support Portal.
+2. Open the page where you manage Nutanix Docker Hub access tokens.
+3. Generate an access token.
+4. Copy the access token.
+5. Store the access token in a secure location.
+6. Record the Docker Hub user name that is associated with the token.
+What to do next
+Use the user name and token when you create the management cluster. For more information, see
+Creating a Management Cluster with Docker Hub Credentials on page 676.
+Creating a Management Cluster with Docker Hub Credentials
+Include the Nutanix Docker Hub user name and access token when you create a management cluster from
+the command line.
+Before you begin
+You must complete the procedure listed in Generating a Docker Hub Access Token on page 676. Create
+the cluster in a connected environment. When the cluster uses a registry mirror, the credentials are
+optional.
+About this task
+Add the Nutanix Docker Hub credentials to the nkp create cluster nutanix command. The example
+shows the credential flags together with the cluster name and Prism Central endpoint. Combine these flags
+with the other flags in the management cluster create procedure. For more information, see Creating the
+Nutanix Kubernetes Platform Management Cluster using CLI on page 718.
+Note:  The --nutanix-registry-username and --nutanix-registry-password flags do not
+replace --registry-url, --registry-username, and --registry-password.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 676
+
+--- page 677 ---
+Procedure
+Create the management cluster and include the Nutanix Docker Hub credentials.
+nkp create cluster nutanix \
+--cluster-name=management_cluster_name \
+--endpoint=https://prism_central_endpoint:9440 \
+--nutanix-registry-username=docker_hub_username \
+--nutanix-registry-password=docker_hub_access_token
+Replace the variables in the command:
+•
+Replace management_cluster_name with the name of the management cluster.
+•
+Replace prism_central_endpoint with the Prism Central endpoint.
+•
+Replace docker_hub_username with the Docker Hub user name for the access token.
+•
+Replace docker_hub_access_token with the Nutanix Docker Hub access token.
+Updating Docker Hub Credentials
+Replace the stored Nutanix Docker Hub user name or access token after you revoke a token, issue a new
+token, or change the user name.
+Before you begin
+Ensure that you have the Docker Hub user name and the access token that replace the current credentials.
+About this task
+Update the credentials when you revoke an access token, generate a replacement token, or change
+the user name for the token. Workload clusters use the management cluster credentials until you set
+credentials for a specific cluster.
+Procedure
+Apply the new credentials to one cluster or to every cluster.
+»
+One cluster:
+nkp update cluster nutanix-registry-credentials \
+--cluster-name=cluster_name \
+--namespace=cluster_namespace \
+--nutanix-registry-username=docker_hub_username \
+--nutanix-registry-password=docker_hub_access_token \
+--kubeconfig=management_cluster_kubeconfig
+Replace cluster_name with the cluster name. Replace cluster_namespace with the cluster
+namespace. Replace docker_hub_username with the Docker Hub user name. Replace
+docker_hub_access_token with the new access token. Replace management_cluster_kubeconfig
+with the path to the management cluster kubeconfig file.
+»
+Every cluster:
+nkp update cluster nutanix-registry-credentials --all-namespaces \
+--nutanix-registry-username=docker_hub_username \
+--nutanix-registry-password=docker_hub_access_token
+Replace docker_hub_username with the Docker Hub user name. Replace docker_hub_access_token
+with the new access token.
+Setting Docker Hub Credentials Before a Cluster Upgrade
+Apply the Nutanix Docker Hub credentials to every cluster before you upgrade a management cluster in a
+connected environment.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 677
+
+--- page 678 ---
+Before you begin
+Ensure that you have the Docker Hub user name, the access token, and the management cluster
+kubeconfig file.
+About this task
+Set the Nutanix Docker Hub credentials before you upgrade a connected management cluster. Apply the
+credentials to every cluster.
+Note:  Skip this procedure in an air-gapped environment. An air-gapped cluster pulls images from the
+internal registry mirror.
+Procedure
+1. Set the Docker Hub user name and access token in the shell.
+export NUTANIX_REGISTRY_USERNAME="docker_hub_username"
+export NUTANIX_REGISTRY_PASSWORD="docker_hub_access_token"
+Replace docker_hub_username with the Docker Hub user name. Replace docker_hub_access_token
+with the access token.
+2. Apply the credentials to every cluster.
+nkp update cluster nutanix-registry-credentials \
+--nutanix-registry-username="$NUTANIX_REGISTRY_USERNAME" \
+--nutanix-registry-password="$NUTANIX_REGISTRY_PASSWORD" \
+--kubeconfig=management_cluster_kubeconfig \
+--all-namespaces
+Replace management_cluster_kubeconfig with the path to the management cluster kubeconfig file.
+Cluster Pod and Services Subnets
+Describes how to change Pods and Services subnets during cluster creation.
+About this task
+A Kubernetes cluster defines subnets for Pods and Services. These subnets must not overlap with subnets
+used by cluster Nodes, i.e. the machines that form the cluster. In infrastructures where you allocate
+virtual IPs for LoadBalancer Services, the Pods and Services subnets must not overlap with the virtual IP
+subnets.
+Note:
+•
+If the default Pods or Services subnets overlap with any subnets used by cluster Nodes, you
+must change the Pods or Services subnets. You must do this at cluster creation.
+•
+The custom Pod network configurations for Grafana Loki are not supported.
+•
+The default subnets used in NKP are:
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 10.96.0.0/12
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 678
+
+--- page 679 ---
+To change the subnets, perform the following steps:
+Procedure
+1. Generate the YAML Ain't Markup Language (YAML) manifests for the cluster using the --dry-run and
+-o yaml flags, along with the desired nkp cluster create command.
+Example:
+nkp create cluster preprovisioned --cluster-name ${CLUSTER_NAME} --control-plane-
+endpoint-host <control plane endpoint host> --control-plane-endpoint-port <control
+ plane endpoint port, if different than 6443> --dry-run -o yaml > cluster.yaml
+2. To modify the Services subnet, add or edit the spec.clusterNetwork.services.cidrBlocks field of
+the Cluster object.
+Example:
+kind: Cluster
+spec:
+  clusterNetwork:
+    services:
+      cidrBlocks:
+      - 10.0.0.0/12
+3. To modify the cluster: Add or edit the spec.clusterNetwork.pods.cidrBlocks field.
+Example:
+kind: Cluster
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - <vpc-net>.0/16
+4. If using Calico CNI, update its configuration to edit the data."custom-
+resources.yaml".spec.calicoNetwork.ipPools.cidr field with your desired Pod subnet.
+Example:
+apiVersion: v1
+data:
+  custom-resources.yaml: |
+    apiVersion: operator.tigera.io/v1
+    kind: Installation
+    metadata:
+      name: default
+    spec:
+      # Configures Calico networking.
+      calicoNetwork:
+        # Note: The ipPools section cannot be modified post-install.
+        ipPools:
+        - blockSize: 26
+          cidr: <vpc-net>.0/16
+kind: ConfigMap
+metadata:
+  name: calico-cni-<cluter-name>
+When you provision the cluster, the configured Pod and Services subnets are applied.
+Creating a Bastion Host
+When creating an air-gapped cluster, the bastion Virtual Machine (VM) hosts the installation of the Nutanix
+Kubernetes Platform (NKP) Konvoy bundles, images, and the Docker or other local registry are needed
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 679
+
+--- page 680 ---
+to create and operate your cluster. In a given environment, the bastion VM must have access to the
+infrastructure provider’s Application Programming Interface (API).
+About this task
+Ensure the items below are installed and the environment matches the requirements below:
+•
+Create a bastion VM host template for the cluster nodes to use within the air-gapped network. This
+bastion VM host also needs access to a local registry instead of an Internet connection to pull images.
+•
+Find and record the bastion VM’s IP or hostname.
+•
+Download the following required NKP Konvoy binaries and installation bundles are discussed in step 5
+below. To access the download bundles, see Downloading NKP on page 17.
+•
+A local registry or Docker version 27.4.0 installed. You must install Docker on the host where the
+NKP Konvoy CLI runs. For example, if you install Konvoy on your laptop, ensure the computer has a
+supported version of Docker. On macOS, Docker runs in a virtual machine that you configure with at
+least 8GB of memory. For information on the local registry, see Registry Mirror Tools on page 990. For
+information on Docker, see https://docs.docker.com/get-docker/.
+•
+To interact with the running cluster, install kubectl on the host where the NKP Konvoy command line
+interface (CLI) runs. For more information, see kubectl.
+•
+You must have the following resource requirements: vCPU Count 8, Memory 16 GB, and Disk Volume
+80 GB. For more information see Resource requirements
+Depending on your OS, various commands exist to set up your bastion host in an air-gapped environment.
+The vSphere example workflow shows a generic instance for Red Hat Enterprise Linux (RHEL) Bastion
+nodes using Docker.
+Procedure
+1. Open an ssh terminal to the bastion host and install the tools and packages using the command sudo
+yum install -y yum-utils bzip2 wget.
+2. Install kubectl.
+RHEL example:
+cat <<EOF | sudo tee /etc/yum.repos.d/kubernetes.repo
+[kubernetes]
+name=Kubernetes
+baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-\$basearch
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF
+sudo yum install -y kubectl
+3. Install Docker, for example (only on the Bastion Host), and add the repository for upstream Docker
+using the command.
+sudo yum-config-manager --add-repo https://download.docker.com/linux/rhel/docker-
+ce.repo
+Note:  Other Docker repository downloads are available on docker.com: https://
+download.docker.com/linux/
+Docker Install example:
+sudo yum install -y docker-ce docker-ce-cli containerd.io
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 680
+
+--- page 681 ---
+4. Get the required Nutanix Software by downloading the air-gapped bundle.
+Download nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz, extract the tar
+file to a local directory using the command tar -xzvf nkp-air-gapped-bundle_nkp-
+version_linux_amd64.tar.gz
+5. Set the following environment variables to enable connection to an existing Docker or other registry
+using the command export REGISTRY_ADDRESS=<https/http>://<registry-address>:<registry-
+port> export REGISTRY_CA=<path to the CA on the bastion host>.
+Note:  You must create the VM template with the Nutanix Image Builder to use the registry mirror feature.
+Command variables for the export REGISTRY command.
+•
+REGISTRY_ADDRESS: The address of an existing registry accessible in the environment where the
+new cluster nodes will be configured to use a mirror registry when pulling images.
+•
+REGISTRY_CA: (Optional) path on the bastion host to the registry CA. Konvoy configures the cluster
+nodes to trust this CA. This value is only needed if the registry is using a self-signed certificate and
+the VMs are not already configured to trust this CA.
+Each infrastructure provider has its own set of bastion host instructions. Refer to your own OS
+instructions to setup a bastion host like AWS Bastion, Azure, GCP, or vSphere.
+Export Registry Variables and Flags for Cluster Creation
+If you have a local registry, you must provide additional arguments when creating the cluster. These tell
+the cluster where to locate the local registry to use by defining the URL. Set the needed environment
+variable(s) with your registry information:
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_CA=<path to the CA on the bastion>
+export REGISTRY_USERNAME=<username>
+export REGISTRY_USERNAME=<password>
+•
+REGISTRY_URL: the address of an existing container registry accessible in the VPC that the new cluster
+nodes will be configured to use a mirror registry when pulling images.
+•
+REGISTRY_CA: (optional) the path on the bastion machine to the container registry CA. Konvoy will
+configure the cluster nodes to trust this CA. This value is only needed if the registry is using a self-
+signed certificate and the AMIs are not already configured to trust this CA.
+•
+REGISTRY_USERNAME: optional, set to a user that has pull access to this registry.
+•
+REGISTRY_PASSWORD: optional if username is not set.
+When creating the cluster, apply the variables you defined above during the nkp create cluster
+command with the flags needed for your environment:
+--registry-mirror-url=${REGISTRY_URL} \
+--registry-mirror-cacert=${REGISTRY_CA} \
+--registry-mirror-username=${REGISTRY_USERNAME} \
+--registry-mirror-password=${REGISTRY_PASSWORD}
+Export Variables
+Adding your registry information to the environment variable.
+Set the environment variable with your registry information.
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 681
+
+--- page 682 ---
+export REGISTRY_CA=<path to the cacert file on the bastion>
+Definitions:
+REGISTRY_URL: the address of an existing local registry accessible in the VPC that the new cluster nodes
+will be configured to use a mirror registry when pulling images.
+•
+For example, https://registry.example.com
+Other local registries may use the options below:
+•
+REGISTRY_USERNAME: optional-set to a user with pull access to this registry.
+•
+REGISTRY_PASSWORD: optional if username is not set.
+•
+JFrog - REGISTRY_CA: (optional) the path on the bastion machine to the registry CA. This value is only
+needed if the registry uses a self-signed certificate and the AMIs are not already configured to trust this
+CA.
+•
+To increase Docker Hub's rate limit use your Docker Hub credentials when creating the cluster by
+setting flags ----registry-mirror-url=https://registry-1.docker.io --registry-mirror-
+username=<your-username> --registry-mirror-password=<your-password> when running nkp
+create cluster.
+FIPS Requirements
+To create a cluster in FIPS mode, inform the controllers of the appropriate image repository and version
+tags of the official Nutanix FIPS builds of Kubernetes by adding those flags to nkp create cluster
+command:
+--kubernetes-version=v<kubernetes-version>+fips.0 \
+--etcd-version=etcd-version+fips.0 \
+--kubernetes-image-repository=docker.io/mesosphere \
+For more information about enabling FIPS in the cluster, see Creating the Nutanix Kubernetes Platform
+Management Cluster using CLI on page 718.
+For more information about the supported Kubernetes version, see Supported Kubernetes Versions
+section in the NKP Release Notes. For more information about the supported etcd version, see Supported
+Components section in the NKP Release Notes.
+Output Directory Flag
+When creating a cluster, you can use the --output-directory flag to organize the cluster configuration
+into individual files. This is particularly useful for ease of editing and managing the cluster configuration.
+The flag creates multiple files in the specified directory, which must already exist.
+Refer to the Pre-provisioned Cluster Creation Customization Choices on page 774 section for more
+information on how to use optional flags such as the --output-directory flag.
+Example: 
+--output-directory=<existing-directory>
+Cluster creation results:
+The output from this command is shortened here for reading clarity, but should start like this:
+Generating cluster resources
+cluster.cluster.x-k8s.io/cluster_name created
+cont.........
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 682
+
+--- page 683 ---
+Provision Flatcar Linux OS
+Flatcar default network interface name might require specifying. It is most likely to be ens192 , which
+requires passing the parameter --virtual-ip-interface ens192 to the nkp create cluster aws
+command. Otherwise, the cluster creation might fail because kube-vip can not configure the first control-
+plane virtual IP.
+Flatcar Linux Example
+These flags are also shown in context on the Create Cluster page for either air-gapped or non-air-gapped
+environments:
+Amazon Web Services (AWS) Example is shown; replace aws with vsphere if required:
+nkp create cluster aws \
+    --cluster-name ${CLUSTER_NAME} \
+    --os-hint flatcar
+Note:  For provisioning Nutanix Kubernetes Platform (NKP) on Flatcar, NKP configures cluster nodes to use
+Control Groups (cgroups) version 1. In versions before Flatcar 3033.3.x, a restart is required to apply the
+changes to the kernel.
+Also note that once Ignition runs, it is not available on reboot.
+For more information on Flatcar usage, see:
+•
+Flatcar documentation: https://www.flatcar.org/docs/latest/container-runtimes/switching-to-
+unified-cgroups/#starting-new-nodes-with-legacy-cgroups
+•
+Control Groups version 1:https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v1/
+cgroups.html#what-are-cgroups
+•
+Ignition https://www.flatcar.org/docs/latest/provisioning/ignition/#ignition-only-runs-once
+Inspect Cluster for Issues
+If you have issues during cluster creation, you can investigate those issues with some of the following
+commands..
+You can investigate what is running and what has failed to try to resolve those issues independently.
+Investigate Cluster Issues
+These commands can provide helpful information for troubleshooting.
+•
+Check your pods to see if anything not running and investigate those pods. You can view your pods by
+checking their status with the command:
+kubectl get pods -A
+•
+You can check the logs in your cluster API pod of your cluster infrastructure provider choice. The
+example below uses Nutanix infrastructure, so replace it with your infrastructure.
+kubectl logs -l cluster.x-k8s.io/provider=infrastructure-nutanix --namespace capx-
+system --kubeconfig ${CLUSTER_NAME}.conf
+•
+If you still have your bootstrap cluster running, you can check your CAPI logs from the bootstrap with
+the command. The example below uses Nutanix infrastructure, so replace it with your CAPI driver and
+infra name.
+kubectl logs -l cluster.x-k8s.io/provider=infrastructure-nutanix --namespace capx-
+system --kubeconfig ${CLUSTER_NAME}-bootstrap.conf
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 683
+
+--- page 684 ---
+Configuring Self-healing
+You can configure self-healing behavior by modifying the spec.maxUnhealthy field in a
+MachineHealthCheck (MHC) resource.
+About this task
+To configure self-healing, follow these steps:
+Procedure
+1. Open a command line interface (CLI).
+2. View the MachineHealthCheck resources:
+$ kubectl get MachineHealthCheck
+The list of MachineHealthCheck resources is displayed.
+$ kubectl get MachineHealthCheck
+NAME             CLUSTER   EXPECTEDMACHINES   MAXUNHEALTHY   CURRENTHEALTHY   AGE
+nkp-j5h4n        nkp       3                  40%            3                8h
+nkp-md-0-qgxr8   nkp       4                  40%            4                8h
+In this example, the MachineHealthChecks for a control node pool named nkp-j5h4n and a worker
+node pool named nkp-md-0-qgxr8 are displayed.
+3. Edit the required MachineHealthCheck resource:
+»
+For ClusterClass-based clusters, run the following command:
+kubectl edit cluster -n <namespace> <cluster name>
+Replace <namespace> and <cluster name> with the appropriate information.
+»
+For non-ClusterClass-based clusters, run the following command:
+$ kubectl edit machinehealthcheck -n <namespace> <mhc-name>
+Replace <mhc-name> with the name of the MachineHealthCheck resource of the control pane node
+pool or the worker pane node pool. Edit the resource under spec.
+To configure MachineHealthCheck settings per node pool, edit the Cluster resource under:
+spec.topology.workers.machineDeployments[*].machineHealthCheck
+For example:
+spec:
+  topology:
+    workers:
+      machineDeployments:
+        - name: <nodepool-name>
+          class: <md-class&gt;
+          machineHealthCheck:
+            maxUnhealthy: 50%
+4. Search for spec.maxUnhealthy.
+Note:  The default value is 40%.
+5. Update the value of spec.maxUnhealthy as required
+For example:
+[...]
+spec:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 684
+
+--- page 685 ---
+  clusterName: nkp
+  maxUnhealthy: 50%
+  nodeStartupTimeout: 10m0s
+[...]
+6. Save the changes.
+7. Verify this update:
+$ kubectl describe machinehealthcheck <mhc-name>
+Certificate Renewal
+When you create a cluster, Kubernetes establishes a public key infrastructure (PKI) to generate the
+transport layer security (TLS) certificates required to secure communication between various components,
+such as etcd, kubernetes-apiserver, and kube-proxy. These certificates expire by default after one
+year and renew when the administrator updates the cluster.
+Kubernetes automatically renew all certificates during control plane upgrades. For administrators managing
+long-running clusters or clusters that they do not upgrade often, Nutanix Kubernetes Platform (NKP)
+provides automated certificate renewal without a cluster upgrade or out-of-band certificate rotation.
+You can renew the control plane certificate using one of the following automated methods:
+•
+Renewing the Control Plane Certificate Using Cluster API Method on page 685
+Note:
+•
+Nutanix recommends that you renew the control plane certificates in the NKP cluster only
+using the Cluster API (CAPI) method.
+•
+NKP does not support automated renewal of control plane certificates for attached clusters.
+Nutanix recommends renewing the control plane certificates for those clusters manually to
+prevent cluster inaccessibility due to an expired certificate.
+Renewing the Control Plane Certificate Using Cluster API Method
+NKP enables automated renewal of the certificate on the control plane nodes before it expires. The control
+plane certificate renewal process uses cluster API (CAPI) and applies to all infrastructure providers except
+Amazon Elastic Kubernetes Services (EKS) and Azure Kubernetes Services (AKS).
+About this task
+To configure an automated renewal of control plane certificates using CAPI in a new NKP cluster or in an
+existing control plane node, follow these steps:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 685
+
+--- page 686 ---
+Procedure
+1. If you are creating a NKP cluster, follow these steps:
+a. Create a NKP cluster.
+nkp create cluster infrastructure-provider
+Replace infrastructure-provider with the appropriate infrastructure provider. The supported
+infrastructure providers are Nutanix, AWS, Azure, GCP, Pre-provisioned, and vSphere.
+By default, NKP sets the control plane certificate expiry to 180 days.
+b. (Optional) Set the automated renewal interval for the control plane certificate.
+nkp create cluster infrastructure-provider --control-plane-renew-certificates-
+before=50
+The control-plane-renew-certificates-before flag indicates the number of days before expiry
+when the control plane certificate renews automatically.
+For example, a control-plane-renew-certificates-before value of 50 indicates that the
+certificate automatically renews 50 days before expiration.
+c. (Optional) Disable the automated renewal of control plane certificate on a newly created NKP cluster.
+nkp create cluster infrastructure-provider --control-plane-renew-certificates-
+before=0
+A control-plane-renew-certificates-before value of 0 disables the automated renewal of
+control plane certificate.
+Note:  If you disable the automated renewal of control plane certificate, you must manually renew the
+certificate to prevent cluster inaccessibility due to expired certificate. For more information, see KB
+19301.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 686
+
+--- page 687 ---
+2. To enable automated renewal of control plane certificate on an existing NKP cluster, follow these steps:
+a. Update an existing control plane node pool in the NKP cluster.
+nkp update controlplane infrastructure-provider --control-plane-renew-
+certificates-before=50
+Replace infrastructure-provider with the appropriate infrastructure provider. The supported
+infrastructure providers are Nutanix, AWS, Azure, GCP, Pre-provisioned, and vSphere.
+The control-plane-renew-certificates-before flag indicates the number of days before expiry
+when the control plane certificate renews automatically.
+For example, a control-plane-renew-certificates-before value of 50 indicates that the
+certificate automatically renews 50 days before expiration.
+To modify the automated renew interval of control plane certificate, update the control-plane-
+renew-certificates-before flag value as necessary.
+b. (Optional) Disable the automated renewal of control plane certificate on an existing NKP cluster.
+nkp update controlplane infrastructure-provider --control-plane-renew-
+certificates-before=0
+Replace infrastructure-provider with the appropriate infrastructure provider. The supported
+infrastructure providers are Nutanix, AWS, Azure, GCP, Pre-provisioned, and vSphere.
+A control-plane-renew-certificates-before value of 0 disables the automated renewal of
+control plane certificate.
+Note:  If you disable the automated renewal of control plane certificate, you must manually renew the
+certificate to prevent cluster inaccessibility due to expired certificate. For more information, see KB
+19301.
+Viewing Alerts
+When you create a cluster, Nutanix Kubernetes Platform (NKP), automatically sets the control plane
+certificate renewal to 180 days by default. You can configure a custom interval to automatically renew the
+control plane certificate before it expires. Based on the expiry status and renewal interval, NKP displays
+alerts with different severity levels, including informational, warning, and critical alerts in the Kommander
+user interface.
+About this task
+If you enable automated renewal of the control plane certificate during cluster creation, the Kommander
+user interface displays the following alerts:
+•
+Renews in (X) day: Triggers between one and seven days before automatic renewal.
+(X) indicates one to seven days.
+•
+Renewal In Progress: Triggers on the renewal day.
+•
+Renewal Might Fail: Triggers as the renewal interval advances and one or more nodes fail to complete
+automated certificate renewal.
+•
+Expired: Triggers when the automated certificate renewal fails and the certificate expires.
+If you disable or when NKP does not support automated renewal of the control plane certificate during
+cluster creation, the Kommander user interface displays the following alerts:
+•
+Auto-Renewal Disabled: Triggers when you disable automated renewal of control plane certificates.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 687
+
+--- page 688 ---
+•
+Unknown: Displays when NKP does not support automated renewal or cannot retrieve the renewal
+information.
+Note:  NKP does not support automated renewal of control plane certificates for the attached clusters.
+To view the alerts, follow these steps:
+Procedure
+1. Log in to the NKP user interface.
+By default, the Dashboard displays both management and managed clusters.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 688
+
+--- page 689 ---
+2. In the left navigation menu, click Clusters.
+You can view the alerts on the following pages:
+•
+To filter the cluster widget based on the severity of certificate alert, click All, Errors, Warning, or
+Notice tab.
+•
+To view all the alerts, click All.
+•
+When the certificate renewal fails, NKP displays the alerts in Errors.
+•
+When the certificate might fail, NKP displays the alerts in Warning.
+•
+When the certificate renewal is in X number of days or in progress, NKP displays the alerts in
+Notice.
+•
+In the cluster (management or managed) widget, click the Certificate button.
+A dialog box displays an appropriate alert message based on the alert.
+Note:
+•
+The Certificate button appears in the widget when seven or fewer days remain before
+renewal.
+•
+The Certificate button is greyed out when you disable or when NKP does not support
+automated renewal.
+•
+In the Management Cluster or managed cluster widget, click View Details.
+In the General Cluster Information page, click the alert message such as:
+•
+Renews in 7 days
+•
+Renewal In Progress
+•
+Renewal Might Fail
+•
+Expired
+•
+Auto-Renewal Disabled
+•
+Unknown
+A dialog box displays an appropriate alert message based on the alert.
+•
+To view the expiry and automated renewal information of a control plane certificate, go to
+Management Cluster or managed cluster widget, click View Details and select the Configuration
+tab.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 689

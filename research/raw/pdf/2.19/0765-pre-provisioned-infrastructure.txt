@@ -1,0 +1,2603 @@
+
+--- page 765 ---
+                    - 838f80b2-2878-4840-b304-1563b28b568c
+                    - 066d22f5-5511-4895-8811-879c63845596
+        - class: host-agent-worker
+          metadata:
+            annotations:
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size: "1"
+              cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size: "1"
+          name: worker-gpu
+          variables:
+            overrides:
+            - name: workerConfig
+              value:
+                hostAgent:
+                  hostSelector:
+                    matchLabels:
+                      gpu: nvidia
+For example, in the following NKPCluster, worker-0 uses hostSelector.names with host names and
+requires updating. The worker-gpu node pool uses labels and does not need further changes.
+To identify the host name from the node name, run the following command, and then delete the host
+from the NKPCluster custom resource under topology.workers.machineDeployments:
+kubectl get assignedhosts \
+  --namespace ${CLUSTER_NAMESPACE}
+  --field-selector spec.hostname=${NODE_NAME} \
+  -o jsonpath='{.items[0].metadata.name}'
+Pre-provisioned Infrastructure
+Configuration types for installing the Nutanix Kubernetes Platform (NKP) on a Pre-provisioned
+Infrastructure.
+Create a Kubernetes cluster on pre-provisioned nodes in a bare metal infrastructure.
+The following procedure describes creating an NKP cluster on a pre-provisioned infrastructure using SSH.
+For more information on a Pre-provisioned environment, see Pre-provisioned Infrastructure on page 25
+Completing this procedure results in a Kubernetes cluster that includes a Container Networking Interface
+(CNI) and a Local Persistence Volume Static Provisioner that is ready for workload deployment.
+For more information, see:
+•
+Container Networking Interface (CNI): https://docs.projectcalico.org/
+•
+Local Persistence Volume Static Provisioner: https://github.com/kubernetes-sigs/sig-storage-local-static-
+provisioner
+Before moving to a production environment, you might add applications for logging and monitoring,
+storage, security, and other functions. You can use NKP to select and deploy applications or deploy your
+own. For more information, see Deploying Platform Applications Using CLI on page 297.
+Pre-provisioned Prerequisites and Environment Variables
+Pre-provisioning is the process of setting up an environment that authorized users, devices, and servers
+can access. Network provisioning primarily concerns connectivity and security, which means a heavy focus
+on device and identity management. Pre-provisioning can bring enterprises greater efficiency and more
+secure operations.
+A cloud-based or on-premises server must first be provisioned with the correct data, software, and
+configuration to function on a network.
+The steps in this process typically include:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 765
+
+--- page 766 ---
+•
+Installing an operating system, device drivers, and partitioning and setup tools
+•
+Installing enterprise software and applications
+•
+Setting parameters such as IP addresses
+•
+Performing partitioning or installation of virtualization software
+•
+Connectivity, whether an air-gapped or non-air-gapped environment, meaning it is connected to the
+internet
+Pre-provisioned: Prerequisites
+Infrastructure and machine requirements will be required to fulfill all the prerequisites for a successful
+implementation in a Pre-provisioned environment. Read all the sections on this page to ensure you have
+met all prerequisites. Before you begin using Nutanix Kubernetes Platform, you must have the following
+set:
+•
+An x86_64-based Linux or macOS machine.
+•
+The nkp binary for Linux or macOS.
+•
+kubectl for interacting with the running cluster.
+•
+Pre-provisioned hosts with SSH access enabled.
+•
+An unencrypted SSH private key, whose public key is configured on the above hosts.
+•
+A Container engine/runtime installed is required to install NKP and bootstrap:
+•
+Docker container engine version 27.4.0 installed for Linux or MacOS. For more information, see
+https://docs.docker.com/get-docker/.
+Docker runs in a virtual machine which needs configured with at least 8 GB of memory.
+•
+Podman Version 4.0 or later for Linux. For more information, see https://podman.io/getting-
+started/installation. For host requirements, see https://kind.sigs.k8s.io/docs/user/rootless/#host-
+requirements.
+•
+Air-Gapped Environment Setup:
+•
+NKP Bundle: Download and extract the complete NKP Air-gapped Bundle (NKP Air-gapped Bundle
+for this release (for example, nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz) to
+load the registry).
+•
+Local Registry: Set up a working registry.local on a bastion host or another accessible machine
+to host the loaded images.
+•
+Additional steps: Follow the specific guidance in the Pre-provisioned Air-gapped: Prerequisites and
+Docker Registry documentation.
+•
+Ensure your Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix
+Kubernetes Platform on page 694 meet the specific CPU, RAM, and Disk specifications.
+When in an air-gapped environment, you must also follow the steps described in Pre-provisioned Air-
+gapped: Prerequisites on page 800 and Docker Registry as a prerequisite.
+Warning:  NKP uses localvolumeprovisioner as the default storage provider. However,
+localvolumeprovisioner is not suitable for production use. Use a Kubernetes CSI compatible storage
+that is suitable for production.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 766
+
+--- page 767 ---
+You can choose from any of the storage options available for Kubernetes. To disable the default that
+Konvoy deploys, set the default StorageClass localvolumeprovisioner as non-default. Then, set your
+newly created StorageClass as the default by following the commands in the Kubernetes documentation
+called Changing the Default Storage Class (https://kubernetes.io/docs/tasks/administer-cluster/change-
+default-storage-class/).
+Machine Specifications
+You need to have at least three Control Plane Machines.
+Each control plane machine must have the following:
+•
+4 cores
+•
+16 GB memory
+•
+Approximately 80 GB of free space for the volume used for /var/lib/kubelet and /var/lib/
+containerd.
+•
+15% free space on the root file system.
+•
+Multiple ports are open as described in the NKP Ports and Protocols page.
+•
+firewalld systemd service disabled. If it exists and is enabled, use the commands systemctl stop
+firewalld then systemctl disable firewalld, so that firewalld remains disabled after the
+machine restarts.
+Note:  Swap is disabled. The kubelet does not have generally available support for swap. Due to variable
+commands, refer to your operating system documentation.
+Worker Machines
+You need to have at least four worker machines. The specific number of worker machines required for your
+environment can vary depending on the cluster workload and size of the machines.
+Each worker machine must have the following:
+•
+8 cores
+•
+32 GiB memory
+•
+Around 80 GiB of free space for the volume used for /var/lib/kubelet and /var/lib/containerd
+•
+15% free space on the root file system
+•
+If you plan to use local volume provisioning to provide persistent volumes for your workloads, you must
+mount at least four volumes to the /mnt/disks/ mount point on each machine. Each volume must have
+at least 55 GB capacity.
+•
+Ensure your disk meets the resource requirements for Rook Ceph in Block mode for
+ObjectStorageDaemons (https://rook.io/docs/rook/v1.10/CRDs/Cluster/ceph-cluster-crd/#storage-
+selection-settings) as specified in the requirements table (Rook Ceph: Configuration on page 647).
+•
+Multiple ports are open as described in the NKP Ports and Protocols page.
+•
+firewalld systemd service disabled. If it exists and is enabled, use the commands systemctl stop
+firewalld then systemctl disable firewalld, so that firewalld remains disabled after the
+machine restarts.
+Note:  Swap is disabled. The kubelet does not generally support swap. Due to variable commands, refer
+to your operating system documentation.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 767
+
+--- page 768 ---
+Pre-provisioned: Defining the Set Infrastructure
+Define the cluster's control plane and worker nodes.
+About this task
+The Konvoy component of Nutanix Kubernetes Platform (NKP) must know how to access your cluster
+hosts, so you must define the cluster hosts and infrastructure. This is done using inventory resources. For
+initial cluster creation, you must define a control-plane and at least one worker pool for air-gapped and
+non-air-gapped environments.
+Complete the steps to set the necessary environment variables and specify the control plane and worker
+nodes:
+Procedure
+1. Export the following environment variables, ensuring that all control plane and worker nodes are
+included:
+export CONTROL_PLANE_1_ADDRESS="<control-plane-address-1>"
+export CONTROL_PLANE_2_ADDRESS="<control-plane-address-2>"
+export CONTROL_PLANE_3_ADDRESS="<control-plane-address-3>"
+export WORKER_1_ADDRESS="<worker-address-1>"
+export WORKER_2_ADDRESS="<worker-address-2>"
+export WORKER_3_ADDRESS="<worker-address-3>"
+export WORKER_4_ADDRESS="<worker-address-4>"
+export SSH_USER="<ssh-user>"
+export SSH_PRIVATE_KEY_SECRET_NAME="$CLUSTER_NAME-ssh-key"
+2. Use the following template to define your infrastructure.
+The environment variables you set in this step automatically replace the variable names when the
+inventory YAML file is created.
+cat <<EOF > preprovisioned_inventory.yaml
+---
+apiVersion: infrastructure.cluster.konvoy.d2iq.io/v1alpha1
+kind: PreprovisionedInventory
+metadata:
+  name: $CLUSTER_NAME-control-plane
+  namespace: default
+  labels:
+    cluster.x-k8s.io/cluster-name: $CLUSTER_NAME
+    clusterctl.cluster.x-k8s.io/move: ""
+spec:
+  hosts:
+    # Create as many of these as needed to match your infrastructure
+    # Note that the command line parameter --control-plane-replicas determines how
+ many control plane nodes will actually be used.
+    #
+    - address: $CONTROL_PLANE_1_ADDRESS
+    - address: $CONTROL_PLANE_2_ADDRESS
+    - address: $CONTROL_PLANE_3_ADDRESS
+  sshConfig:
+    port: 22
+    # This is the username used to connect to your infrastructure. This user must be
+ root or
+    # have the ability to use sudo without a password
+    user: $SSH_USER
+    privateKeyRef:
+      # This is the name of the secret you created in the previous step. It must
+ exist in the same
+      # namespace as this inventory object.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 768
+
+--- page 769 ---
+      name: $SSH_PRIVATE_KEY_SECRET_NAME
+      namespace: default
+---
+apiVersion: infrastructure.cluster.konvoy.d2iq.io/v1alpha1
+kind: PreprovisionedInventory
+metadata:
+  name: $CLUSTER_NAME-md-0
+  namespace: default
+  labels:
+    cluster.x-k8s.io/cluster-name: $CLUSTER_NAME
+    clusterctl.cluster.x-k8s.io/move: ""
+spec:
+  hosts:
+    - address: $WORKER_1_ADDRESS
+    - address: $WORKER_2_ADDRESS
+    - address: $WORKER_3_ADDRESS
+    - address: $WORKER_4_ADDRESS
+  sshConfig:
+    port: 22
+    user: $SSH_USER
+    privateKeyRef:
+      name: $SSH_PRIVATE_KEY_SECRET_NAME
+      namespace: default
+EOF
+3. To tell the bootstrap cluster which nodes you want to be control plane nodes and which nodes are
+worker nodes. Apply the file to the bootstrap cluster using the command kubectl apply.
+kubectl apply -f preprovisioned_inventory.yaml
+Example:
+preprovisionedinventory.infrastructure.cluster.konvoy.nutanix.io/cluster_name-
+control-plane created
+preprovisionedinventory.infrastructure.cluster.konvoy.nutanix.io/cluster_name-md-0
+ created
+What to do next
+Pre-provisioned Cluster Creation Customization Choices
+Pre-provisioned: Loading the Registry for an Air-gapped Kubernetes Cluster
+Before creating an Air-gapped Kubernetes cluster, you must load the required images in a local registry for
+the Konvoy component.
+About this task
+The complete Nutanix Kubernetes Platform (NKP) air-gapped bundle is needed for an air-gapped
+environment but can also be used in a non-air-gapped environment. The bundle contains all the NKP
+components needed for an air-gapped environment installation and a local registry in a non-air-gapped
+environment.
+Before you begin
+Extract Air-gapped Images
+Follow these steps to extract the air-gapped image bundles into your private registry.
+If you are operating in an air-gapped environment, a local container registry containing all the necessary
+installation images, including the Kommander images is required. See below for prerequisites to download
+and then how to push the necessary images to this registry.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 769
+
+--- page 770 ---
+1. Download the Complete NKP Air-gapped Bundle for this release (that is, nkp-air-gapped-
+bundle_nkp-version_linux_amd64.tar.gz) to load registry images as explained below.
+2. Connectivity with clusters attaching to the management cluster is required:
+•
+Both management and attached clusters must be able to connect to the local registry.
+•
+The management cluster must be able to connect to all attached cluster’s API servers.
+•
+The management cluster must be able to connect to any load balancers created for platform
+services on the management cluster.
+Load the Bootstrap Image
+Procedure
+1. Assuming you have downloaded the air-gapped bundle nkp-air-gapped-bundle_nkp-
+version_linux_amd64.tar.gz and extracted the tar file to a local directory using the command tar -
+xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz.
+Example directory structure after extraction
+nkp-nkp-version/
+### application-charts
+#   ### NOTICES.txt
+#   ### nkp-insights-charts-bundle-v2.8.0-rc.2.tar.gz
+#   ### nkp-kommander-charts-bundle-v2.8.0-rc.2.tar.gz
+### application-repositories
+#   ### nkp-insights-v2.8.0-rc.2.tar.gz
+### container-images
+#   ### NOTICES.txt
+#   ### nkp-insights-image-bundle-v2.8.0-rc.2.tar
+#   ### kommander-image-bundle-v2.8.0-rc.2.tar
+#   ### konvoy-image-bundle-v2.8.0-rc.2.tar
+### nkp
+### kib
+#   ### LICENSE
+#   ### README.md
+#   ### ansible
+#   ### artifacts
+#   ### goss
+#   ### images
+#   ### konvoy-image
+#   ### overrides
+### konvoy-bootstrap-image-nkp-version-rc.2.tar
+### kubectl
+2. The directory structure after extraction can be accessed in subsequent steps using commands to
+access files from different directories. For the bootstrap, change your directory to the nkp-<version>
+directory similar to example below depending on your current location.
+cd nkp-nkp-version
+3. Load the bootstrap container image on your bastion machine replacing docker with podman if needed:
+docker load -i konvoy-bootstrap-image-nkp-version.tar
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 770
+
+--- page 771 ---
+Set Environment Variables
+Procedure
+Set an environment variable with your registry address and any other needed variables using this
+command.
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+REGISTRY_URL: the address of an existing local registry accessible in the VPC that the new cluster nodes
+will be configured to use a mirror registry when pulling images.
+Additional Registry Variables: More environment variables if needed:
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+export REGISTRY_CA=<path to the cacert file on the bastion>
+Load Images to your Private Registry - Konvoy
+About this task
+Before creating or upgrading a Kubernetes cluster, you need to load the required images in a local registry
+if operating in an air-gapped environment. This registry must be accessible from both the bastion machine
+and either the AWS EC2 instances or other machines that will be created for the Kubernetes cluster.
+Warning:  If you do not already have a local registry set up, refer to Local Registry Tools page for more
+information.
+Procedure
+Execute the following command to load the air-gapped image bundle into your private registry: nkp push
+bundle --bundle ./container-images/konvoy-image-bundle-nkp-version.tar --to-registry=
+${REGISTRY_URL} --to-registry-username=${REGISTRY_USERNAME} --to-registry-password=
+${REGISTRY_PASSWORD}
+Note:  It might take some time to push all the images to your image registry, depending on the network's
+performance between the machine you are running the script on and the registry.
+Load Images to your Private Registry - Kommander
+About this task
+Load Kommander images to your Private Registry.
+For the air-gapped kommander image bundle, run the command below.
+Procedure
+Run the following command to load the image bundle:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar --
+to-registry=${REGISTRY_URL} --to-registry-username=${REGISTRY_USERNAME} --to-registry-
+password=${REGISTRY_PASSWORD}
+Pre-provisioned: Replacing the Driver with the Azure Disk CSI Driver
+After your bootstrap is running and your cluster is created, you will need to install the Azure Disk CSI Driver
+on your pre-provisioned Azure Kubernetes cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 771
+
+--- page 772 ---
+About this task
+The Nutanix Kubernetes Platform (NKP) Pre-provisioned provider installs by default the storage-local-
+static-provisioner CSI driver, which is not suitable for production environments. For this reason, it needs to
+be replaced by the Azure Disk CSI Driver.
+Before you begin
+•
+An x86_64-based Linux or macOS machine.
+•
+Download the nkp binary for Linux or macOS. To check which version of NKP you installed for
+compatibility reasons, run the nkp version command.
+•
+A Container engine or runtime installed is required to install NKP and bootstrap:
+•
+Docker container engine version 27.4.0 installed for Linux or MacOS. For more information, see
+https://docs.docker.com/get-docker/.
+•
+Podman Version 4.0 or later for Linux. For more information, see https://podman.io/getting-
+started/installation. For host requirements, see https://kind.sigs.k8s.io/docs/user/rootless/#host-
+requirements.
+•
+CLI tool Kubectl is used to interact with the running cluster. https://kubernetes.io/docs/tasks/tools/
+#kubectl
+•
+Azure CLI. For more information, see https://docs.microsoft.com/en-us/cli/azure/install-azure-cli.
+•
+A valid Azure account with credentials configured. For more information, see https://
+learn.microsoft.com/en-us/azure/aks/concepts-identity.
+•
+Create a custom Azure image using NIB. For more information, see Building a Custom Image with
+Azure on page 65.
+•
+For air-gapped environments only:
+•
+Ability to download artifacts from the internet and then copy those onto your Bastion machine.
+•
+Download the Complete NKP Air-gapped Bundle for this release - nkp-air-gapped-bundle_nkp-
+version_linux_amd64.tar.gz.
+•
+An existing local registry to seed the air-gapped environment. For more information, see Registry
+and Registry Mirrors on page 674.
+Note:  On macOS, Docker runs in a virtual machine. Configure this virtual machine with at least 8GB of
+memory.
+About this task
+Set Environment Variables with Credentials - An Azure Service Principal is needed for deploying
+resources. To configure your Azure environment, follow below.
+Procedure
+1.
+Log in to Azure using the command az login.
+Example output:
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "id": "b1234567-abcd-11a1-a0a0-1234a5678b90",
+    "isDefault": true,
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 772
+
+--- page 773 ---
+    "managedByTenants": [],
+    "name": "Mesosphere Developer Subscription",
+    "state": "Enabled",
+    "tenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "user": {
+      "name": "user@azuremesosphere.onmicrosoft.com",
+      "type": "user"
+    }
+  }
+]
+2.
+Create an Azure Service Principal (SP) by using the command az ad sp create-for-rbac --role
+contributor --name "$(whoami)-konvoy" --scopes=/subscriptions/$(az account show --
+query id -o tsv).
+This command will rotate the password if an SP with the name exists.
+Example output:
+{
+  "appId": "7654321a-1a23-567b-b789-0987b6543a21",
+  "displayName": "azure-cli-2021-03-09-23-17-06",
+  "password": "Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C",
+  "tenant": "a1234567-b132-1234-1a11-1234a5678b90"
+}
+•
+For air-gapped environments, you need to create a resource management private link (https://
+learn.microsoft.com/en-us/azure/azure-resource-manager/management/create-private-link-access-
+portal) with a private endpoint to ensure the Azure CSI driver will run correctly in further steps.
+Private links enable you to access Azure services over a private endpoint in your virtual network.
+For more information, see https://learn.microsoft.com/en-us/azure/azure-resource-manager/
+management/create-private-link-access-portal.
+To set up a private link resource, use the following process.
+1. Create a private resource management link using Azure CLI. For more information, see https://
+learn.microsoft.com/en-us/azure/azure-resource-manager/management/create-private-link-
+access-commands?tabs=azure-cli#create-resource-management-private-link
+2. Create a private link association for the root management group, which also references the
+resource ID for the resource management private link. For more information, see https://
+learn.microsoft.com/en-us/azure/azure-resource-manager/management/create-private-link-
+access-commands?tabs=azure-cli#create-private-link-association.
+3. Add a private endpoint referencing the resource management private link using the Azure
+Documentation. For more information, see https://learn.microsoft.com/en-us/azure/private-link/
+create-private-endpoint-cli?tabs=dynamic-ip.
+3.
+Set the required environment variables.
+Example:
+export AZURE_SUBSCRIPTION_ID="<id>"       # b1234567-abcd-11a1-a0a0-1234a5678b90
+export AZURE_TENANT_ID="<tenant>"         # a1234567-b132-1234-1a11-1234a5678b90
+export AZURE_CLIENT_ID="<appId>"          # 7654321a-1a23-567b-b789-0987b6543a21
+export AZURE_CLIENT_SECRET="<password>"   # Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C
+export AZURE_RESOURCE_GROUP="<resource group name>" # set to the name of the
+ resource group
+export AZURE_LOCATION="westus"            # set to the location you are using
+4.
+Set your KUBECONFIG environment variable using the command export kubeconfig=
+${CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 773
+
+--- page 774 ---
+5.
+Create the Secret with the Azure credentials. The Azure CSI driver will use this.
+a. Create an azure.json file.
+cat <<EOF > azure.json
+{
+  "cloud": "AzurePublicCloud",
+  "tenantId": "$AZURE_TENANT_ID",
+  "subscriptionId": "$AZURE_SUBSCRIPTION_ID",
+  "aadClientId": "$AZURE_CLIENT_ID",
+  "aadClientSecret": "$AZURE_CLIENT_SECRET",
+  "resourceGroup": "$AZURE_RESOURCE_GROUP",
+  "location": "$AZURE_LOCATION"
+}
+EOF
+b. Create the Secret using the command kubectl create secret generic azure-
+cloud-provider --namespace=kube-system --type=Opaque --from-file=cloud-
+config=azure.json.
+6.
+Install the Azure Disk CSI driver using the command $ curl -skSL https://
+raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/v<kubernetes-
+version>/deploy/install-driver.sh | bash -s v<kubernetes-version> snapshot –.
+Note:  For more information about the supported Kubernetes version, see Supported Kubernetes
+Versions section in the NKP Release Notes.
+7.
+Check the status to see if the driver is ready for use using the command.
+kubectl -n kube-system get pod -o wide --watch -l app=csi-azuredisk-controller
+kubectl -n kube-system get pod -o wide --watch -l app=csi-azuredisk-node
+Kubernetes knows this is Azure disk and will create clusters on Azure.
+8.
+Create the StorageClass for the Azure Disk CSI Driver using the command kubectl create -
+f https://raw.githubusercontent.com/kubernetes-sigs/azuredisk-csi-driver/master/
+deploy/example/storageclass-azuredisk-csi.yaml.
+9.
+Change the default storage class to this new StorageClass so that every new disk will be created in
+the Azure environment using the command.
+kubectl patch sc/localvolumeprovisioner -p '{"metadata": {"annotations":
+{"storageclass.kubernetes.io/is-default-class":"false"}}}'
+kubectl patch sc/managed-csi -p '{"metadata": {"annotations":
+{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+10. Verify that the StorageClass chosen is currently the default using the command kubectl get
+storageclass.
+For more information about Azure Disk CSI for persistent storage and changing the default
+StorageClass, see Default Storage Providers in NKP.
+Pre-provisioned Cluster Creation Customization Choices
+Below are two methods to customize your cluster during creation. If none of these choices apply, proceed
+to the next section.
+•
+Pre-provisioned Install in a Non-air-gapped Environment
+•
+Pre-provisioned Install in an Air-gapped Environment
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 774
+
+--- page 775 ---
+Pre-provisioned Section Topics
+Many options are available when creating clusters, such as those listed in this documentation section. A
+brief explanation of each choice is given in the following topic summaries with a link to the more descriptive
+page. To use these, proceed to the cluster choice page for detailed instructions:
+•
+Pre-provisioned Customizing CAPI Clusters : Familiarize yourself with the Cluster API before editing
+the cluster objects, as edits can prevent the cluster from deploying successfully.
+•
+Pre-provisioned Registry Mirrors: In an air-gapped environment, you need a local repository to store
+Helm charts, Docker images, and other artifacts. In an environment with access to the Internet, you can
+retrieve artifacts from specialized repositories dedicated to them, such as Docker images contained in
+DockerHub and Helm Charts that come from a dedicated Helm Chart repository.
+•
+Pre-provisioned Create Secrets and Overrides: Create necessary secrets and overrides for pre-
+provisioned clusters. Most applications deployed through Kubernetes (https://kubernetes.io/docs/
+concepts/configuration/secret/) require access to databases, services, and other external resources.
+The easiest way to manage the login information necessary to access those resources is using secrets,
+which help organize and distribute sensitive information across a cluster while minimizing the risk of
+sensitive information exposure.
+•
+Pre-provisioned Define Control Plane Endpoint: A control plane needs to have three, five, or seven
+nodes to remain available if one, two, or three nodes fail. A control plane with one node is not for
+production use.
+•
+Pre-provisioned Configure MetalLB: An external load balancer (LB) is recommended to be the
+control plane endpoint. To distribute request load among the control plane machines, configure the
+load balancer to send requests to all the control plane machines. Configure the load balancer to send
+requests only to control plane machines responding to API requests. If you do not have one, you can
+use Metal LB to create MetalLB configmap for your Pre-provisioned infrastructure.
+•
+Pre-provisioned Modify the Calico Installation: Calico is a networking and security solution that
+enables Kubernetes and non-Kubernetes/legacy workloads to communicate seamlessly and securely.
+Sometimes, changes are needed, so use the information on this Pre-provisioned Modify the Calico
+Installation page.
+•
+Pre-provisioned Built-in Virtual IP: As explained in Define the Control Plane Endpoint, we
+recommend using an external load balancer for the control plane endpoint but provide a built-in virtual
+IP when one is not available.
+•
+Pre-provisioned Use HTTP Proxy: When you require HTTP proxy configurations, you can apply them
+during the create operation by adding the appropriate flags to the nkp create cluster command.
+•
+Pre-provisioned Use Alternate Pod or Service Subnets: Some subnets are reserved by Kubernetes
+and can prevent proper cluster deployment if you unknowingly configure NKP so that the Node subnet
+collides with either the Pod or Service subnet.
+•
+Pre-provisioned Output Directory YAML: You can create individual files with different smaller
+manifests for ease in editing using the --output-directory flag used with --output=json|yaml. You
+create the directory where resources are outputted to files.
+Single-Node Control Plane
+Caution:  Do not use a single-node control plane in a production cluster.
+A control plane with one node can use its single node as the endpoint, so you will not require an external
+load balancer or a built-in virtual IP. At least one control plane node must always be running. Therefore, a
+spare machine must be available in the control plane inventory to upgrade a cluster with one control plane
+node. This machine is used to provision the new node before the old node is deleted.
+When the API server endpoints are defined, you can create the cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 775
+
+--- page 776 ---
+Note:  For more information on modifying Control Plane Audit logs settings, see Configuring the Control
+Plane.
+Pre-provisioned: Customizing CAPI Clusters
+Familiarize yourself with Cluster API before editing the cluster objects because edits can prevent the
+cluster from deploying successfully.
+The result of this command will allow such edits:
+nkp create cluster preprovisioned \
+  --cluster-name ${CLUSTER_NAME} \
+  --control-plane-endpoint-host <control plane endpoint host> \
+  --pre-provisioned-inventory-file preprovisioned_inventory.yaml \
+  --ssh-private-key-file <path-to-ssh-private-key> \
+  --dry-run \
+  --output=yaml \
+  > ${CLUSTER_NAME}.yaml
+To edit the YAML, you need to understand the CAPI components to avoid breaking the cluster.
+Pre-provisioned: Registry Mirrors
+In an air-gapped environment, you need a local repository to store Helm charts, Docker images, and
+other artifacts. In an environment with access to the Internet, you can retrieve artifacts from specialized
+repositories dedicated to them, such as Docker images contained in DockerHub and Helm Charts that
+come from a dedicated Helm Chart repository.
+Kubernetes does not natively provide a registry for hosting the container images you will use to run the
+applications you want to deploy on Kubernetes. Instead, Kubernetes requires you to use an external
+solution to store and share container images. A variety of Kubernetes-compatible registry options are
+compatible with NKP.
+How the Registry Mirror Works
+The first time you request an image from your local registry mirror, it pulls the image from the public registry
+(such as Docker) and stores it locally before handing it back to you. On subsequent requests, the local
+registry mirror can serve the image from its storage.
+Air-gapped vs. Non-air-gapped Environments
+In a non-air-gapped environment, you can access the Internet. You retrieve artifacts from specialized
+repositories dedicated to them, such as Docker images contained in DockerHub and Helm Charts that
+come from a dedicated Helm Chart repository. You can also create your local repository to hold the
+downloaded container images needed or any custom images you’ve created with the Nutanix Image
+Builder on page 55 tool.
+In an air-gapped environment, you need a local repository to store Helm charts, Docker images, and
+other artifacts. Private registries provide security and privacy in enterprise container image storage,
+whether hosted remotely or on-premises locally in an air-gapped environment. NKP in an air-gapped
+environment requires a local container registry of trusted images to enable production-level Kubernetes
+cluster management. However, a local registry is also an option in a non-air-gapped environment for speed
+and security.
+If you want to use images from this local registry to deploy applications inside your Kubernetes cluster, you
+will need to set up a secret for a private registry. The secret contains your login data, which Kubernetes
+needs to connect to your private repository.
+Pre-provisioned: Creating Secrets and Overrides
+Create necessary secrets and overrides for pre-provisioned clusters.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 776
+
+--- page 777 ---
+About this task
+Most applications deployed through Kubernetes require external access to databases, services, and other
+resources. The easiest way to manage the login information necessary to access those resources is by
+using secrets to help organize and distribute sensitive information across a cluster while minimizing the risk
+of sensitive information exposure.
+Nutanix Kubernetes Platform (NKP) requires SSH access to your infrastructure with superuser privileges.
+You must provide an unencrypted SSH private key to NKP , so secrets are a good way to achieve this.
+Populate the key and create the required secret on your bootstrap cluster using the following procedure.
+Before you begin
+Create a Unique Cluster Name
+Give your cluster a unique name suitable for your environment.
+Procedure
+Set the environment variable to be used throughout this procedure using the command export
+CLUSTER_NAME=<cluster_name>
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+(Optional) If you want to create a unique cluster name using the command.
+export CLUSTER_NAME=cluster_name-$(LC_CTYPE=C tr -dc 'a-z0-9' </dev/urandom | fold -w 5
+ | head -n1)
+echo $CLUSTER_NAME
+Note:  This creates a unique name every time you run it, so use it carefully.
+cluster_name-pf4a3
+Create a Secret
+About this task
+Create a secret that contains the SSH key.
+Procedure
+1. Export the key using the command export SSH_PRIVATE_KEY_FILE="<path-to-ssh-private-key>"
+2. Export the secret using the command export SSH_PRIVATE_KEY_SECRET_NAME=$CLUSTER_NAME-ssh-
+key.
+3. Create the secret using the command.
+kubectl create secret generic ${SSH_PRIVATE_KEY_SECRET_NAME} --from-file=ssh-
+privatekey=${SSH_PRIVATE_KEY_FILE}
+kubectl label secret ${SSH_PRIVATE_KEY_SECRET_NAME} clusterctl.cluster.x-k8s.io/move=
+Example output:
+secret/cluster_name-ssh-key created
+secret/cluster_name-ssh-key labeled
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 777
+
+--- page 778 ---
+Create Overrides
+About this task
+In these steps, you will point your machines at the desired Registry to obtain the container images. If
+your pre-provisioned machines need to have Custom Override Files, create a secret that includes all the
+overrides you want to provide in one file.
+Procedure
+1. Example CentOS7 and Docker - If you want to provide an override with Docker credentials and a
+different source for EPEL on a CentOS7 machine, create a file like this.
+cat > overrides.yaml << EOF 
+image_registries_with_auth:
+- host: "registry-1.docker.io"
+  username: "my-user"
+  password: "my-password"
+  auth: ""
+  identityToken: ""
+epel_centos_7_rpm: https://my-rpm-repostory.org/epel/epel-release-latest-7.noarch.rpm
+EOF
+You can then create the related secret by using the command.
+kubectl create secret generic $CLUSTER_NAME-user-overrides --from-
+file=overrides.yaml=overrides.yaml
+kubectl label secret $CLUSTER_NAME-user-overrides clusterctl.cluster.x-k8s.io/move=
+2. When using Oracle 7 OS, you might wish to deploy the RHCK kernel instead of the default UEK kernel.
+To do so, add the following text to your overrides.yaml.
+cat > overrides.yaml << EOF 
+---
+oracle_kernel: RHCK
+EOF
+kubectl create secret generic $CLUSTER_NAME-user-overrides --from-
+file=overrides.yaml=overrides.yaml
+kubectl label secret $CLUSTER_NAME-user-overrides clusterctl.cluster.x-k8s.io/move=
+Pre-provisioned: Creating FIPS Secrets and Overrides
+Nutanix Kubernetes Platform (NKP) requires SSH access to your infrastructure with superuser privileges.
+About this task
+You must provide an unencrypted SSH private key to NKP , so secrets are a good way to achieve this.
+Populate the key and create the required secret on your bootstrap cluster using the following procedure.
+Before you begin
+Create a Unique Cluster Name
+Give your cluster a unique name suitable for your environment.
+Procedure
+Set the environment variable to be used throughout this procedure using the command export
+CLUSTER_NAME=<cluster_name>
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 778
+
+--- page 779 ---
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+(Optional) If you want to create a unique cluster name, use the command.
+export CLUSTER_NAME=cluster_name-$(LC_CTYPE=C tr -dc 'a-z0-9' </dev/urandom | fold -w 5
+ | head -n1)
+echo $CLUSTER_NAME
+Note:  This creates a unique name every time you run it, so use it carefully.
+cluster_name-pf4a3
+Create a Secret
+About this task
+Create a secret that contains the SSH key.
+Procedure
+1. Export the key using the command export SSH_PRIVATE_KEY_FILE="<path-to-ssh-private-key>"
+.
+2. Export the secret using the command
+export SSH_PRIVATE_KEY_SECRET_NAME=$CLUSTER_NAME-ssh-key
+3. Create the secret using the command.
+kubectl create secret generic ${SSH_PRIVATE_KEY_SECRET_NAME} --from-file=ssh-
+privatekey=${SSH_PRIVATE_KEY_FILE}
+kubectl label secret ${SSH_PRIVATE_KEY_SECRET_NAME} clusterctl.cluster.x-k8s.io/move=
+Example output:
+secret/cluster_name-ssh-key created
+secret/cluster_name-ssh-key labeled
+Create Overrides
+About this task
+Procedure
+1. Create a secret that includes the customization Overrides for FIPS compliance.
+cat > overrides.yaml << EOF 
+---
+k8s_image_registry: docker.io/mesosphere
+fips:
+  enabled: true
+build_name_extra: -fips
+kubernetes_build_metadata: fips.0
+default_image_repo: hub.docker.io/mesosphere
+kubernetes_rpm_repository_url: "https://packages.nutanix.com/konvoy/stable/linux/
+repos/el/kubernetes-v{{ kubernetes_version }}-fips/x86_64"
+docker_rpm_repository_url: "\
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 779
+
+--- page 780 ---
+  https://containerd-fips.s3.us-east-2.amazonaws.com\
+  /{{ ansible_distribution_major_version|int }}\
+  /x86_64"
+EOF
+2. If your pre-provisioned machines need customization with alternate package libraries, Docker image or
+other container registry image repositories, or other Custom Override Files, add more lines to the same
+Overrides file.
+a. Example One - If you want to provide an override with Docker credentials and a different source for
+EPEL on a CentOS7 machine, create a file like this.
+cat > overrides.yaml << EOF 
+---
+# fips configuration
+k8s_image_registry: docker.io/mesosphere
+fips:
+  enabled: true
+build_name_extra: -fips
+kubernetes_build_metadata: fips.0
+default_image_repo: hub.docker.io/mesosphere
+kubernetes_rpm_repository_url: "https://packages.nutanix.com/konvoy/stable/linux/
+repos/el/kubernetes-v{{ kubernetes_version }}-fips/x86_64"
+docker_rpm_repository_url: "\
+  https://containerd-fips.s3.us-east-2.amazonaws.com\
+  /{{ ansible_distribution_major_version|int }}\
+  /x86_64"
+EOF
+b. Example Two - When using Oracle 7 OS, you may wish to deploy the RHCK kernel instead of the
+default UEK kernel. To do so, add the following text to your overrides.yaml.
+cat > overrides.yaml << EOF 
+---
+# fips configuration
+k8s_image_registry: docker.io/mesosphere
+fips:
+  enabled: true
+build_name_extra: -fips
+kubernetes_build_metadata: fips.0
+default_image_repo: hub.docker.io/mesosphere
+kubernetes_rpm_repository_url: "https://packages.nutanix.com/konvoy/stable/linux/
+repos/el/kubernetes-v{{ kubernetes_version }}-fips/x86_64"
+docker_rpm_repository_url: "\
+  https://containerd-fips.s3.us-east-2.amazonaws.com\
+  /{{ ansible_distribution_major_version|int }}\
+  /x86_64"
+# custom configuration
+oracle_kernel: RHCK
+EOF
+3. Create the related secret by using the command.
+kubectl create secret generic $CLUSTER_NAME-user-overrides --from-
+file=overrides.yaml=overrides.yaml
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 780
+
+--- page 781 ---
+kubectl label secret $CLUSTER_NAME-user-overrides clusterctl.cluster.x-k8s.io/move=
+Pre-provisioned: Defining Control Plane Endpoint
+Define the control plane endpoint for your cluster and the connection mechanism. A control plane must
+have three, five, or seven nodes to remain available if one or more nodes fail. A control plane with one
+node is not for production use.
+In addition, the control plane should have an endpoint that remains available if some nodes fail.
+                            -------- cp1.example.com:6443
+      |
+      lb.example.com:6443 ---------- cp2.example.com:6443
+      |
+      -------- cp3.example.com:6443
+In this example, the control plane endpoint host is lb.example.com, and the control plane endpoint port is
+6443. The control plane nodes are cp1.example.com, cp2.example.com, and cp3.example.com. The port
+of each API server is 6443.
+The control plane endpoint port is also used as the API server port on each control plane machine. The
+default port is 6443. Before creating the cluster, ensure the port is available on each control plane machine.
+Select your Connection Mechanism
+A virtual IP is the client's address to which to connect to the service. A load balancer is a device that
+distributes the client connections to the backend servers. Before you create a new Nutanix Kubernetes
+Platform (NKP) cluster, choose an external load balancer (LB) or virtual IP.
+•
+External load balancer
+It is recommended that an external load balancer be the control plane endpoint. To distribute request load
+among the control plane machines, configure the load balancer to send requests to all the control plane
+machines. Configure the load balancer to send requests only to control plane machines responding to API
+requests.
+•
+Built-in virtual IP
+You can use the built-in virtual IP if an external load balancer is unavailable. The virtual IP is not a load
+balancer; it does not distribute request load among the control plane machines. However, if the machine
+receiving requests does not respond, the virtual IP automatically moves to another machine.
+Single-Node Control Plane
+Caution:  Do not use a single-node control plane in a production cluster.
+A control plane with one node can use its single node as the endpoint, so you will not require an external
+load balancer or a built-in virtual IP. At least one control plane node must always be running. Therefore, a
+spare machine must be available in the control plane inventory to upgrade a cluster with one control plane
+node. This machine is used to provision the new node before the old node is deleted. When the API server
+endpoints are defined, you can create the cluster using the link in the Next Step below.
+Note:  Modify Control Plane Audit log settings using the information on the page Configure the Control
+Plane.
+Pre-provisioned: Configuring MetalLB
+Create MetalLB configuration for your Pre-provisioned infrastructure.
+Nutanix recommends that an external load balancer (LB) be the control plane endpoint. To distribute
+request load among the control plane machines, configure the load balancer to send requests to all the
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 781
+
+--- page 782 ---
+control plane machines. Configure the load balancer to send requests only to control plane machines
+responding to API requests. If you do not have one, you can use Metal LB to create MetalLB custom
+resources for your Pre-provisioned infrastructure.
+Choose one of the two protocols you want to use to announce service IPs. If your environment is not
+currently equipped with a load balancer, you can use MetalLB, a load balancer implementation for
+Kubernetes. Otherwise, your load balancer will work, and you can continue the installation process with
+Pre-provisioned: Installing Kommander on page 84. To use MetalLB, create MetalLB custom resources for
+your Pre-provisioned infrastructure. MetalLB uses one of two protocols to expose Kubernetes services.
+Select one of the following procedures to create your MetalLB manifest for further editing:
+•
+Layer 2, with Address Resolution Protocol (ARP)
+•
+Border Gateway Protocol (BGP)
+Layer 2 Configuration
+Layer 2 mode is the simplest to configure: in many cases, you do not need any protocol-specific
+configuration, only IP addresses. It does not require the IPs to be bound to the network interfaces of your
+worker nodes. It responds to ARP requests on your local network directly and gives clients the machine’s
+MAC address.
+Warning:
+•
+MetalLB IP address ranges or CIDRs must be within the node’s primary network subnet. For
+more information, see Cluster Pod and Services Subnets on page 678.
+•
+MetalLB IP address ranges, CIDRs, and node subnets must not conflict with the Kubernetes
+cluster pod and service subnets.
+For example, the following configuration gives MetalLB control over IPs from 192.168.1.240 to
+192.168.1.250 and configures Layer 2 mode:
+The following values are generic; enter your specific values into the fields where applicable.
+cat << EOF > metallb-conf.yaml
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.1.240-192.168.1.250
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - default
+EOF
+After this completes, run the following kubectl command.
+kubectl apply -f metallb-conf.yaml
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 782
+
+--- page 783 ---
+BGP Configuration
+For a basic configuration featuring one BGP router and one IP address range, you need four pieces of
+information:
+•
+The router IP address that MetalLB needs to connect to.
+•
+The router’s autonomous systems (AS) number.
+•
+The AS number MetalLB.
+•
+An IP address range is a Classless Inter-Domain Routing (CIDR) prefix.
+As an example, if you want to give MetalLB the range 192.168.10.0/24 and AS number 64500 and connect
+it to a router at 10.0.0.1 with AS number 64501, your configuration will look like this:
+Note:  The following values are generic, enter your specific values into the fields where applicable.
+cat << EOF > metallb-conf.yaml
+apiVersion: metallb.io/v1beta2
+kind: BGPPeer
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  myASN: 64500
+  peerASN: 64501
+  peerAddress: 10.0.0.1
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: default
+  namespace: metallb-system
+spec:
+  addresses:
+  - 192.168.10.0/24
+---
+apiVersion: metallb.io/v1beta1
+kind: BGPAdvertisement
+metadata:
+  name: example
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+  - default
+EOF
+After this completes, run the following kubectl command.
+kubectl apply -f metallb-conf.yaml
+Pre-provisioned: Modifying the Calico Installation
+Calico is a networking and security solution that enables Kubernetes workloads and non-Kubernetes/
+legacy workloads to communicate seamlessly and securely. Sometimes changes are needed, so use the
+information in this Pre-provisioned Modify the Calico Installation page.
+About this task
+Set the Interface
+By default, Calico automatically detects the IP address to use for each node using the first-found
+method. This is not always appropriate for your particular nodes. In that case, you must modify Calico’s
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 783
+
+--- page 784 ---
+configuration to use a different method. An alternative is to use the interface method by providing the
+interface ID.
+Note:  Azure does not set the interface. Proceed to Change the Encapsulation Type section below.
+In this example, all cluster nodes use ens192 as the interface name.
+Procedure
+1. Get the pods running on your cluster with this command.
+kubectl get pods -A --kubeconfig ${CLUSTER_NAME}.conf
+Output:
+NAMESPACE                NAME                                                        
+        READY   STATUS            RESTARTS        AGE
+calico-system            calico-kube-controllers-57fbd7bd59-vpn8b                    
+        1/1     Running           0               16m
+calico-system            calico-node-5tbvl                                           
+        1/1     Running           0               16m
+calico-system            calico-node-nbdwd                                           
+        1/1     Running           0               4m40s
+calico-system            calico-node-twl6b                                           
+        0/1     PodInitializing   0               9s
+calico-system            calico-node-wktkh                                           
+        1/1     Running           0               5m35s
+calico-system            calico-typha-54f46b998d-52pt2                               
+        1/1     Running           0               16m
+calico-system            calico-typha-54f46b998d-9tzb8                               
+        1/1     Running           0               4m31s
+default                  cuda-vectoradd                                              
+        0/1     Pending           0               0s
+kube-system              coredns-78fcd69978-frwx4                                    
+        1/1     Running           0               16m
+kube-system              coredns-78fcd69978-kkf44                                    
+        1/1     Running           0               16m
+kube-system              etcd-ip-10-0-121-16.us-west-2.compute.internal              
+        0/1     Running           0               8s
+kube-system              etcd-ip-10-0-46-17.us-west-2.compute.internal               
+        1/1     Running           1               16m
+kube-system              etcd-ip-10-0-88-238.us-west-2.compute.internal              
+        1/1     Running           1               5m35s
+kube-system              kube-apiserver-ip-10-0-121-16.us-west-2.compute.internal    
+        0/1     Running           6               7s
+kube-system              kube-apiserver-ip-10-0-46-17.us-west-2.compute.internal     
+        1/1     Running           1               16m
+kube-system              kube-apiserver-ip-10-0-88-238.us-west-2.compute.internal    
+        1/1     Running           1               5m34s
+kube-system              kube-controller-manager-ip-10-0-121-16.us-
+west-2.compute.internal   0/1     Running           0               7s
+kube-system              kube-controller-manager-ip-10-0-46-17.us-
+west-2.compute.internal    1/1     Running           1 (5m25s ago)   15m
+kube-system              kube-controller-manager-ip-10-0-88-238.us-
+west-2.compute.internal   1/1     Running           0               5m34s
+kube-system              kube-proxy-gclmt                                            
+        1/1     Running           0               16m
+kube-system              kube-proxy-gptd4                                            
+        1/1     Running           0               9s
+kube-system              kube-proxy-mwkgl                                            
+        1/1     Running           0               4m40s
+kube-system              kube-proxy-zcqxd                                            
+        1/1     Running           0               5m35s
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 784
+
+--- page 785 ---
+kube-system              kube-scheduler-ip-10-0-121-16.us-west-2.compute.internal    
+        0/1     Running           1               7s
+kube-system              kube-scheduler-ip-10-0-46-17.us-west-2.compute.internal     
+        1/1     Running           3 (5m25s ago)   16m
+kube-system              kube-scheduler-ip-10-0-88-238.us-west-2.compute.internal    
+        1/1     Running           1               5m34s
+kube-system              local-volume-provisioner-2mv7z                              
+        1/1     Running           0               4m10s
+kube-system              local-volume-provisioner-vdcrg                              
+        1/1     Running           0               4m53s
+kube-system              local-volume-provisioner-wsjrt                              
+        1/1     Running           0               16m
+node-feature-discovery   node-feature-discovery-master-84c67dcbb6-m78vr              
+        1/1     Running           0               16m
+node-feature-discovery   node-feature-discovery-worker-vpvpl                         
+        1/1     Running           0               4m10s
+tigera-operator          tigera-operator-d499f5c8f-79dc4                             
+        1/1     Running           1 (5m24s ago)   16m
+Note:  If a calico-node pod is not ready on your cluster, you must edit the default Installation
+resource. To edit the Installation resource, run the command:
+kubectl edit installation default --kubeconfig ${CLUSTER_NAME}.conf
+2. Change the value for spec.calicoNetwork.nodeAddressAutodetectionV4 to interface: ens192,
+and save the resource.
+spec:
+  calicoNetwork:
+  ...
+    nodeAddressAutodetectionV4:
+      interface: ens192
+3. Save this resource. If that pod has failed, you might need to delete the node feature discovery worker
+pod in the node-feature-discovery namespace. After you delete it, Kubernetes replaces the pod as part
+of its normal reconciliation.
+Change the Encapsulation Type
+About this task
+Calico can leverage different network encapsulation methods to route traffic for your workloads.
+Encapsulation is useful when running on top of an underlying network that is unaware of workload IPs.
+Common Examples:
+Procedure
+•
+Public cloud environments where you do not own the hardware.
+•
+AWS across VPC subnet boundaries.
+•
+Environments where you cannot peer Calico over BGP to the underlay or easily configure static routes.
+Warning:  Switching encapsulation modes can cause disruption to in-progress connections. You can
+do this safely when the cluster is first deployed. However, if user workloads are already running on the
+cluster, plan accordingly for interruption.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 785
+
+--- page 786 ---
+Provider Specific Steps
+About this task
+The encapsulation type for networking depends on the cloud provider.IP-in-IP is Calico's default
+encapsulation method, which most providers use, but not Azure.
+Note:  Azure only supports VXLAN encapsulation type. Therefore, if you install on Azure pre-provisioned
+VMs, you must set the encapsulation mode to VXLAN.
+Nutanix recommends using the method below to change the encapsulation type after cluster creation but
+before production. To change the encapsulation type, follow these steps:
+Procedure
+1. First, remove the existing default-ipv4-ippool IPPool resource from kubeconfig. After you edit the
+installation resource, the resource must be deleted to be recreated. Run the command below to delete.
+kubectl delete ippool default-ipv4-ippool
+2. Run the following command to edit.
+kubectl edit installation default --kubeconfig ${CLUSTER_NAME}.conf
+3. Change the value for encapsulation - encapsulation: as shown below.
+  spec:
+  calicoNetwork:
+    ipPools:
+      - encapsulation: VXLAN
+VXLAN is a tunneling protocol that encapsulates Layer 2 Ethernet frames in UDP packets, enabling you
+to create virtualized Layer 2 subnets that span Layer 3 networks. It has a slightly larger header than IP-
+in-IP, which slightly reduces performance over IP-in-IP.
+IPIP IP-in-IP is an IP tunneling protocol that encapsulates one IP packet in another IP packet. An outer
+packet header is added with the tunnel entry and exit points. The calico implementation of this protocol
+uses BGP to determine the exit point, which makes this protocol unusable on networks that do not pass
+BGP
+For more information, see:
+•
+Calico Overlay Networking
+•
+IP-in-IP RFC 2003
+•
+VXLAN RFC 7348
+Pre-provisioned: Built-in Virtual IP
+Nutanix recommends using an external load balancer for the control plane endpoint but provide a built-in
+virtual IP when an external load balancer is unavailable. If an external load balancer is unavailable, use the
+built-in virtual IP.
+The virtual IP is not a load balancer; it does not distribute request load among the control plane machines.
+However, if the machine receiving requests does not respond to them, the virtual IP automatically moves to
+another machine. The built-in virtual IP uses the kube-vip project. To use the virtual IP, add these flags to
+the create cluster command:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 786
+
+--- page 787 ---
+Table 72: Create Cluster Flags
+Virtual IP Configuration
+Flag
+Network interface to use for Virtual IP. It must exist
+on all control plane machines.
+--virtual-ip-interface string
+IPv4 address. Reserved for use by the cluster.
+--control-plane-endpoint string
+Virtual IP Example
+nkp create cluster preprovisioned \
+    --cluster-name ${CLUSTER_NAME} \
+    --control-plane-endpoint-host 196.168.1.10 \
+    --virtual-ip-interface eth1
+    --pre-provisioned-inventory-file preprovisioned_inventory.yaml 
+    --ssh-private-key-file <path-to-ssh-private-key> 
+    --self-managed
+For more information on kube-vip, see https://kube-vip.io/
+Pre-provisioned: HTTP Proxy
+When you require HTTP proxy configurations, you can apply them during the create operation by adding
+the appropriate flags to the nkp create cluster command.
+If your environment uses HTTP/HTTPS proxies, you must include the flags --http-proxy, --https-
+proxy, and --no-proxy and their related values in this command for it to be successful. Prior to DKP 2.6,
+you had to specify the HTTP proxy in the NIB override setup and then again in the dkp create cluster
+command. After DKP 2.6, an HTTP proxy gets created from the Konvoy flags for the control plane proxy
+and workers proxy values. The flags in the NKP command for Pre-provisioned clusters populate a Secret
+automatically in the bootstrap cluster. That Secret has a known name that the Pre-provisioned controller
+finds and applies when it runs the NIB provisioning job.
+More information is available in Configuring an HTTP or HTTPS Proxy on page 665.
+Proxy configuration
+Flag
+HTTP proxy for control plane machines
+--control-plane-http-proxy string
+HTTPS proxy for control plane machines
+--control-plane-https-proxy string
+No Proxy list for control plane machines
+--control-plane-no-proxy strings
+HTTP proxy for worker machines
+--worker-http-proxy string
+HTTPS proxy for worker machines
+--worker-https-proxy string
+No Proxy list for worker machines
+--worker-no-proxy strings
+You must also add the same configuration as an override .
+HTTP Proxy Example
+nkp create cluster preprovisioned \
+    --cluster-name ${CLUSTER_NAME} \
+    --control-plane-http-proxy http://proxy.example.com:8080 \
+    --control-plane-https-proxy https://proxy.example.com:8080 \
+    --control-plane-no-proxy
+ "127.0.0.1,10.96.0.0/12,192.168.0.0/16,kubernetes,kubernetes.default.svc,kubernetes.default.svc.cl
+ \
+    --worker-http-proxy http://proxy.example.com:8080 \
+    --worker-https-proxy https://proxy.example.com:8080 \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 787
+
+--- page 788 ---
+    --worker-no-proxy
+ "127.0.0.1,10.96.0.0/12,192.168.0.0/16,kubernetes,kubernetes.default.svc,kubernetes.default.svc.cl
+Pre-provisioned: Using Alternate Pod or Service Subnets
+Some subnets are reserved by Kubernetes and can prevent proper cluster deployment if you unknowingly
+configure NKP so that the Node subnet collides with either the Pod or Service subnet.
+Procedure
+1. In Konvoy, the default pod subnet is 192.168.0.0/16, and the default service subnet is 10.96.0.0/12.
+Ensure your subnets do not overlap with your host subnet because they cannot be changed after
+cluster creation.
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 10.96.0.0/12
+If you need to change the Kubernetes subnets, you must do this at cluster creation. To change the
+subnets, perform the following steps:
+2. Generate the YAML manifests for the cluster using the --dry-run and -o yaml flags, along with the
+desired nkp cluster create command:
+nkp create cluster preprovisioned --cluster-name ${CLUSTER_NAME} --control-plane-
+endpoint-host <control plane endpoint host> --control-plane-endpoint-port <control
+ plane endpoint port, if different than 6443> --dry-run -o yaml > cluster.yaml
+3. To modify the service subnet, add or edit the spec.clusterNetwork.services.cidrBlocks field of the
+Cluster object:
+kind: Cluster
+spec:
+  clusterNetwork:
+    services:
+      cidrBlocks:
+      - 10.0.0.0/12
+4. To modify the pod subnet, edit the Cluster and calico-cni ConfigMap resources:
+Cluster: Add or edit the spec.clusterNetwork.pods.cidrBlocks field:
+kind: Cluster
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - <vpc-net>.0/16
+ConfigMap: Edit the data."custom-resources.yaml".spec.calicoNetwork.ipPools.cidr field with
+your desired pod subnet:
+apiVersion: v1
+data:
+  custom-resources.yaml: |
+    apiVersion: operator.tigera.io/v1
+    kind: Installation
+    metadata:
+      name: default
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 788
+
+--- page 789 ---
+    spec:
+      # Configures Calico networking.
+      calicoNetwork:
+        # Note: The ipPools section cannot be modified post-install.
+        ipPools:
+        - blockSize: 26
+          cidr: <vpc-net>.0/16
+kind: ConfigMap
+metadata:
+  name: calico-cni-<cluter-name>    
+When you provision the cluster, the configured pod and service subnets will be applied.
+Pre-provisioned: Output Directory YAML
+You can create individual files with different smaller manifests for ease in editing using the --output-
+directory flag used with --output=json|yaml. You create the directory of where to output resources to
+files.
+Using this flag will create multiple files in the specified directory which must already exist:
+nkp create cluster preprovisioned 
+    --cluster-name=${CLUSTER_NAME} \ 
+    --dry-run \ 
+    --output=yaml \ 
+    --output-directory=<existing-directory>
+For more information regarding this flag or others, please refer to the CLI section of the documentation for
+the nkp create cluster command and select your provider.
+Pre-provisioned Installation in a Non-air-gapped Environment
+In pre-provisioned environments, Nutanix Kubernetes Platform (NKP) handles your cluster’s life cycle,
+including installation, upgrade, and node management. NKP installs Kubernetes, monitoring and logging
+apps, and its own UI.
+In an environment with access to the Internet, you retrieve artifacts from specialized repositories dedicated
+to them, such as Docker images contained in DockerHub and Helm Charts that come from a dedicated
+Helm Chart repository. However, in an air-gapped environment, you need local repositories to store Helm
+charts, Docker images, and other artifacts. Tools such as JFrog, Harbor, and Nexus handle multiple types
+of artifacts in one local repository.
+Note:  If desired, a local registry can also be used in a non-air-gapped environment for speed and security.
+To do so, add the Pre-provisioned Installation in an Air-gapped Environment on page 800 steps to
+your non-air-gapped installation process.
+Pre-provisioned Non-Air-gapped: Bootstrap
+About this task
+To create Kubernetes clusters, NKP uses Cluster API (CAPI) controllers. These controllers run on a
+Kubernetes cluster. To get started, you need a bootstrap cluster. By default, Konvoy creates a bootstrap
+cluster for you in a Docker container using the Kubernetes-in-Docker (KIND) tool.
+NKP deploys all cluster lifecycle services to a bootstrap cluster, which deploys a managed cluster. When
+the workload cluster is ready, move the cluster lifecycle services to the managed cluster. The managed
+cluster then manages its own lifecycle.
+Prerequisites:
+Before you begin, you must:
+•
+Complete the steps in Prerequisites.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 789
+
+--- page 790 ---
+•
+Ensure the nkp binary can be found in your $PATH.
+•
+If using a Registry Mirror even though you are not in an air-gapped environment, refer to the air-gapped
+section for loading images: Pre-provisioned Air-gapped Define Environment
+Bootstrap Cluster Lifecycle Services
+Procedure
+1. Review Universal Configurations for all Infrastructure Providers regarding settings, flags, and other
+choices and then begin bootstrapping.
+2. Create a bootstrap cluster using the command nkp create bootstrap --kubeconfig $HOME/.kube/
+config.
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+Example output:
+ # Creating a bootstrap cluster
+ # Initializing new CAPI components
+To create a bootstrap cluster in a proxied environment (Bootstrap Cluster HTTP Proxy Settings on
+page 666), in addition to any other flags you need, run the following command.
+  --http-proxy <string> \
+  --https-proxy <string> \
+  --no-proxy <string>
+3. NKP creates a bootstrap cluster using KIND as a library.
+For more information, see https://github.com/kubernetes-sigs/kind.
+4. NKP then deploys the following Cluster API providers on the cluster.
+•
+Core Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/
+•
+AWS Infrastructure Provider: https://github.com/kubernetes-sigs/cluster-api-provider-aws
+•
+Kubeadm Bootstrap Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/bootstrap/
+kubeadm
+•
+Kubeadm ControlPlane Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/
+controlplane/kubeadm
+For more information on Cluster APIs, see https://cluster-api.sigs.k8s.io/.
+5. NKP waits until these providers' controller-manager and webhook deployments are ready. List
+these deployments using the command kubectl get --all-namespaces deployments -
+l=clusterctl.cluster.x-k8s.io.
+Example output:
+NAMESPACE                           NAME                                           
+ READY   UP-TO-DATE   AVAILABLE   AGE
+capa-system                         capa-controller-manager                        
+ 1/1     1            1           1h
+capg-system                         capg-controller-manager                        
+ 1/1     1            1           1h
+capi-kubeadm-bootstrap-system       capi-kubeadm-bootstrap-controller-manager      
+ 1/1     1            1           1h
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 790
+
+--- page 791 ---
+capi-kubeadm-control-plane-system   capi-kubeadm-control-plane-controller-manager  
+ 1/1     1            1           1h
+capi-system                         capi-controller-manager                        
+ 1/1     1            1           1h
+cappp-system                        cappp-controller-manager                       
+ 1/1     1            1           1h
+capv-system                         capv-controller-manager                        
+ 1/1     1            1           1h
+capz-system                         capz-controller-manager                        
+ 1/1     1            1           1h
+cert-manager                        cert-manager                                   
+ 1/1     1            1           1h
+cert-manager                        cert-manager-cainjector                        
+ 1/1     1            1           1h
+cert-manager                        cert-manager-webhook                           
+ 1/1     1            1           1h
+Pre-provisioned Non-Air-gapped: Creating a New Cluster
+Create a new Pre-provisioned Kubernetes cluster in a non-air-gapped environment.
+About this task
+After defining the infrastructure and control plane endpoints, you can create the cluster by following these
+steps to create a new pre-provisioned cluster.
+Before you create a new Nutanix Kubernetes Platform (NKP) cluster below, you may choose an external
+load balancer or virtual IP and use the corresponding nkp create cluster command example from that
+page in the docs from the links below. Other customizations are available but require different flags during
+the nkp create cluster command. Refer to Pre-provisioned Cluster Creation Customization Choices for
+more cluster customizations.
+Warning:  NKP uses a local static provisioner as the default storage provider for a pre-provisioned
+environment. However, localvolumeprovisioner is not suitable for production use. Use Kubernetes
+CSI compatible storage that is suitable for production.
+After turning off localvolumeprovisioner, you can choose from any of the storage options available for
+Kubernetes. To make that storage the default storage, use the commands in this section of the Kubernetes
+documentation: Changing the Default Storage Class
+Note:
+•
+When creating the cluster, specify the cluster-name. Using the same cluster-name used
+when defining your inventory objects would be best. See topic Defining Cluster Hosts and
+Infrastructure for more details.
+•
+Ensure your subnets do not overlap with your host subnet because they cannot be changed
+after cluster creation. If you need to change the Kubernetes subnets, you must do this at
+cluster creation. See the topic Subnets.
+•
+The default subnets used in NKP are:
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 10.96.0.0/12
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 791
+
+--- page 792 ---
+Important:  To increase Docker Hub's rate limit, use your Docker Hub credentials when creating the cluster
+by setting the following flag on the nkp create cluster command.
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME} 
+--registry-mirror-password=${REGISTRY_PASSWORD}
+First you must name your cluster. Then you run the command to deploy it. When specifying the cluster-
+name, you must use the same cluster-name as used when defining your inventory objects.
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+Note:  The cluster name may only contain the following characters: a-z, 0-9, and -. Cluster creation will
+fail if the name has capital letters. See Kubernetes for more naming information.
+2. Set the environment variable: export CLUSTER_NAME=<cluster_name>
+What to do next
+Create a Kubernetes Cluster
+When you create a new NKP cluster below, choose an external load balancer (LB) or virtual IP and use the
+corresponding nkp create cluster command.
+In a pre-provisioned environment, use the Kubernetes CSI and third-party drivers for local volumes and
+other storage devices in your datacenter.
+For Pre-provisioned environments, you define a set of existing nodes. During the cluster creation process,
+Nutanix Image Builder (NIB) is built into NKP and automatically runs the machine configuration process
+(which NIB uses to build images for other providers) against the set of nodes that you defined. This results
+in your pre-existing or pre-provisioned nodes being appropriately configured.
+Generate the Kubernetes cluster objects
+About this task
+The following command relies on the pre-provisioned cluster API infrastructure provider to initialize the
+Kubernetes control plane and worker nodes on the hosts defined in the inventory. It uses the default
+external load balancer.
+•
+1. (Optional) If you have overrides for your clusters, specify the secret as part of the create cluster
+command. If these are not specified, the overrides for your nodes will not be applied.
+--override-secret-name=$CLUSTER_NAME-user-overrides
+2. (Optional) Use a registry mirror. Configure your cluster to use an existing local registry as a mirror
+when attempting to pull images previously pushed to your registry when defining your infrastructure.
+Instructions in the expandable Custom Installation section. For registry mirror information, see topics
+Using a Registry Mirror and Registry Mirror Tools.
+Export Registry Variables and Flags for Cluster Creation:: If you have a local registry, you must provide
+additional arguments when creating the cluster. These tell the cluster where to locate the local registry to
+use by defining the URL. Set the needed environment variable(s) with your registry information:
+export REGISTRY_URL=<https/http>://<registry-address>:<registry-port>
+export REGISTRY_CA=<path to the CA on the bastion>
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 792
+
+--- page 793 ---
+•
+REGISTRY_URL: the address of an existing registry accessible in the VPC that the new cluster nodes will
+be configured to use a mirror registry when pulling images.
+•
+REGISTRY_CA: (optional) the path on the bastion machine to the registry CA. Konvoy will configure the
+cluster nodes to trust this CA. This value is only needed if the registry is using a self-signed certificate
+and the AMIs are not already configured to trust this CA.
+•
+REGISTRY_USERNAME: optional, set to a user that has pull access to this registry.
+•
+REGISTRY_PASSWORD: optional if username is not set.
+When creating the cluster, apply the variables you defined above during the dkp create cluster
+command with the flags needed for your environment:
+--registry-mirror-url=${REGISTRY_URL} \
+--registry-mirror-cacert=${REGISTRY_CA} \
+--registry-mirror-username=${REGISTRY_USERNAME} \
+--registry-mirror-password=${REGISTRY_PASSWORD}
+Procedure
+1. Create cluster command - Depending on the cluster size, it will take a few minutes to create the
+Kubernetes cluster objects:
+nkp create cluster preprovisioned \
+  --cluster-name ${CLUSTER_NAME} \
+  --control-plane-endpoint-host <control plane endpoint host> \
+  --control-plane-endpoint-port <control plane endpoint port, if different than 6443>
+ \
+  --override-secret-name=$CLUSTER_NAME-user-overrides \
+  --dry-run \ 
+  --output=yaml \ 
+  > ${CLUSTER_NAME}.yaml
+a. ALTERNATIVE Virtual IP - if you do not have an external LB and want to use a VIRTUAL IP
+provided by kube-vip, specify these flags example below:
+nkp create cluster preprovisioned \
+    --cluster-name ${CLUSTER_NAME} \
+    --control-plane-endpoint-host 196.168.1.10 \
+    --virtual-ip-interface eth1 \
+    --dry-run \ 
+    --output=yaml \ 
+    > ${CLUSTER_NAME}.yaml
+Configuring an HTTP or HTTPS Proxy on page 665
+FIPS Requirements on page 682
+Output Directory Flag on page 682
+2. Inspect or edit the cluster objects and familiarize yourself with Cluster API before editing the cluster
+objects as edits can prevent the cluster from deploying successfully.
+Familiarize yourself with Cluster API before editing the cluster objects as edits can prevent the cluster
+from deploying successfully.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 793
+
+--- page 794 ---
+3. Create the cluster from the objects generated in the dry run. A warning will appear in the console if the
+resource already exists and will require you to remove the resource or update your YAML.
+kubectl create -f ${CLUSTER_NAME}.yaml
+Note:  If you used the --output-directory flag in your nkp create .. --dry-run step above,
+create the cluster from the objects you created by specifying the directory.
+kubectl create -f <existing-directory>/
+4. Use the wait command to monitor the cluster control-plane readiness:
+kubectl wait --for=condition=Available=True "clusters/${CLUSTER_NAME}" --timeout=30m
+Output:
+cluster.cluster.x-k8s.io/cluster_name condition met
+Note:  It will take a few minutes to create, depending on the cluster size.
+5. After the creation, use this command to get the Kubernetes kubeconfig for the new cluster and begin
+deploying workloads:
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+Azure requires changing the CNI encapsulation type of Calico from the default of IPtoIP to VXlan. If
+changing the Calico encapsulation, Nutanix recommends changing it after cluster creation, but before
+production.
+Audit Logs
+To modify Control Plane Audit logs settings using the information on the page Configure the Control
+Plane.
+Pre-provisioned Non-Air-gapped: Making the New Cluster Self-Managed
+How to make a Kubernetes cluster manage itself.
+About this task
+Nutanix Kubernetes Platform (NKP) deploys all cluster life cycle services to a bootstrap cluster, which then
+deploys a managed cluster. When the managed cluster is ready, move the cluster life cycle services to the
+workload cluster, which makes the managed cluster self-managed.
+This page contains instructions on how to make your cluster self-managed. This is necessary if there is
+only one cluster in your environment or if this cluster becomes the Management cluster in a multi-cluster
+environment.
+Note:  If you already have a self-managed or Management cluster in your environment, skip this page.
+Before you begin
+Before starting, ensure you can create a managed cluster as described in the topic: Create a New Pre-
+provisioned Cluster.
+Follow these steps to turn your new cluster into a Management Cluster for an Ultimate license
+environment (or a free-standing Pro Cluster):
+If you have not already retrieved the kubeconfig after creating the cluster, use this command before
+proceeding: nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 794
+
+--- page 795 ---
+Procedure
+1. Deploy cluster life cycle services on the managed cluster.
+nkp create capi-components --kubeconfig ${CLUSTER_NAME}.conf
+Output:
+# Initializing new CAPI components
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+2. Move the Cluster API objects from the bootstrap to the managed cluster:
+The cluster life cycle services on the managed cluster are ready, but the managed cluster configuration
+is on the bootstrap cluster. The move command moves the configuration, which takes the form of
+Cluster API Custom Resource objects, from the bootstrap to the managed cluster. This process
+is called a Pivot. For more information, see https://cluster-api.sigs.k8s.io/reference/glossary.html?
+highlight=pivot#pivot.
+unset KUBECONFIG
+Next:
+nkp move capi-resources --to-kubeconfig ${CLUSTER_NAME}.conf
+Output:
+# Moving cluster resources
+You can now view resources in the moved cluster by using the --kubeconfig flag with
+ kubectl. For example: kubectl --kubeconfig=gcp-example.conf get nodes
+Note:  To ensure only one set of cluster life cycle services manages the managed cluster, NKP first
+pauses the reconciliation of the objects on the bootstrap cluster, then creates the objects on the managed
+cluster. As NKP copies the objects, the cluster life cycle services on the managed cluster reconcile the
+objects. The managed cluster becomes self-managed after NKP creates all the objects. If it fails, the
+move command can be safely retried.
+3. Wait for the cluster control plane to be ready.
+kubectl --kubeconfig ${CLUSTER_NAME}.conf wait --for=condition=Available=True
+ "clusters/${CLUSTER_NAME}" --timeout=20m
+Output:
+cluster.cluster.x-k8s.io/gcp-example condition met
+4. Use the cluster life cycle services on the managed cluster to check the managed cluster status.
+Note:  After moving the cluster life cycle services to the managed cluster, remember to use NKP with the
+managed cluster kubeconfig.
+nkp describe cluster --kubeconfig ${CLUSTER_NAME}.conf -c ${CLUSTER_NAME}
+Output:
+NAME                                                                       READY 
+ SEVERITY  REASON  SINCE  MESSAGE
+Cluster/cluster_name                                             True                
+     2m31s         
+##ClusterInfrastructure - PreprovisionedCluster/cluster_name                         
+                   
+##ControlPlane - KubeadmControlPlane/cluster_name-control-plane  True                
+     2m31s         
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 795
+
+--- page 796 ---
+# ##Machine/cluster_name-control-plane-6g6nr                     True                
+     2m33s         
+# ##Machine/cluster_name-control-plane-8lhcv                     True                
+     2m33s         
+# ##Machine/cluster_name-control-plane-kk2kg                     True                
+     2m33s         
+##Workers                                                                            
+                    
+  ##MachineDeployment/cluster_name-md-0                          True                
+     2m34s         
+    ##Machine/cluster_name-md-0-77f667cd9-tnctd                  True                
+     2m33s  
+5. Remove the bootstrap cluster because the managed cluster is now self-managed.
+nkp delete bootstrap --kubeconfig $HOME/.kube/config
+Output:
+# Deleting bootstrap cluster
+Known Limitations
+Procedure
+•
+NKP only supports moving all namespaces in the cluster; NKP does not support migration of individual
+namespaces.
+•
+Konvoy supports moving only one set of cluster objects from the bootstrap cluster to the managed
+cluster or vice-versa.
+Pre-provisioned Non-Air-gapped: Installing Kommander
+This section provides installation instructions for the Kommander component of NKP in a non-air-gapped
+Pre-provisioned environment.
+About this task
+Once you have installed the Konvoy component of Nutanix Kubernetes Platform (NKP), you will continue
+installing the Kommander component that will bring up the UI dashboard.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the correct
+cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see Commands
+within a kubeconfig File on page 34.
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install command
+to retry.
+Prerequisites:
+•
+Ensure you have reviewed all Nutanix Kubernetes Platform Requirements on page 48.
+•
+Ensure you have a default StorageClass.
+•
+Note the name of the cluster where you want to install Kommander. If you do not know the cluster
+name, use kubectl get nkpclusters -A to display and find it.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 796
+
+--- page 797 ---
+Create your Kommander Installation Configuration File
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} >> ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init > kommander.yaml 
+4. Edit the installer file to include configuration overrides for the rook-ceph-cluster. NKP’s default
+configuration ships Ceph with PersistentVolumeClaim (PVC) based storage, which requires your CSI
+provider to support PVC with type volumeMode: Block. As this is impossible with the default local static
+provisioner, you can install Ceph in host storage mode. You can choose whether Ceph’s object storage
+daemon (osd) pods can consume all or just some of the devices on your nodes. Include one of the
+following Overrides.
+a. To automatically assign all raw storage devices on all nodes to the Ceph cluster.
+rook-ceph-cluster:
+    enabled: true
+    values: |
+      cephClusterSpec:
+        storage:
+          storageClassDeviceSets: []
+          useAllDevices: true
+          useAllNodes: true
+          deviceFilter: "<<value>>"
+b. To assign specific storage devices on all nodes to the Ceph cluster.
+rook-ceph-cluster:
+    enabled: true
+    values: |
+      cephClusterSpec:
+        storage:
+          storageClassDeviceSets: []
+          useAllNodes: true
+          useAllDevices: false
+          deviceFilter: "^sdb."
+Note:  If you want to assign specific devices to specific nodes using the deviceFilter option, refer
+to Specific Nodes and Devices. For general information on the deviceFilter value, refer to
+Storage Selection Settings.
+5. If required: Customize your kommander.yaml.
+See Kommander Customizations on page 957 page for customization options. Some options include
+Custom Domains and Certificates, HTTP proxy, External Load Balancer, GPU Utilization, and Rook
+Ceph customization for Pre-provisioned environments.
+6. If required: If your cluster uses a custom AWS VPC and requires an internal load-balancer, set the
+traefik annotation to create an internal-facing ELB:
+...
+apps:
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 797
+
+--- page 798 ---
+...
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true
+...
+7. Expand one of the following sets of instructions, depending on your license and application
+environments:
+»
+Pro License: Install Kommander in a Pre-provisioned, Non-Air-Gapped Environment .
+Pro License: Install Kommander
+Use the customized kommander.yaml to install NKP:
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Kommander Customizations
+You can configure the Kommander component of NKP during the initial installation, and also post-
+installation using the NKP CLI. If you are not sure of what you want to customize during install, then
+proceed to the next step. To read about Kommander component customization options, refer to this
+section of the documentation: Kommander Customizations on page 957
+Pre-provisioned Non-Air-gapped: Verifying the Kommander Install and UI Log in
+Verify Kommander Install and Log in to the Dashboard UI
+About this task
+After you build the Konvoy cluster and you install Kommander, verify your installation. It waits for all
+applications to be ready by default.
+Note:  If the Kommander installation fails or you wish to reconfigure applications, you can rerun the install
+command to retry the installation.
+Procedure
+Check the installation status:
+kubectl -n kommander wait --for condition=Ready helmreleases --all --timeout 15m
+Note:  If you prefer the CLI to not wait for all applications to become ready, you can set the --wait=false
+flag.
+The command waits for each Helm chart to reach the Ready condition and returns output similar to the
+following:
+helmrelease.helm.toolkit.fluxcd.io/ai-navigator-app condition met
+helmrelease.helm.toolkit.fluxcd.io/centralized-grafana condition met
+...
+The output can include additional HelmRelease entries.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 798
+
+--- page 799 ---
+Failed HelmReleases
+Procedure
+If an application fails to deploy, check the status of a HelmRelease using the command.
+kubectl -n kommander get helmrelease <HELMRELEASE_NAME>
+If you find any HelmReleases in a “broken” release state, such as “exhausted” or “another rollback/release
+in progress”, trigger a reconciliation of the HelmRelease using the commands.
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": true}]'
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": false}]'
+Log in to the UI
+Procedure
+1. By default, log in to the UI in Kommander with the following command:
+nkp open dashboard --kubeconfig=${CLUSTER_NAME}.conf
+2. Retrieve your credentials:
+kubectl -n kommander get secret nkp-credentials -o go-template='Username:
+ {{.data.username|base64decode}}{{ "\n"}}Password: {{.data.password|base64decode}}
+{{ "\n"}}'
+3. Retrieve the dashboard URL:
+kubectl -n kommander get svc kommander-traefik -o go-template='https://{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}/NKP/kommander/
+dashboard{{ "\n"}}'
+You should only use these static credentials to access the UI for configuring an external identity
+provider. Treat them as backup credentials rather than use them for normal access.
+a. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Are you sure you want to continue? [y/N]: y
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 799
+
+--- page 800 ---
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+b. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+For more information, see Rotating the NKP Dashboard Password on page 252.
+You can perform the following operations on Identity Providers:
+•
+Create an Identity Provider
+•
+Temporarily Disable an Identity Provider
+•
+Create Groups
+Dashboard UI Functions
+After installing Konvoy component and building a cluster as well as successfully installing Kommander
+and logging into the UI, you are now ready to customize configurations using the Day 2 Cluster
+Operations Management section of the documentation. The majority of this customization such as
+attaching clusters and deploying applications will take place in the dashboard or UI of NKP. The Day
+2 section allows you to manage cluster operations and their application workloads to optimize your
+organization’s productivity.
+Pre-provisioned Installation in an Air-gapped Environment
+In pre-provisioned environments, Nutanix Kubernetes Platform (NKP) handles your cluster’s life cycle,
+including installation, upgrade, and node management. NKP installs Kubernetes, monitoring and logging
+apps, and its UI.
+In an environment with access to the Internet, you retrieve artifacts from specialized repositories dedicated
+to them, such as Docker images contained in DockerHub and Helm Charts that come from a dedicated
+Helm Chart repository. However, in an air-gapped environment, you need local repositories to store Helm
+charts, Docker images, and other artifacts. Tools such as JFrog, Harbor, and Nexus handle multiple types
+of artifacts in one local repository.
+Follow these steps to deploy NKP in a Pre-provisioned, Non-air-gapped environment:
+Pre-provisioned Air-gapped: Prerequisites
+Outlines how to fulfill the prerequisites for using pre-provisioned infrastructure when using an air-gapped
+environment.
+About this task
+Nutanix Kubernetes Platform (NKP) in an air-gapped environment requires a local container registry of
+trusted images to enable production-level Kubernetes cluster management. In an environment with access
+to the internet, you retrieve artifacts from specialized repositories dedicated to them, such as Docker
+images contained in DockerHub and Helm Charts that come from a dedicated Helm Chart repository.
+However, in an air-gapped environment, you need:
+Before you begin
+•
+Local repositories to store Helm charts, Docker images, and other artifacts. Tools such as ECR, jFrog,
+Harbor, and Nexus handle multiple types of artifacts in one local repository.
+•
+Bastion Host - If you have not set up a Bastion Host yet, refer to that Documentation section.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 800
+
+--- page 801 ---
+•
+The complete NKP air-gapped bundle, which contains all the NKP components needed for an air-
+gapped environment installation and also to use a local registry in a non-air-gapped environment: Pre-
+provisioned Loading the Registry
+Copy Air-gapped Artifacts onto Cluster Hosts
+Procedure
+1. Set the Artifacts directory.
+export ARTIFACTS_DIRECTORY=nkp-nkp-version/image-artifacts/
+The artifacts directory contains the packages and artifacts required to configure the pre-provisioned
+host.
+2. Download nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz, and extract the tar file to a
+local directory.
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz -C
+ ${ARTIFACTS_DIRECTORY}
+3. Export the following environment variables, ensuring that all control plane and worker nodes are
+included.
+export CONTROL_PLANE_1_ADDRESS="<control-plane-address-1>"
+export CONTROL_PLANE_2_ADDRESS="<control-plane-address-2>"
+export CONTROL_PLANE_3_ADDRESS="<control-plane-address-3>"
+export WORKER_1_ADDRESS="<worker-address-1>"
+export WORKER_2_ADDRESS="<worker-address-2>"
+export WORKER_3_ADDRESS="<worker-address-3>"
+export WORKER_4_ADDRESS="<worker-address-4>"
+export SSH_USER="<ssh-user>"
+export SSH_PRIVATE_KEY_FILE="<private key file>"
+SSH_PRIVATE_KEY_FILE must be either the name of the SSH private key file in your working directory or
+an absolute path to the file in your user’s home directory.
+4. (Optional) Create a FIPS-compliant image:
+export FIPS_ENABLED=true
+The Nutanix Image Builder creates a FIPS-compliant OS image. For more information, see Supported
+Infrastructure Operating Systems.
+5. (Optional) Upload NVIDIA GPU drivers:
+Download the NVIDIA runfile for your NVIDIA driver version from the NVIDIA download site.
+export NVIDIA_RUNFILE=Path to NVIDIA driver runfile
+Replace Path to NVIDIA driver runfile with the path to the NVIDIA driver runfile.
+The Nutanix Image Builder uploads the NVIDIA driver runfile to the target host for GPU workload
+support.
+6. (Optional) Specify a provider hint:
+export PROVIDER=aws|azure|gcp|vsphere|nutanix
+Replace aws|azure|gcp|vsphere|nutanix with the provider name when you install provider specific
+utilities.
+This helps the image builder install the appropriate provider specific utilities on the host.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 801
+
+--- page 802 ---
+7. Upload the artifacts onto cluster hosts with the following command.
+./nkp upload image-artifacts \
+--ssh-host ${CONTROL_PLANE_1_ADDRESS},${CONTROL_PLANE_2_ADDRESS} \
+--ssh-username ${SSH_USER} \
+${SSH_PRIVATE_KEY_FILE:+--ssh-private-key-file ${SSH_PRIVATE_KEY_FILE}} \
+${SSH_PASSWORD:+--ssh-password ${SSH_PASSWORD}} \
+${SSH_PORT:+--ssh-port ${SSH_PORT}} \
+--artifacts-directory ${ARTIFACTS_DIRECTORY} \
+${NVIDIA_RUNFILE:+--nvidia-runfile ${NVIDIA_RUNFILE}} \
+${PROVIDER:+--provider ${PROVIDER}} \
+${FIPS_ENABLED:+--fips}
+Pre-provisioned Air-gapped: GPU-only Steps
+Additional steps are required if using GPU:
+Note:  If the NVIDIA runfile installer has not been downloaded, then retrieve and install the download first
+by running the following command. The first line in the command below downloads the runfile, the second
+saves the runfile and the third line places it in the artifacts directory.
+curl -O https://download.nvidia.com/XFree86/Linux-x86_64/580.126.18/NVIDIA-Linux-
+x86_64-580.126.18.run
+mv NVIDIA-Linux-x86_64-580.126.18.run artifacts
+Upload the gpu_inventory.yaml, along with the bundle artifacts to the gpu nodepool with the nvidia-
+runfile flag. If you have more than one node in the nodepool, you must comma-separate your hosts. For
+example, --ssh-host='<vm-ip-address-1>','<vm-ip-address-2>','<vm-ip-address-3>'):
+./nkp upload image-artifacts \
+ --artifacts-directory=./image-artifacts/ \
+ --ssh-host='<vm-ip-address-1>' \
+ --ssh-username=<ssh-username> \
+ --ssh-private-key-file=<ssh_key> \
+ --nvidia-runfile=./image-artifacts/NVIDIA-Linux-x86_64-580.126.18.run
+Pre-provisioned Air-gapped: Bootstrapping Air-gapped Pre-provisioned
+To create Kubernetes clusters, NKP uses Cluster API (CAPI) controllers. These controllers run on a
+Kubernetes cluster.
+About this task
+Konvoy deploys all cluster lifecycle services to a bootstrap cluster, which deploys a managed cluster. When
+the managed cluster is ready, move the cluster lifecycle services to the managed cluster. The managed
+cluster then manages its own lifecycle.
+To create Kubernetes clusters, Konvoy uses Cluster API (CAPI) controllers. These controllers run on a
+Kubernetes cluster. To get started, you need a bootstrap cluster. By default, Konvoy creates a bootstrap
+cluster for you in a Docker container using the Kubernetes-in-Docker (KIND) tool.
+Prerequisites:
+Before you begin, you must:
+•
+Complete the Nutanix Infrastructure Prerequisites. For more information, see Nutanix Infrastructure
+Requirements on page 692.
+•
+Ensure the nkp binary can be found in your $PATH.
+•
+If using a Registry Mirror even though you are not in an air-gapped environment, refer to the air-gapped
+section for loading images: Pre-provisioned Air-gapped Define Environment
+Bootstrap Cluster Lifecycle Services
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 802
+
+--- page 803 ---
+Procedure
+1. Review Universal Configurations for all Infrastructure Providers regarding settings, flags, and other
+choices and then begin bootstrapping.
+2. Create a bootstrap cluster using the command.
+nkp create bootstrap --kubeconfig $HOME/.kube/config
+Output:
+ # Creating a bootstrap cluster
+ # Initializing new CAPI components
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+To create a bootstrap cluster in a proxied environment (Bootstrap Cluster HTTP Proxy Settings on
+page 666), in addition to any other flags you need, run the following command.
+  --http-proxy <string> \
+  --https-proxy <string> \
+  --no-proxy <string>
+NKP creates a bootstrap cluster using KIND as a library and deploys Cluster API providers on the
+cluster.
+3. NKP waits until these providers' controller-manager and webhook deployments are ready. List
+these deployments using the command kubectl get --all-namespaces deployments -
+l=clusterctl.cluster.x-k8s.io.
+Output example:
+NAMESPACE                           NAME                                           
+ READY   UP-TO-DATE   AVAILABLE   AGE
+capa-system                         capa-controller-manager                        
+ 1/1     1            1           1h
+capg-system                         capg-controller-manager                        
+ 1/1     1            1           1h
+capi-kubeadm-bootstrap-system       capi-kubeadm-bootstrap-controller-manager      
+ 1/1     1            1           1h
+capi-kubeadm-control-plane-system   capi-kubeadm-control-plane-controller-manager  
+ 1/1     1            1           1h
+capi-system                         capi-controller-manager                        
+ 1/1     1            1           1h
+cappp-system                        cappp-controller-manager                       
+ 1/1     1            1           1h
+capv-system                         capv-controller-manager                        
+ 1/1     1            1           1h
+capz-system                         capz-controller-manager                        
+ 1/1     1            1           1h
+cert-manager                        cert-manager                                   
+ 1/1     1            1           1h
+cert-manager                        cert-manager-cainjector                        
+ 1/1     1            1           1h
+cert-manager                        cert-manager-webhook                           
+ 1/1     1            1           1h
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 803
+
+--- page 804 ---
+4. NKP then deploys the following Cluster API providers on the cluster.
+•
+Core Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/
+•
+AWS Infrastructure Provider: https://github.com/kubernetes-sigs/cluster-api-provider-aws
+•
+Kubeadm Bootstrap Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/bootstrap/
+kubeadm
+•
+Kubeadm ControlPlane Provider: https://github.com/kubernetes-sigs/cluster-api/tree/v0.3.20/
+controlplane/kubeadm
+For more information on Cluster APIs, see https://cluster-api.sigs.k8s.io/.
+Pre-provisioned Air-gapped: Creating a New Cluster
+Create a new Pre-provisioned Kubernetes cluster in an Air-gapped environment.
+About this task
+Before you create a new Nutanix Kubernetes Platform (NKP) cluster below, you may choose an external
+load balancer or virtual IP and use the corresponding nkp create cluster command example from that
+page in the docs from the links below. Other customizations are available but require different flags during
+the nkp create cluster command. Refer to Pre-provisioned Cluster Creation Customization Choices for
+more cluster customizations.
+First you must name your cluster. Then you run the command to deploy it. When specifying the cluster-
+name, you must use the same cluster-name as used when defining your inventory objects.
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+2. Set the environment variable: export CLUSTER_NAME=<cluster_name>
+Warning:  When you create a new NKP cluster below, choose an external load balancer (LB) or virtual
+IP and use the corresponding nkp create cluster command.
+What to do next
+Create a Kubernetes Cluster
+After defining the infrastructure and control plane endpoints, you can create the cluster by following these
+steps to create a new pre-provisioned cluster.
+Warning:  NKP uses a localvolumeprovisioner as the default storage provider for a pre-provisioned
+environment. However, localvolumeprovisioner is not suitable for production use. Use Kubernetes
+CSI compatible storage that is suitable for production.
+After disabling localvolumeprovisioner, you can choose from any of the storage options available for
+Kubernetes. To make that storage the default storage, use the commands in this section of the Kubernetes
+documentation: Changing the Default Storage Class
+For Pre-provisioned environments, you define a set of existing nodes. During the cluster creation process,
+Nutanix Image Builder on page 55 (NIB) is built into NKP and automatically runs the machine configuration
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 804
+
+--- page 805 ---
+process (which NIB uses to build images for other providers) against the set of nodes you defined. This
+results in your pre-existing or pre-provisioned nodes being appropriately configured.
+The following command relies on the pre-provisioned cluster API infrastructure provider to initialize the
+Kubernetes control plane and worker nodes on the hosts defined in the inventory.
+Important:  To increase Docker Hub's rate limit, use your Docker Hub credentials when creating the cluster
+by setting the following flag on the nkp create cluster command.
+--registry-mirror-url=https://registry-1.docker.io
+--registry-mirror-username=${REGISTRY_USERNAME} 
+--registry-mirror-password=${REGISTRY_PASSWORD}
+Ensure your subnets do not overlap with your host subnet because they cannot be changed after cluster
+creation. If you need to change the Kubernetes subnets, you must do this at cluster creation. See the topic
+Subnets. The default subnets used in NKP are:
+spec:
+  clusterNetwork:
+    pods:
+      cidrBlocks:
+      - 192.168.0.0/16
+    services:
+      cidrBlocks:
+      - 10.96.0.0/12
+If you are using a GPU, follow this step to create an inventory for GPU Nodes.
+cat <<EOF >  gpu_inventory.yaml 
+all:
+  vars:
+    ansible_port: 22
+    ansible_ssh_private_key_file: $SSH_PRIVATE_KEY_FILE
+    ansible_user: $SSH_USER
+  hosts:
+    $GPU_WORKER_1_ADDRESS:
+      ansible_host: $GPU_WORKER_1_ADDRESS
+EOF
+Create cluster command - Depending on the cluster size, it will take a few minutes to create:
+This command uses the default external load balancer (LB) option (see alternative Step 1 for virtual IP):
+Note:  (Optional) If you have overrides for your clusters, specify the secret in the create cluster command.
+If these are not specified, the overrides for your nodes will not be applied.--override-secret-name=
+$CLUSTER_NAME-user-overrides.
+nkp create cluster preprovisioned --cluster-name ${CLUSTER_NAME}
+  --control-plane-endpoint-host <control plane endpoint host>
+  --control-plane-endpoint-port <control plane endpoint port, if different than 6443>
+  --pre-provisioned-inventory-file preprovisioned_inventory.yaml
+  --ssh-private-key-file <path-to-ssh-private-key>
+  --registry-mirror-url=${REGISTRY_URL} \
+  --dry-run \ 
+  --output=yaml \ 
+  > ${CLUSTER_NAME}.yaml
+1. ALTERNATIVE Virtual IP - if you do not have an external LB and want to use a VIRTUAL IP provided
+by kube-vip, specify these flags example below:
+nkp create cluster preprovisioned \
+    --cluster-name ${CLUSTER_NAME} \
+    --control-plane-endpoint-host 196.168.1.10 \
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 805
+
+--- page 806 ---
+    --virtual-ip-interface eth1 \
+    --dry-run \ 
+    --output=yaml \ 
+    > ${CLUSTER_NAME}.yaml
+Configuring an HTTP or HTTPS Proxy on page 665
+Export Registry Variables and Flags for Cluster Creation on page 681
+FIPS Requirements on page 682
+Output Directory Flag on page 682
+2. Inspect or edit the cluster objects and familiarize yourself with Cluster API before editing them, as edits
+can prevent the cluster from deploying successfully.
+Familiarize yourself with Cluster API before editing the cluster objects as edits can prevent the cluster
+from deploying successfully.
+3. Create the cluster from the objects generated in the dry run. A warning will appear in the console if the
+resource already exists, requiring you to remove the resource or update your YAML.
+kubectl create -f ${CLUSTER_NAME}.yaml
+Note:  If you used the --output-directory flag in your nkp create .. --dry-run step above,
+create the cluster from the objects you created by specifying the directory:
+kubectl create -f <existing-directory>/
+4. Use the wait command to monitor the cluster control-plane readiness:
+kubectl wait --for=condition=Available=True "clusters/${CLUSTER_NAME}" --timeout=30m
+Output:
+cluster.cluster.x-k8s.io/cluster_name condition met
+Note:  It will take a few minutes to create, depending on the cluster size.
+When the command completes complete, you will have a running Kubernetes cluster! For bootstrap
+and custom YAML cluster creation, refer to the Additional Infrastructure Customization section of the
+documentation for Pre-provisioned Pre-provisioned Infrastructure
+Use this command to get the Kubernetes kubeconfig for the new cluster and proceed to install the NKP
+Kommander UI:
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+Note:  Azure requires changing the CNI encapsulation type of Calico from the default of IPtoIP to VXlan.
+If changing the Calico encapsulation, Nutanix recommends changing it after cluster creation, but before
+production.
+Audit Logs
+To modify Control Plane Audit logs settings using the information contained in the page Configure
+the Control Plane.
+Cluster Verification
+If you want to monitor or verify the installation of your clusters, refer to: Cluster and NKP Installation
+Verification on page 1004 and Installing NKP on page 46.
+Pre-provisioned Air-gapped: Making the New Cluster Self-Managed
+How to make a Kubernetes cluster manage itself.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 806
+
+--- page 807 ---
+About this task
+Nutanix Kubernetes Platform (NKP) deploys all cluster life cycle services to a bootstrap cluster, which then
+deploys a managed cluster. When the managed cluster is ready, move the cluster life cycle services to the
+workload cluster, which makes the managed cluster self-managed.
+Before you begin
+Before starting, ensure you can create a managed cluster as described in the topic: Create a New Pre-
+provisioned Cluster.
+This page contains instructions on how to make your cluster self-managed. This is necessary if there is
+only one cluster in your environment or if this cluster becomes the Management cluster in a multi-cluster
+environment.
+Note:  If you already have a self-managed or Management cluster in your environment, skip this page.
+Make the New Kubernetes Cluster Manage Itself
+Follow these steps to turn your new cluster into a Management Cluster for an Ultimate license
+environment (or a free-standing Pro Cluster):
+Note:  If you have not already retrieved the kubeconfig after creating the cluster, use this command before
+proceeding:
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+Procedure
+1. Deploy cluster life cycle services on the managed cluster.
+nkp create capi-components --kubeconfig ${CLUSTER_NAME}.conf
+Output:
+# Initializing new CAPI components
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+2. Move the Cluster API objects from the bootstrap to the managed cluster.
+The cluster life cycle services on the managed cluster are ready, but the managed cluster configuration
+is on the bootstrap cluster. The move command moves the configuration, which takes the form of
+Cluster API Custom Resource objects, from the bootstrap to the managed cluster. This process
+is called a Pivot. For more information, see https://cluster-api.sigs.k8s.io/reference/glossary.html?
+highlight=pivot#pivot. First unset the kubeconfig and then move the CAPI:
+unset KUBECONFIG
+nkp move capi-resources --to-kubeconfig ${CLUSTER_NAME}.conf
+Output:
+# Moving cluster resources
+You can now view resources in the moved cluster by using the --kubeconfig flag with
+ kubectl. For example: kubectl --kubeconfig=gcp-example.conf get nodes
+Note:  To ensure only one set of cluster life cycle services manages the managed cluster, NKP first
+pauses the reconciliation of the objects on the bootstrap cluster, then creates the objects on the managed
+cluster. As NKP copies the objects, the cluster life cycle services on the managed cluster reconcile the
+objects. The managed cluster becomes self-managed after NKP creates all the objects. If it fails, the
+move command can be safely retried.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 807
+
+--- page 808 ---
+3. Wait for the cluster control-plane to be ready.
+kubectl --kubeconfig ${CLUSTER_NAME}.conf wait --for=condition=Available=True
+ "clusters/${CLUSTER_NAME}" --timeout=20m
+Output:
+cluster.cluster.x-k8s.io/gcp-example condition met
+4. Use the cluster life cycle services on the managed cluster to check the managed cluster status.
+Note:  After moving the cluster life cycle services to the managed cluster, remember to use NKP with the
+managed cluster kubeconfig.
+nkp describe cluster --kubeconfig ${CLUSTER_NAME}.conf -c ${CLUSTER_NAME}
+Output:
+NAME                                                                       READY 
+ SEVERITY  REASON  SINCE  MESSAGE
+Cluster/cluster_name                                             True                
+     2m31s         
+##ClusterInfrastructure - PreprovisionedCluster/cluster_name                         
+                   
+##ControlPlane - KubeadmControlPlane/cluster_name-control-plane  True                
+     2m31s         
+# ##Machine/cluster_name-control-plane-6g6nr                     True                
+     2m33s         
+# ##Machine/cluster_name-control-plane-8lhcv                     True                
+     2m33s         
+# ##Machine/cluster_name-control-plane-kk2kg                     True                
+     2m33s         
+##Workers                                                                            
+                    
+  ##MachineDeployment/cluster_name-md-0                          True                
+     2m34s         
+    ##Machine/cluster_name-md-0-77f667cd9-tnctd                  True                
+     2m33s  
+5. Remove the bootstrap cluster because the managed cluster is now self-managed.
+nkp delete bootstrap --kubeconfig $HOME/.kube/config
+Output:
+# Deleting bootstrap cluster
+Known Limitations
+Procedure
+•
+NKP only supports moving all namespaces in the cluster; NKP does not support migration of individual
+namespaces.
+•
+Konvoy supports moving only one set of cluster objects from the bootstrap cluster to the managed
+cluster or vice-versa.
+Pre-provisioned Air-gapped: Installing Kommander
+This section provides installation instructions for the Kommander component of NKP in an air-gapped Pre-
+provisioned environment.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 808
+
+--- page 809 ---
+About this task
+Once you have installed the Konvoy component of Nutanix Kubernetes Platform (NKP), you will continue
+installing the Kommander component that will bring up the UI dashboard.
+Prerequisites:
+•
+Ensure you have reviewed all Prerequisites for Install.
+•
+Ensure you have a Default StorageClass on page 942.
+•
+Ensure you have loaded all necessary images for your configuration. See Images Download into Your
+Registry: Air-gapped Environments on page 944
+•
+Note the name of the cluster where you want to install Kommander. If you do not know the cluster
+name, use kubectl get nkpclusters -A to display and find it.
+Create your Kommander Installation Configuration File
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} >> $    {CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init --airgapped > kommander.yaml
+4. If required: Customize your kommander.yaml.
+See the Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, External Load Balancer, GPU utilization, Rook Ceph
+customization for Pre-provisioned environments, and so on.
+5. If required: If your cluster uses a custom AWS VPC and requires an internal load-balancer, set the
+traefik annotation to create an internal-facing ELB:
+...
+apps:
+...
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true
+...
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 809
+
+--- page 810 ---
+6. Expand one of the following sets of instructions, depending on your license and application
+environments:
+»
+Pro License: Install Kommander in a Pre-provisioned, air-Gapped Environment.
+Use the customized kommander.yaml to install NKP:
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+»
+Ultimate License: Install Kommander in a Pre-provisioned, air-gapped Environment.
+Use the customized kommander.yaml to install NKP:
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Kommander Customizations
+You can configure the Kommander component of NKP during the initial installation, and also post-
+installation using the NKP CLI. If you are not sure of what you want to customize during install, then
+proceed to the next step. To read about Kommander component customization options, refer to this
+section of the documentation: Kommander Customizations on page 957
+Pre-provisioned Air-gapped: Verifying the Install and UI Log in
+Verify Kommander Install and log in to the Dashboard UI
+About this task
+After you build the Konvoy cluster and you install the Kommander component for the UI, you can verify
+your installation. It waits for all applications to be ready by default.
+Note:  If the Kommander installation fails or you wish to reconfigure applications, you can rerun the install
+command to retry the installation.
+Procedure
+Check the installation status:
+kubectl -n kommander wait --for condition=Ready helmreleases --all --timeout 15m
+Note:  If you prefer the CLI to not wait for all applications to become ready, you can set the --wait=false
+flag.
+The command waits for each Helm chart to reach the Ready condition and returns output similar to the
+following:
+helmrelease.helm.toolkit.fluxcd.io/ai-navigator-app condition met
+helmrelease.helm.toolkit.fluxcd.io/centralized-grafana condition met
+...
+The output can include additional HelmRelease entries.
+Failed HelmReleases
+Procedure
+If an application fails to deploy, check the status of a HelmRelease using the command.
+kubectl -n kommander get helmrelease <HELMRELEASE_NAME>
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 810
+
+--- page 811 ---
+If you find any HelmReleases in a “broken” release state, such as “exhausted” or “another rollback/release
+in progress”, trigger a reconciliation of the HelmRelease using the commands.
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": true}]'
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": false}]'
+Log in to the UI
+Procedure
+1. By default, log in to the UI in Kommander with the following command:
+nkp open dashboard --kubeconfig=${CLUSTER_NAME}.conf
+2. Retrieve your credentials:
+kubectl -n kommander get secret nkp-credentials -o go-template='Username:
+ {{.data.username|base64decode}}{{ "\n"}}Password: {{.data.password|base64decode}}
+{{ "\n"}}'
+3. Retrieve the dashboard URL:
+kubectl -n kommander get svc kommander-traefik -o go-template='https://{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}/NKP/kommander/
+dashboard{{ "\n"}}'
+You should only use these static credentials to access the UI for configuring an external identity
+provider. Treat them as backup credentials rather than use them for normal access.
+a. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Are you sure you want to continue? [y/N]: y
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+b. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+For more information, see Rotating the NKP Dashboard Password on page 252.
+You can perform the following operations on Identity Providers:
+•
+Create an Identity Provider
+•
+Temporarily Disable an Identity Provider
+•
+Create Groups
+Dashboard UI Functions
+After installing Konvoy component and building a cluster as well as successfully installing Kommander
+and logging into the UI, you are now ready to customize configurations using the Day 2 Cluster
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 811
+
+--- page 812 ---
+Operations Management section of the documentation. The majority of this customization such as
+attaching clusters and deploying applications will take place in the dashboard or UI of NKP. The Day
+2 section allows you to manage cluster operations and their application workloads to optimize your
+organization’s productivity.
+Pre-Provisioned Management Tools
+After cluster creation and configuration, you can revisit clusters to update and change variables.
+You can manage or delete a pre-provisioned cluster. You can also manage the pre-provisioned node pools
+through the steps listed in the following topics.
+Pre-provisioned: Deleting a Cluster
+Deleting a Pre-provisioned cluster.
+About this task
+Note:  A self-managed managed cluster cannot delete itself. If your managed cluster is self-managed, you
+must first create a bootstrap cluster and move the cluster life cycle services to it before deleting the managed
+cluster.
+Procedure
+If you did not make your managed cluster self-managed, as described in Make New Cluster Self-Managed,
+proceed to the instructions for Delete the managed cluster.
+Creating a Bootstrap Cluster and Nutanix Move CAPI Resources
+About this task
+Follow these steps to create a bootstrap cluster and move CAPI resources:
+Procedure
+1. Create a bootstrap cluster.
+The bootstrap cluster will host the Cluster API controllers that reconcile the cluster objects marked for
+deletion.
+Note:  To avoid using the wrong kubeconfig, the following steps use explicit kubeconfig paths and
+contexts.
+nkp create bootstrap --kubeconfig $HOME/.kube/config
+ # Creating a bootstrap cluster
+ # Initializing new CAPI components
+2. Move the Cluster API objects from the workload to the bootstrap cluster: The cluster life cycle services
+on the bootstrap cluster are ready, but the managed cluster configuration is on the managed cluster.
+The move command moves the configuration, which takes the form of Cluster API Custom Resource
+objects, from the workload to the bootstrap cluster. This process is also called a Pivot.
+nkp move capi-resources \
+ --from-kubeconfig ${CLUSTER_NAME}.conf \
+ --from-context ${CLUSTER_NAME}-admin@${CLUSTER_NAME} \
+ --to-kubeconfig $HOME/.kube/config \
+ --to-context kind-konvoy-capi-bootstrapper
+Output:
+# Moving cluster resources
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 812
+
+--- page 813 ---
+You can now view resources in the moved cluster by using the --kubeconfig flag with
+ kubectl. For example: kubectl --kubeconfig $HOME/.kube/config get nodes
+3. Use the cluster life cycle services on the managed cluster to check the managed cluster’s status.
+nkp describe cluster --kubeconfig $HOME/.kube/config -c ${CLUSTER_NAME}
+Output:
+NAME                                                                       READY 
+ SEVERITY  REASON  SINCE  MESSAGE
+Cluster/cluster_name                                             True                
+     2m31s         
+##ClusterInfrastructure - PreprovisionedCluster/cluster_name                         
+                   
+##ControlPlane - KubeadmControlPlane/cluster_name-control-plane  True                
+     2m31s         
+# ##Machine/cluster_name-control-plane-6g6nr                     True                
+     2m33s         
+# ##Machine/cluster_name-control-plane-8lhcv                     True                
+     2m33s         
+# ##Machine/cluster_name-control-plane-kk2kg                     True                
+     2m33s         
+##Workers                                                                            
+                    
+  ##MachineDeployment/cluster_name-md-0                          True                
+     2m34s         
+    ##Machine/cluster_name-md-0-77f667cd9-tnctd                  True                
+     2m33s  
+Note:  After moving the cluster lifecycle services to the managed cluster, remember to use nkp with the
+managed cluster kubeconfig.
+4. Wait for the cluster control-plane to be ready. Run the command below and wait for the condition to be
+met:
+kubectl --kubeconfig $HOME/.kube/config wait --for=condition=controlplaneready
+ "clusters/${CLUSTER_NAME}" --timeout=20m
+Output:
+cluster.cluster.x-k8s.io/cluster_name condition met
+Persistent Volumes (PVs) are not deleted automatically by design in order to preserve your data.
+However, they take up storage space if not deleted. You must delete PVs manually. Information for
+backup of a cluster and PVs is on the page in documentation called Back up your Cluster's Applications
+and Persistent Volumes. See Cluster Applications and Persistent Volumes Backup on page 474.
+Deleting the Workload Cluster
+About this task
+If you have a need to remove the Kubernetes cluster, such as for environment cleanup, use this command
+to delete the provisioned Kubernetes cluster.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 813
+
+--- page 814 ---
+Procedure
+1. To delete a cluster, Use nkp delete cluster and pass in the name of the cluster you are trying to
+delete with --cluster-name flag. Use kubectl get clusters to get those details (--cluster-name
+and --namespace) of the Kubernetes cluster to delete it.
+Note:  Do not use nkp get clusters since that gets you NKP cluster details rather than Konvoy
+Kubernetes cluster details.
+kubectl get nkpclusters
+2. Delete the Kubernetes cluster and wait a few minutes.
+Note:  Before deleting the cluster, Nutanix Kubernetes Platform (NKP) deletes all Services of
+type LoadBalancer on the cluster. Each Service is backed by an AWS Classic ELB. Deleting the
+Service deletes the ELB that backs it. To skip this step, use the flag --delete-kubernetes-
+resources=false. Do not skip this step if the VPC is managed by NKP. When NKP deletes the cluster;
+it deletes the VPC. If the VPC has any AWS Classic ELBs, AWS does not allow the VPC to be deleted,
+and NKP cannot delete the cluster.
+nkp delete cluster --cluster-name=${CLUSTER_NAME} --kubeconfig $HOME/.kube/config
+Output:
+# Deleting Services with type LoadBalancer for Cluster default/cluster_name
+# Deleting ClusterResourceSets for Cluster default/cluster_name
+# Deleting cluster resources
+# Waiting for the cluster to be fully deleted
+Deleted default/cluster_name cluster
+After the managed cluster is deleted, you can delete the bootstrap cluster.
+Deleting the Bootstrap Cluster
+About this task
+After you have moved the workload resources back to a bootstrap cluster and deleted the managed
+cluster, you no longer need the bootstrap cluster. You can safely delete the bootstrap cluster with these
+steps:
+Use nkp with the bootstrap cluster to delete the managed cluster. Delete the kind Kubernetes cluster:
+Procedure
+Delete the bootstrap cluster.
+nkp delete bootstrap --kubeconfig $HOME/.kube/config
+Output:
+# Deleting bootstrap cluster
+Manage Pre-provisioned Node Pools
+Node pools are part of a cluster and managed as a group, and you can use a node pool to manage a
+group of machines using the same common properties. When Konvoy creates a new default cluster, there
+is one node pool for the worker nodes, and all nodes in that new node pool have the same configuration.
+You can create additional node pools for more specialized hardware or configuration. For example, if you
+want to tune your memory usage on a cluster where you need maximum memory for some machines and
+minimal memory for others, you create a new node pool with those specific resource needs.
+Nutanix Kubernetes Platform (NKP) implements node pools using Cluster API Machine Deployments. For
+more information, see MachineDeployment.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 814
+
+--- page 815 ---
+Pre-provisioned: Creating Node Pools
+Creating a node pool is useful when you need to run workloads that require machines with specific
+resources, such as a GPU, additional memory, or specialized network or storage hardware.
+About this task
+Node pools are part of a cluster and managed as a group, and can be used to manage a group of
+machines using common properties. New default clusters created by Konvoy contain one node pool of
+worker nodes that have the same configuration.
+You can create additional node pools for specialized hardware or other configurations. For example, if you
+want to tune your memory usage on a cluster where you need maximum memory for some machines and
+minimal memory on others, you could create a new node pool with those specific resource needs.
+Environment variables, such as defining the node pool name, are set in the Prepare the Environment
+section on the previous page. If needed, refer to that page to set those variables.
+Note:  Konvoy implements node pools using Cluster API MachineDeployments.
+Create a Pre-provisioned Node Pool:
+Procedure
+1. Create an inventory object with the same name as the node pool you’re creating and the details of
+the pre-provisioned machines you want to add to it. For example, to create a node pool named gpu-
+nodepool, an inventory named gpu-nodepool must be present in the same namespace.
+apiVersion: infrastructure.cluster.konvoy.nutanix.io/v1alpha1
+kind: PreprovisionedInventory
+metadata:
+  name: ${MY_NODEPOOL_NAME}
+spec:
+  hosts:
+    - address: ${IP_OF_NODE}
+  sshConfig:
+    port: 22
+    user: ${SSH_USERNAME}
+    privateKeyRef:
+      name: ${NAME_OF_SSH_SECRET}
+      namespace: ${NAMESPACE_OF_SSH_SECRET}
+2. (Optional) If your pre-provisioned machines have overrides, you must create a secret that includes all
+the overrides you want to provide in one file. Create an override secret using the instructions detailed on
+this page. See Pre-provisioned: Creating Secrets and Overrides on page 776.
+3. Once the PreprovisionedInventory object and overrides are created, create a node pool.
+nkp create nodepool preprovisioned -c ${MY_CLUSTER_NAME} ${MY_NODEPOOL_NAME} --
+override-secret-name ${MY_OVERRIDE_SECRET}
+Advanced users can use a combination of the --dry-run and --output=yaml or --output-
+directory=<existing-directory> flags to get a complete set of node pool objects to modify locally or
+store in version control.
+For more information regarding this flag or others, please refer to the nkp create nodepool section of
+the documentation for either cluster or nodepool and select your provider.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 815
+
+--- page 816 ---
+Pre-provisioned: Scaling Up Node Pools
+While running Cluster Autoscaler, you can manually scale your node pools up or down when you need
+finite control over your environment. This sections covers the prerequisites and procedure you need to
+scale-up or scale-down nodes in an existing NKP cluster.
+Before you begin
+•
+You must have the bootstrap node running with the SSH key or secrets created.
+•
+The export values in the environment variables section need to contain the addresses of the nodes that
+you need to add Pre-provisioned: Define Infrastructure.
+•
+Update the preprovisioned_inventory.yaml with the new host addresses.
+•
+Run the kubectl apply command.
+Scale Up Node Pools
+Procedure
+1. Fetch the existing preprovisioned_inventory.
+$ kubectl get preprovisionedinventory
+2. Edit the preprovisioned_inventory to add additional IPs needed for additional worker nodes in the
+spec.hosts: section.
+$ kubectl edit preprovisionedinventory <preprovisioned_inventory> -n default 
+3. Add any additional IPs that you require
+spec: 
+    hosts: 
+    - address: <worker.ip.add.1> 
+    - address: <worker.ip.add.2> 
+After you edit preprovisioned_inventory, fetch the machine deployment. The naming convention
+with md means that it is for worker machines. For example.
+$ kubectl --kubeconfig ${CLUSTER_NAME}.conf get machinedeployment
+NAME                     CLUSTER        AGE     PHASE     REPLICAS   READY   UPDATED 
+  UNAVAILABLE 
+machinedeployment-md-0   cluster-name   9m10s   Running   4          4       4   
+4. Scale the worker node to the required number. In this example, we scale from 4 to 6 worker nodes.
+$ kubectl --kubeconfig ${CLUSTER_NAME}.conf scale --replicas=6 machinedeployment
+ machinedeployment-md-0
+machinedeployment.cluster.x-k8s.io/machinedeployment-md-0 scaled 
+5. Monitor the scaling with this command by adding the -w option to watch.
+$ kubectl --kubeconfig ${CLUSTER_NAME}.conf get machinedeployment -w
+NAME                     CLUSTER        AGE   PHASE       REPLICAS   READY   UPDATED 
+  UNAVAILABLE 
+machinedeployment-md-0   cluster-name   20m   ScalingUp   6          4       6      
+   2 
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 816
+
+--- page 817 ---
+6. Also, you can check the machine deployment to see if it is already scaled.
+Example output
+$ kubectl --kubeconfig ${CLUSTER_NAME}.conf get machinedeployment
+NAME                     CLUSTER        AGE     PHASE     REPLICAS   READY   UPDATED 
+  UNAVAILABLE 
+machinedeployment-md-0   cluster-name   3h33m   Running   6          6       6 
+7. Alternately, you can use this command to verify the NODENAME column and see the additional worker
+nodes added and in Running state.
+$ kubectl --kubeconfig ${CLUSTER_NAME}.conf get machines -o wide
+NAME     CLUSTER     AGE     PROVIDERID     PHASE     VERSION     NODENAME
+Pre-provisioned: Scaling Down Node Pools
+While running Cluster Autoscaler, you can manually scale your node pools up or down when you need
+finite control over your environment. This sections covers the prerequisites and procedure you need to
+scale-up or scale-down nodes in an existing NKP cluster.
+Procedure
+1. Run this command on your worker nodes.
+kubectl scale machinedeployment <machinedeployment-name> --replicas <new number>
+2. For control plane nodes, execute the following command.
+kubectl scale kubeadmcontrolplane ${CLUSTER_NAME}-control-plane --replicas <new
+ number>
+Additional Notes for Scaling Down
+Machines can get stuck in the provisioning stage when you scale down. You can utilize a delete
+operation to clear the stale machine deployment:
+kubectl delete machine ${CLUSTER_NAME}-control-plane-<hash>
+kubectl delete machine <machinedeployment-name>-<hash>
+Pre-provisioned: Deleting Node Pools
+Deleting a node pool deletes the Kubernetes nodes and the underlying infrastructure.
+About this task
+All nodes will be drained before deletion, and the pods running on those nodes will be rescheduled.
+Note:  To delete a node pool on the management cluster on NKP 2.18 or later, add -n kommander to the
+command. Starting in NKP 2.18, the management cluster runs in the kommander namespace. In NKP 2.17
+and earlier, this flag was not required.
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 817
+
+--- page 818 ---
+Procedure
+1. Delete a node pool from a managed cluster using the command.
+nkp delete nodepool ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME}
+In this example output,example is the node pool to be deleted.
+INFO[2021-07-28T17:14:26-07:00] Running nodepool delete command        
+ Nodepool=example clusterName=d2iq-e2e-cluster-1 managementClusterKubeconfig=
+ namespace=default src="nodepool/delete.go:80"
+2. Delete an invalid node pool using the command.
+Example output:
+nkp delete nodepool ${CLUSTER_NAME}-md-invalid --cluster-name=${CLUSTER_NAME}
+INFO[2021-07-28T17:11:44-07:00] Running nodepool delete command         
+      Nodepool=demo-cluster-md-invalid clusterName=nutanix-e2e-cluster-1
+ managementClusterKubeconfig= namespace=default src="nodepool/delete.go:80"
+Error: failed to get nodepool with name demo-cluster-md-invalid in namespace
+ default : failed to get nodepool with name demo-cluster-md-invalid in namespace
+ default : machinedeployments.cluster.x-k8s.io "demo-cluster-md-invalid" not found
+Pre-provisioned: Creating GPU Node Pools
+For pre-provisioned environments, Nutanix Kubernetes Platform (NKP) has provided the nvidia-runfile
+flag for Air-gapped Pre-provisioned environments.
+About this task
+Add the download to the artifacts directory.
+Before you begin
+•
+If the NVIDIA runfile installer has not been downloaded, retrieve and install the download by running the
+command.
+curl -O https://download.nvidia.com/XFree86/Linux-x86_64/580.126.18/NVIDIA-Linux-
+x86_64-580.126.18.run
+mv NVIDIA-Linux-x86_64-580.126.18.run artifacts
+Note:  The NKP supported NVIDIA driver version is 580.126.18. For more information, see NVIDIA
+Drivers.
+•
+Create an artifacts directory if it does not already exist.
+Note:  For using GPUs in an air-gapped on-premises environment, Nutanix recommends setting up Pod
+Disruption Budget before Update Cluster Nodepools. For more information, see https://kubernetes.io/
+docs/concepts/workloads/pods/disruptions/ and https://docs.nvidia.com/datacenter/tesla/tesla-
+installation-notes/index.html#runfile.
+Procedure
+1. In your overrides/nvidia.yaml file, add the following to enable GPU builds. You can also access and
+use the overrides repo. Create the secret that GPU nodepool uses.
+gpu:
+  types:
+    - nvidia
+Nutanix Kubernetes Platform | Custom Installation and Infrastructure Tools | 818

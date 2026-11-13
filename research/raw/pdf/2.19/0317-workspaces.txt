@@ -1,0 +1,2572 @@
+
+--- page 317 ---
+data:
+  values.yaml: |
+    ingester:
+      priorityClassName: nkp-critical-priority
+EOF
+2. Edit the grafana-loki-v3 AppDeployment to set the value of spec.configOverrides.name to
+grafana-loki-v3-overrides.
+After your editing is complete, the AppDeployment resembles this example:
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: grafana-loki-v3
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: grafana-loki-v3-3.6.7
+    kind: ClusterApp
+  configOverrides:
+    name: grafana-loki-v3overrides
+3. Check the PriorityClass of the ingester pod:
+Note:  Reconciliation might take a few minutes to complete.
+kubectl get pods -n ${WORKSPACE_NAMESPACE} -o custom-
+columns=NAME:.metadata.name,PRIORITY:.spec.priorityClassName,PRIORITY:.spec.priority
+ |grep ingester
+The result appears as follows:
+NAME                                                              PRIORITY           
+       PRIORITY
+grafana-loki-loki-distributed-ingester-0                          nkp-critical-
+priority     100002000
+For more information about PriorityClasses, see the Kubernetes Pod Priority and Preemption
+documentation.
+Workspaces
+Allow teams or tenants to manage their own clusters using workspaces. Workspaces are a logical grouping
+of clusters that maintain a similar configuration, with certain configurations automatically federated to those
+clusters. Workspaces give you the flexibility to represent your organization in a way that makes sense
+for your teams or tenants. For example, you can create workspaces to separate clusters according to
+departments, products, or business functions.
+The following procedures are supported for workspaces:
+•
+Deploying Platform Applications Using CLI on page 297
+•
+Platform Applications on page 294
+•
+Platform Applications Dependencies For All Clusters on page 298
+•
+Workspace Platform Application Defaults and Resource Requirements on page 700
+Global or Workspace UI
+The UI is designed to be accessible for different roles at different levels:
+Nutanix Kubernetes Platform | Cluster Operations Management | 317
+
+--- page 318 ---
+•
+Global: At the top level, IT administrators manage all clusters across all workspaces.
+•
+Workspace: DevOps administrators manage multiple clusters within a workspace.
+•
+Projects: DevOps administrators or developers manage configuration and services across multiple
+clusters.
+Default Workspace
+To get started immediately, you can use the default workspace deployed in NKP. However, take into
+account that you cannot move clusters from one workspace to another after creating/attaching them.
+Creating a Workspace
+In NKP, you can create your own workspaces.
+About this task
+To create a workspace:
+Procedure
+1. From the workspace selection dropdown list in the top menu bar, select Create Workspace.
+2. Type a name and description.
+3. Click Save.
+The workspace is now accessible from the workspace selection dropdown list.
+Adding or Editing Workspace Annotations and Labels
+When creating or editing a workspace, you can use the Advanced Options to add, edit, or delete
+annotations and labels to your workspace. Both the annotations and labels are applied to the workspace
+namespace.
+About this task
+To perform an action in workspace:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select the Actions from the dropdown list and click Edit.
+3. Enter in new Key and Value labels for your workspace, or edit existing Key and Value labels.
+Note:  Labels that are added to a workspace are also applied to all the kommanderclusters in the
+workspace.
+Deleting a Workspace
+In NKP, you can delete existing workspaces.
+About this task
+To delete a workspace:
+Note:  Workspaces can only be deleted if all the clusters in the workspace have been deleted or detached.
+Nutanix Kubernetes Platform | Cluster Operations Management | 318
+
+--- page 319 ---
+Procedure
+1. From the top menu bar, select Global.
+2. From the sidebar menu, select Workspaces.
+3. Select the three-dot button to the right of the workspace you want to delete, and then click Delete.
+4. Confirm the workspace deletion in the Delete Workspace dialog box.
+The following procedures are supported for workspaces:
+•
+Deploying Platform Applications Using CLI on page 297
+•
+Platform Applications on page 294
+•
+Platform Applications Dependencies For All Clusters on page 298
+•
+Workspace Platform Application Defaults and Resource Requirements on page 700
+Workspace Applications
+This topic describes the applications and application types that you can use with NKP.
+•
+Platform Applications on page 294 are applications integrated into NKP.
+•
+Catalog Applications: are either pre-packaged applications from the Nutanix Application Catalog or
+custom applications that you maintain for your teams or organization.
+Cluster-scoped Application Configuration from the NKP UI
+When you enable an application for a workspace, you deploy this application to all clusters within that
+workspace. You can also choose to enable or customize an application on certain clusters within a
+workspace.
+This functionality allows you to use NKP in a multi-cluster scenario without restricting the management of
+multiple clusters from a single workspace.
+Note:  NKP Pro users are only be able to configure and deploy applications to a single cluster within a
+workspace. Selecting an application to deploy to a cluster skips cluster selection and takes you directly to the
+workspace configuration overrides page.
+Enabling a Cluster-scoped Application Using the NKP UI
+Before you begin
+Ensure that you’ve provisioned or attached clusters in one of the following environments:
+•
+Amazon Web Services (AWS): Creating the NKP Management Cluster on AWS on page 828
+•
+Amazon Elastic Kubernetes Service (EKS):EKS: Creating an EKS Cluster from the UI on page 856
+•
+Microsoft Azure:Creating a Managed Azure Cluster Through the NKP UI on page 420
+For more information, see the current list of Catalog and Platform Applications:
+•
+Workspace Catalog Applications on page 327
+•
+Platform Applications on page 294
+Navigate to the workspace containing the clusters you want to deploy to by selecting the appropriate
+workspace name from the dropdown list at the top of the NKP dashboard.
+Nutanix Kubernetes Platform | Cluster Operations Management | 319
+
+--- page 320 ---
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. From the left navigation pane, find the application you want to deploy to the cluster, and select
+Applications.
+4. Select the triple dot vertical icon in the desired application’s tile and select Enable.
+Note:  You can also access the Application Enablement  by selecting the triple dot vertical icon > View
+> Details. Then, select Enable from the application’s details page.
+The Application Enablement  page appears.
+5. Select the cluster(s) that you want to deploy the application to.
+The available clusters are sorted by Name, Type, Provider and any Labels that you added.
+6. In the lower-right of the Application Enablement page, deploy the application to the clusters by
+selecting Enable.
+You are automatically redirected to either the Applications or View Details  page.
+To view the application enabled in your chosen cluster, navigate to the Clusters page on the left
+navigation bar. The application appears in the Applications pane of the appropriate cluster.
+Note:  Once you enable an application at the workspace level, NKP automatically enables that app on
+any other cluster you create or attach.
+Configuring a Cluster-scoped Application Using the NKP UI
+About this task
+For scenarios where applications require different configurations on a per-cluster basis, navigate to the
+Applications page and select Edit from the triple dot vertical icon of the appropriate application to return
+to the application enablement page.
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. From the left navigation pane, find the application you want to deploy to the cluster, and select
+Applications.
+The available clusters can be sorted by Name, Type, Provider and any Labels you’ve added.
+4. The Applications page contains two separate types of code editors, where you can enter your
+specified overrides and configurations.
+»
+Workspace Application Configuration: A workspace-level code editor that applies all
+configurations and overrides to the entirety of the workspace and its clusters for this application.
+»
+Cluster Application Configuration Override: A cluster-scoped code editor that applies
+configurations and overrides to the cluster specified. These customizations will merge with the
+workspace application configuration. If there is no cluster-scoped configuration, the workspace
+configuration applies.
+Nutanix Kubernetes Platform | Cluster Operations Management | 320
+
+--- page 321 ---
+5. If you already have a configuration to apply in a text or .yaml file, you can upload the file by selecting
+Upload File. If you want to download the displayed set of configurations, select Download File.
+6. Finish configuring the cluster-scoped applications by selecting Save.
+You are automatically redirected to either the Applications or View Details page. To view the custom
+configurations of the application in the cluster, select the Configurations tab on the details page of the
+application.
+Note:  Editing is disabled in the code boxes displayed in the application’s details page. To edit the
+configuration, click Edit in the top right of the page and repeat the steps in this section.
+Removing a Cluster-scoped Application
+About this task
+Navigate to the cluster you’ve deployed your applications to by selecting Clusters from the left navigation
+bar.
+Procedure
+1. Click on the Applications tab.
+2. Select the triple dot vertical icon in the application tile that you want and select Disable.
+A prompt appears to confirm your decision to disable the application.
+3. Follow the instructions in the prompt and select Disable
+4. Refresh the page to confirm that the application has been removed from the cluster.
+This process only removes the application from the specific cluster you have navigated to. To remove
+this application from other clusters, navigate to the Clusters page and repeat the process.
+Cluster-scoped Application for Existing AppDeployments
+This topic describes how to enable cluster-scoped configuration of applications for existing
+AppDeployments.
+When you enable an application for a workspace, you deploy this application to all clusters within that
+workspace. You can also choose to enable or customize an application on certain clusters within a
+workspace. This functionality allows you to use NKP in a multi-cluster scenario without restricting the
+management of multiple clusters from a single workspace.
+Your NKP cluster comes bundled with a set of default application configurations. If you want to override
+the default configuration of your applications, you can define workspace configOverrides on top of
+the default workspace configuration. And if you want to further customize your workspace by enabling
+applications on a per-cluster basis or by defining per-cluster customizations, you can create and apply
+clusterConfigOverrides.
+The cluster-scoped enablement and customization of applications is an Ultimate-only feature, which allows
+the configuration of all workspace Platform Applications on page 294, Workspace Catalog Applications
+on page 327, and Custom Applications on page 354 through the CLI in your managed and attached
+clusters regardless of your environment setup (air-gapped or non-air-gapped). This capability is not
+provided for project applications.
+Cluster-scope Application Prerequisites
+Prerequisites for enabling an application per cluster for the first time or after it is enabled at the workspace
+level.
+Nutanix Kubernetes Platform | Cluster Operations Management | 321
+
+--- page 322 ---
+•
+Any application you wish to enable or customize at a cluster level, first needs to be enabled at the
+workspace-level through an AppDeployment. See Deploying Platform Applications Using CLI on
+page 297 and Workspace Catalog Applications on page 327.
+•
+For custom configurations, you must created a ConfigMap. For all the required spec fields for each
+customization you want to add to an application in a cluster, see AppDeployment Resources on
+page 271.
+You can apply a ConfigMap to several clusters, or create a ConfigMap for each cluster, but the
+ConfigMap object must exist in the Management cluster.
+•
+Determine the name of the workspace where you wish to perform the deployments. You can use
+the nkp get workspaces command to see the list of workspace names and their corresponding
+namespaces.
+•
+Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace where
+the cluster is attached.
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+•
+Set the WORKSPACE_NAME environment variable to the name of the workspace where the cluster is
+attached.
+export WORKSPACE_NAME=<workspace_name>
+Enabling an Application Per Cluster For the First Time
+Before you begin
+See Cluster-scope Application Prerequisites on page 321.
+About this task
+When you enable an application on a workspace, it is deployed to all clusters in the workspace by default.
+If you want to deploy it only to a subset of clusters when enabling it on a workspace for the first time, you
+can follow the steps in this topic.
+To enable an application per cluster for the first time:
+Procedure
+1. Create an AppDeployment for your application, selecting a subset of clusters within the workspace to
+enable it on. You can use the nkp get clusters --workspace ${WORKSPACE_NAME} command to see
+the list of clusters in the workspace.
+The following snippet is an example. Replace the application name, version, workspace name and
+cluster names according to your requirements. For compatible components and application versions,
+see NKP Release Notes on the Nutanix Support Portal.
+nkp create appdeployment kube-prometheus-stack --app kube-prometheus-stack-82.13.6 --
+workspace ${WORKSPACE_NAME} --clusters attached-cluster1,attached-cluster2
+2. (Optional) Check the current status of the AppDeployment to see the names of the clusters where the
+application is currently enabled.
+Enabling an Application Per Cluster After it is Enabled at the Workspace Level
+You can enable or disable an application per cluster after it has been enabled at the workspace level.
+Nutanix Kubernetes Platform | Cluster Operations Management | 322
+
+--- page 323 ---
+Before you begin
+See Cluster-scope Application Prerequisites on page 321.
+About this task
+You can enable or disable applications at any time. After you have enabled the application at the
+workspace level, the spec.clusterSelector field populates.
+Note:  For clusters that are newly attached into the workspace, all applications enabled for the workspace
+are automatically enabled on and deployed to the new clusters.
+If you want to see on what clusters your application is currently deployed, see the print and review
+the current state of your AppDeployment. For more information, see AppDeployment Resources on
+page 271.
+Procedure
+Edit the AppDeployment YAML by adding or removing the names of the clusters where you want to enable
+your application in the clusterSelector section:
+The following snippet is an example. Replace the application name, version, workspace name and cluster
+names according to your requirements.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-46.8.0
+    kind: ClusterApp
+  clusterSelector:
+    matchExpressions:
+    - key: kommander.d2iq.io/cluster-name
+      operator: In
+      values:
+      - attached-cluster1
+      - attached-cluster3-new
+EOF
+Customizing an Application Per Cluster
+You can customize the application for each cluster occurrence of said application. If you want to customize
+the application for a cluster that is not yet attached, refer to the instructions below, so the application is
+deployed with the custom configuration during attachment.
+About this task
+To enable per-cluster customizations:
+Procedure
+1. Reference the name of the ConfigMap to be applied per cluster in the spec.clusterConfigOverrides
+fields. In this example, you have three different customizations specified in three different ConfigMaps
+for three different clusters in one workspace.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+Nutanix Kubernetes Platform | Cluster Operations Management | 323
+
+--- page 324 ---
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-82.13.6
+    kind: ClusterApp
+  clusterSelector:
+    matchExpressions:
+    - key: kommander.d2iq.io/cluster-name
+      operator: In
+      values:
+      - attached-cluster1
+      - attached-cluster2
+      - attached-cluster3-new
+  clusterConfigOverrides:
+    - configMapName: kps-cluster1-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster1
+    - configMapName: kps-cluster2-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster2
+    - configMapName: kps-cluster3-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster3-new
+EOF
+2. If you have not done so yet, create the ConfigMaps referenced in each clusterConfigOverrides
+entry.
+Note:
+•
+The changes are applied only if the YAML file has a valid syntax.
+•
+Set up only one cluster override ConfigMap per cluster. If there are several ConfigMaps
+configured for a cluster, only one will be applied.
+•
+Cluster override ConfigMaps must be created on the Management cluster.
+Customizing an Application Per Cluster at Attachment
+You can customize the application configuration for a cluster prior to its attachment, so that the application
+is deployed with this custom configuration on attachment. This is preferable, if you do not want to
+redeploy the application with an updated configuration after it has been initially installed, which may cause
+downtime.
+Nutanix Kubernetes Platform | Cluster Operations Management | 324
+
+--- page 325 ---
+About this task
+To enable per-cluster customizations, follow these steps before attaching the cluster
+Procedure
+1. Set the CLUSTER_NAME environment variable to the cluster name that you will give your to-be-attached
+cluster.
+export CLUSTER_NAME=<your_attached_cluster_name>
+Reference the name of the ConfigMap you want to apply to this cluster in the
+spec.clusterConfigOverrides fields. You do not need to update the spec.clusterSelector
+field. In this example, you have the kps-cluster1-overrides customization specified for attached-
+cluster-1 and a different customization (in kps-your-attached-cluster-overrides ConfigMap) for
+your to-be-attached cluster.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-82.13.6
+    kind: ClusterApp
+  clusterSelector:
+    matchExpressions:
+    - key: kommander.d2iq.io/cluster-name
+      operator: In
+      values:
+      - attached-cluster1
+  clusterConfigOverrides:
+    - configMapName: kps-cluster1-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster1
+    - configMapName: kps-your-attached-cluster-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - ${CLUSTER_NAME}
+EOF
+2. If you have not done so yet, create the ConfigMap referenced for your to-be-attached cluster.
+Note:
+•
+The changes are applied only if the YAML file has a valid syntax.
+•
+Cluster override ConfigMaps must be created on the Management cluster.
+Nutanix Kubernetes Platform | Cluster Operations Management | 325
+
+--- page 326 ---
+Disabling the Custom Configuration of an Application Per Cluster
+Enabled customizations are defined in a ConfigMap which, in turn, is referenced in the
+spec.clusterConfigOverrides object of your AppDeployment.
+Procedure
+1. Review your current configuration to establish what you want to remove.
+kubectl get appdeployment -n ${WORKSPACE_NAMESPACE} kube-prometheus-stack -o yaml
+The result appears as follows.
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-82.13.6
+    kind: ClusterApp
+  configOverrides:
+    name: kube-prometheus-stack-overrides-attached
+  clusterSelector:
+    matchExpressions:
+    - key: kommander.d2iq.io/cluster-name
+      operator: In
+      values:
+      - attached-cluster1
+      - attached-cluster2
+  clusterConfigOverrides:
+    - configMapName: kps-cluster1-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster1
+    - configMapName: kps-cluster2-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster2
+Here you can see that kube-prometheus-stack has been enabled for the attached-cluster1 and
+attached-cluster2. There is also a custom configuration for each of the clusters: kps-cluster1-
+overrides and kps-cluster2-overrides.
+2. To delete the customization, delete the configMapName entry of the cluster. This is located under
+clusterConfigOverrides.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    kind: ClusterApp
+Nutanix Kubernetes Platform | Cluster Operations Management | 326
+
+--- page 327 ---
+    name: kube-prometheus-stack-82.13.6
+  configOverrides:
+    name: kube-prometheus-stack-ws-overrides
+  clusterSelector:
+    matchExpressions:
+      - key: kommander.d2iq.io/cluster-name
+        operator: In
+        values:
+        - attached-cluster1
+  clusterConfigOverrides:
+    - configMapName: kps-cluster1-overrides
+      clusterSelector:
+        matchExpressions:
+        - key: kommander.d2iq.io/cluster-name
+          operator: In
+          values:
+          - attached-cluster1
+EOF
+Note:  Compare steps one and two for a reference of how an entry should be deleted.
+3. Before deleting a ConfigMap that contains your customization, ensure you will NOT require it at a later
+time. It is not possible to restore a deleted ConfigMap. If you choose to delete it, run.
+kubectl delete configmap <name_configmap> -n ${WORKSPACE_NAMESPACE} 
+Note:  It is not possible to delete a ConfigMap that is being actively used and referenced in the
+configOverride of any AppDeployment.
+Verify the Configuration of your Application
+Procedure
+1. To verify whether the applications connect to the managed or attached cluster and check the status of
+the deployments, see Workspace Catalog Applications on page 327.
+2. If you want to know how the AppDeployment resource is currently configured, refer to the print and
+review the state of your AppDeployments.
+Workspace Catalog Applications
+Catalog applications are any third-party or open source applications that appear in the Catalog. These
+applications are deployed to be used for customer workloads. Nutanix provides Workspace Catalog
+Applications for use in your environment.
+Nutanix Enterprise AI in Workspace
+Nutanix Enterprise AI (NAI) is a comprehensive inference endpoint management product designed to
+streamline and optimize your AI model orchestration experience. NAI allows you to select, deploy, and
+manage large language models (LLMs) on a Kubernetes cluster. You can deploy NAI on any Kubernetes
+distribution, including Nutanix Kubernetes Platform(NKP) and public cloud Kubernetes platforms such as
+Amazon Elastic Kubernetes Service (EKS).
+Nutanix Enterprise AI (NAI) includes the following features:
+•
+Built-in support for Nutanix products: NAI supports seamless integration with existing Nutanix
+products, thus providing a robust and compliant solution.
+•
+Model access integration: NAI supports selecting and deploying text-based generative AI LLMs from
+Hugging Face.
+Nutanix Kubernetes Platform | Cluster Operations Management | 327
+
+--- page 328 ---
+•
+API endpoint integration: NAI supports creating an API endpoint and sharing it with developers to
+incorporate into their AI applications. You can also manage and validate these endpoints to ensure they
+are configured correctly.
+•
+API-based access control: NAI supports accessing an endpoint by an application using API keys.
+API key management allows you to provide and revoke API access to ensure proper access security
+controls.
+•
+User access and role-based access control: NAI supports role-based access control (RBAC), which
+you can configure to provide customized access permissions to users based on their assigned roles.
+The user dashboard displays information about all the defined roles.
+•
+Enterprise user interface: NAI has a simple and dynamic user interface that streamlines your
+deployment processes using one-click deployment.
+•
+Metrics dashboard: NAI has a dynamic dashboard where you can monitor the health of your
+deployment with real-time monitoring tools that identify bottlenecks, track performance, and
+troubleshoot issues.
+Nutanix Enterprise AI on NKP Prerequisites
+Before configuring Nutanix Enterprise AI on NKP, verify that you have completed the following:
+•
+Create or use your existing NKP workload cluster in a workspace.
+For more information on creating the management cluster, see Creating a Managed Nutanix Cluster
+Through the Nutanix Kubernetes® Platform UI on page 408.
+•
+Locate the DockerHub credentials that is provided as part of your Nutanix Enterprise AI purchase.
+For more information, see Generating Nutanix Docker Hub Access Tokens.
+•
+Ensure to apply your NKP Pro or Ultimate License to your cluster.
+For more information, see Kubernetes Cluster Setup.
+Note:  For air-gapped installation, see Deploying Nutanix Enterprise AI on a Nutanix Kubernetes
+Platform Cluster in Air-Gapped Environments.
+Deploying Nutanix Enterprise AI 2.8.x on NKP
+This topic describes how to deploy Nutanix Enterprise AI (NAI) 2.8.x on an NKP cluster.
+Before you begin
+•
+Ensure your cluster meets all the Nutanix Enterprise AI Requirements-Private Inference and Agent
+Gateway Requirements and Nutanix Enterprise AI-Agent Gateway Requirements, as per the
+deployment planned.
+Nutanix Kubernetes Platform | Cluster Operations Management | 328
+
+--- page 329 ---
+•
+Enable the following applications on your managed cluster:
+•
+Cert Manager
+•
+Prometheus Monitoring
+•
+NVIDIA GPU Operator
+•
+CloudNativePG
+•
+NAI-Envoy Gateway (Supported by NAI) (v1.8.2)
+•
+Kserve (v0.19.0)
+•
+OpenTelemetry Operator (v0.114.1)
+•
+LeaderWorkerSet (0.8.0)
+About this task
+The NKP catalog includes NAI as an application. This facilitates you to deploy NAI on your clusters with a
+single click.
+Note:
+•
+Starting with NKP 2.16, you can access Nutanix AI directly from the NKP UI. The nkp create
+catalog CLI command is no longer required and is now deprecated.
+•
+NAI deployment is supported on management and workload clusters.
+To enable the NAI catalog applications from the NKP UI, follow these steps:
+Procedure
+1. Create the Files Storage storage class.
+Use the following manifest to replace nfs-path and nfs-server.
+cat <<EOF | kubectl apply -f -
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nai-nfs-storage
+parameters:
+  nfsPath: <nfs-path>
+  nfsServer: <nfs-server>
+  storageType: NutanixFiles
+provisioner: csi.nutanix.com
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+EOF
+2. Create the Docker registry secrets.
+Create the nai-system namespace and the docker-registry secret in both the nai-system and
+envoy-gateway-system namespaces.
+export REGISTRY_SECRET_NAME=nai-regcred
+export DOCKER_SERVER=https://index.docker.io/v1/
+export DOCKER_USERNAME=<docker-username>
+export DOCKER_PASSWORD=<docker-password>
+export DOCKER_EMAIL=<docker-email>
+Nutanix Kubernetes Platform | Cluster Operations Management | 329
+
+--- page 330 ---
+kubectl create namespace nai-system --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n nai-system create secret docker-registry ${REGISTRY_SECRET_NAME} \
+  --docker-server=${DOCKER_SERVER} \
+  --docker-username=${DOCKER_USERNAME} \
+  --docker-password=${DOCKER_PASSWORD} \
+  --docker-email=${DOCKER_EMAIL} \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl -n envoy-gateway-system create secret docker-registry ${REGISTRY_SECRET_NAME}
+ \
+  --docker-server=${DOCKER_SERVER} \
+  --docker-username=${DOCKER_USERNAME} \
+  --docker-password=${DOCKER_PASSWORD} \
+  --docker-email=${DOCKER_EMAIL} \
+  --dry-run=client -o yaml | kubectl apply -f -
+Note:
+The envoy-gateway-system namespace is already present on the cluster.
+3. Log in to the NKP dashboard.
+4. Enable NAI from the UI.
+a. Go to the Applications tab.
+b. Select Nutanix Enterprise AI.
+c. Click Enable.
+5. From the Version dropdown list, select 2.8.0 or 2.8.1.
+6. To deploy NAI with multi-instance of NAI-API and Gateway, configure the application override settings.
+In the Application Configuration Override window, follow these steps:
+a. Select the target cluster or clusters.
+b. Paste the following configuration.
+global:
+  imagePullSecrets:
+    - name: nai-regcred
+naiDatabase:
+  enablePDB: false
+c. (Optional) For a profile-based configuration, paste the recommended profile values override.
+For more information, see NAI Profile-Based Deployment on page 331.
+•
+For more information on generating Docker Hub access tokens, see Generating Nutanix Docker Hub
+Access Tokens.
+•
+For more information on the configuration override fields, see Nutanix Enterprise AI Configuration
+Parameters.
+Nutanix Kubernetes Platform | Cluster Operations Management | 330
+
+--- page 331 ---
+7. Access the NAI dashboard.
+You can use the cluster application dashboard NAI card to access the Nutanix Enterprise AI dashboard.
+a. Go to the cluster where NAI is deployed.
+b. In Enabled Applications, search for Nutanix Enterprise AI.
+c. Click Dashboard.
+The NAI dashboard opens using the service external IP.
+8. Create a DNS record.
+A DNS record is required to map the service IP to the FQDN.
+9. (Optional) Update the Dashboard link.
+export NAI_UI_ENDPOINT=https://<FQDN>/
+kubectl patch cm nai-ui -n <workspace-namespace> -p '{"data":
+{"dashboardLink":"'${NAI_UI_ENDPOINT}'"}}'
+Note:  This deployment provisions a self-signed certificate by default. For more information, see Setting
+TLS Encryption for NAI.
+What to do next
+After you enable an application for a workspace, you can deploy this application on all the clusters within
+that workspace. For more information on managing cluster-scoped applications in the NKP UI, see Cluster-
+scoped Application Configuration from the NKP UI on page 319.
+NAI Profile-Based Deployment
+Profile-based deployment applies a predefined Nutanix Enterprise AI configuration that matches the
+capacity and availability requirements of your environment.
+The default profile uses a single replica for components and is intended for a baseline deployment. The
+other profiles support higher capacity usage. When you enable the NAI catalog application, paste the
+override for the profile that you select.
+The following table lists the available profiles and the capacity of each profile:
+Table 37: Profile and Capacity
+Profile
+Capacity
+Default
+300 concurrent requests and 100 API keys
+c1k_k200
+1000 concurrent requests and 200 API keys
+c5k_k1k
+5000 concurrent requests and 1000 API keys
+c1k_k200 Profile Override
+Add the following override when you enable the NAI catalog application.
+naiValkey:
+  replicaCount: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+Nutanix Kubernetes Platform | Cluster Operations Management | 331
+
+--- page 332 ---
+  sentinel:
+    replicaCount: 3
+    quorum: 2
+    pdb:
+      enabled: true
+      minAvailable: 2
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 32Mi
+  resources:
+    limits:
+      cpu: 250m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+naiDatabase:
+  clusters:
+    iep:
+      instances: 2
+      synchronous:
+        enabled: true
+        method: any
+        number: 1
+        dataDurability: preferred
+gateway:
+  replicaCount: 3
+naiApi:
+  replicaCount: 3
+nai-clickhouse-server:
+  clickhouse:
+    resources:
+      limits:
+        cpu: 15
+        memory: 15Gi
+      requests:
+        cpu: 15
+        memory: 15Gi
+naiIam:
+  iamProxyResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamProxyControlPlaneResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+Nutanix Kubernetes Platform | Cluster Operations Management | 332
+
+--- page 333 ---
+      memory: 2Gi
+  iamUiResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamUserAuthnResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamThemisResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+oauth2-proxy:
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+c5k_k1k Profile Override
+Add the following override when you enable the NAI catalog application.
+naiValkey:
+  replicaCount: 2
+  pdb:
+    enabled: true
+    minAvailable: 1
+  sentinel:
+    replicaCount: 3
+    quorum: 2
+    pdb:
+      enabled: true
+      minAvailable: 2
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+Nutanix Kubernetes Platform | Cluster Operations Management | 333
+
+--- page 334 ---
+      memory: 512Mi
+naiDatabase:
+  clusters:
+    iep:
+      instances: 2
+      synchronous:
+        enabled: true
+        method: any
+        number: 1
+        dataDurability: preferred
+gateway:
+  replicaCount: 9
+naiApi:
+  replicaCount: 9
+nai-clickhouse-server:
+  clickhouse:
+    resources:
+      limits:
+        cpu: 20
+        memory: 20Gi
+      requests:
+        cpu: 20
+        memory: 20Gi
+naiIam:
+  iamProxyResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamProxyControlPlaneResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamUiResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamUserAuthnResources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+  iamThemisResources:
+Nutanix Kubernetes Platform | Cluster Operations Management | 334
+
+--- page 335 ---
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+oauth2-proxy:
+  resources:
+    limits:
+      cpu: 2
+      memory: 2Gi
+    requests:
+      cpu: 2
+      memory: 2Gi
+Upgrading Nutanix Enterprise AI to 2.8.x on NKP
+This topic describes how to upgrade Nutanix Enterprise AI (NAI) to 2.8.x on an NKP cluster.
+Before you begin
+•
+Enable the following applications on your managed cluster:
+•
+Cert Manager
+•
+Prometheus Monitoring
+•
+NVIDIA GPU Operator
+•
+CloudNativePG
+•
+NAI-Envoy Gateway (Supported by NAI) (v1.8.2)
+•
+Kserve (v0.19.0)
+•
+OpenTelemetry Operator (v0.114.1)
+•
+LeaderWorkerSet (0.8.0)
+About this task
+The NKP catalog includes NAI as an application. This facilitates you to deploy NAI on your clusters with a
+single click.
+Note:
+•
+Upgrades to Nutanix Enterprise AI version 2.8.x are supported only from NAI version 2.7.0.
+•
+For a fresh installation of Nutanix Enterprise AI 2.8.x, see Deploying Nutanix Enterprise AI
+2.8.x on NKP on page 328.
+•
+Starting with NKP 2.16, you can access Nutanix AI directly from the NKP UI. The nkp create
+catalog CLI command is no longer required and deprecated.
+•
+NAI deployment is supported on management and workload clusters.
+To upgrade the NAI catalog applications from the NKP UI, perform the following steps.
+Nutanix Kubernetes Platform | Cluster Operations Management | 335
+
+--- page 336 ---
+Procedure
+1. Log in to the NKP dashboard.
+2. Edit the application.
+a. Go to the Applications tab.
+b. Select Nutanix Enterprise AI.
+c. Click Edit.
+3. From the Version dropdown list, select 2.8.0 or 2.8.1.
+4. Update the application configuration override.
+In the Application Configuration Override window, do the following:
+a. Select the target cluster or clusters where NAI 2.7.0 is already deployed.
+b. By default, paste the following configuration:
+global:
+  imagePullSecrets:
+    - name: nai-regcred
+naiDatabase:
+  enablePDB: false
+c. (Optional) If you plan to upgrade the Kubernetes version of the workload cluster that hosts NAI,
+and your current NAI deployment uses the default (non-profile) configuration, paste the following
+configuration before you start the Kubernetes upgrade:
+global:
+  imagePullSecrets:
+    - name: nai-regcred
+naiDatabase:
+  enablePDB: false
+nai-clickhouse-server:
+  clickhouse:
+    resources:
+      requests:
+        cpu: 2
+naiMonitoring:
+  opentelemetry:
+    rsyslogAuditLogsExport:
+      resources:
+        requests:
+          cpu: 1
+naiApi:
+  replicaCount: 2
+  naiApiResources:
+    requests:
+      cpu: 1
+      memory: 2Gi
+gateway:
+  replicaCount: 2
+  envoyResources:
+    requests:
+      cpu: 1
+Nutanix Kubernetes Platform | Cluster Operations Management | 336
+
+--- page 337 ---
+  extProcResources:
+    requests:
+      cpu: 1
+      memory: 2Gi
+All profile-based deployments already run multiple replicas of the database, NAI API, and Gateway,
+so skip this step for profile-based deployments.
+After the replicas are deployed, upgrade the Kubernetes version of the workload cluster. For
+more information, see Upgrade the ClusterClass Based Management and Workload Clusters on
+page 1018.
+After the Kubernetes upgrade completes paste the default configuration to revert NAI to its original
+replica count.
+d. (Optional) For a profile-based configuration, paste the recommended profile values override.
+For more information, see NAI Profile-Based Deployment on page 331.
+5. Access the NAI dashboard.
+Use the cluster application dashboard NAI card to access the Nutanix Enterprise AI dashboard.
+a. Go to the cluster where NAI is deployed.
+b. In Enabled Applications, search for Nutanix Enterprise AI.
+c. Click Dashboard.
+The NAI dashboard opens using the service external IP.
+6. Verify the DNS record.
+Ensure a DNS record exists that maps the service IP to the FQDN. If the service IP has changed as
+part of the upgrade, update the record accordingly.
+7. Verify cluster health after the upgrade.
+Confirm that all NAI pods in the nai-system namespace are Running and that the new NAI-Envoy
+Gateway is healthy in the envoy-gateway-system namespace.
+8. (Optional) Update the Dashboard link.
+export NAI_UI_ENDPOINT=https://<FQDN>/
+kubectl patch cm nai-ui -n <workspace-namespace> -p '{"data":
+{"dashboardLink":"'${NAI_UI_ENDPOINT}'"}}'
+Note:  This deployment provisions a self-signed certificate by default. For more information, see Setting
+TLS Encryption for NAI.
+What to do next
+After you enable an application for a workspace, you can deploy this application on all the clusters within
+that workspace. For more information on managing cluster-scoped applications in the NKP UI, see Cluster-
+scoped Application Configuration from the NKP UI on page 319.
+Nutanix Data Services for Kubernetes in Workspace
+Nutanix Data Services for Kubernetes (NDK) is an advanced data management services suite designed
+to enable automated deployment and management of Kubernetes resources on Nutanix Cloud. NDK
+combines the capabilities of Kubernetes, Nutanix Kubernetes Platform (NKP), and Nutanix CSI to enable
+application-centric data management services on Kubernetes clusters. You can deploy NDK only on NKP
+clusters running on a Nutanix infrastructure.
+NDK provides the following features and services for applications running on Kubernetes:
+Nutanix Kubernetes Platform | Cluster Operations Management | 337
+
+--- page 338 ---
+•
+Business Continuity and Disaster Recovery (BCDR)
+•
+Data Management
+•
+Data Protection and Restoration
+•
+Application Delivery Acceleration
+•
+Application Self-Service Management (meeting specific requirements)
+•
+Infrastructure Automation and Monitoring (for optimal operations)
+•
+Standardization of Governance and Compliance Policies
+For more information, see the Nutanix Data Services for Kubernetes user guide.
+Nutanix Data Services for Kubernetes on NKP Prerequisites
+Note the requirements for deploying Nutanix Data Services for Kubernetes (NDK) on Nutanix Kubernetes
+Platform (NKP).
+•
+Ensure to apply your NKP Pro, Ultimate, or Full Stack (NKPFS) License to your cluster.
+For more information, see Licenses on page 26.
+•
+Ensure the user account that interacts with Prism Central has admin privileges.
+•
+Ensure that you assign a virtual IP address to the Prism Element clusters for iSCSI Data Services.
+•
+Ensure that you configure the Prism Central virtual IP address on the scale-out Prism Central
+deployments.
+•
+Ensure that your instance is AOS version 7.5 or later, and Prism Central instance is pc.7.5 or later.
+•
+Ensure that the iscsi-initiator-utils is installed on the worker nodes:
+sh-5.1# rpm -q iscsi-initiator-utils
+iscsi-initiator-utils-6.2.1.9-1.gita65a472.el9.x86_64
+•
+For NDK version 2.3, ensure that the CSI version 3.7.1 or later is installed in the NKP cluster. For NDK
+UI, ensure that the CSI version is 3.8 or later.
+For more information, see Install the CSI Drivers.
+•
+Ensure that you maintain sufficient IP addresses in the MetalLB address pool for Kubernetes service
+type:LoadBalancer.
+For information about service type:LoadBalancer, see Service type: LoadBalancer in NDK Custom
+Resources.
+•
+Ensure to locate the DockerHub credentials provided as part of your NDK purchase.
+You must log in to the Nutanix Support Portal to generate the access token for image pull secret. Your
+organization can have up to two access tokens. For more information, see Generating Nutanix Docker
+Hub Access Tokens.
+•
+When enabling NDK in the NKP UI, securely reference the credentials or secret in values.yaml to
+authenticate the storage registry:
+imageCredentials:
+  credentials:
+    registry: https://index.docker.io/v1/  # Leave as-is for Docker Hub, or enter
+ your private registry URL
+    username: <your-username>
+    password: <your-password>  # For Docker Hub, use a generated access token
+Nutanix Kubernetes Platform | Cluster Operations Management | 338
+
+--- page 339 ---
+    email: <your-email>
+•
+If you already configured the credential secret, provide the imagePullSecretName for enabling NDK in
+the NKP UI:
+imageCredentials:
+  # Name of the secret used to pull images.
+  imagePullSecretName: <name of the secret with image pull credentials>
+The secret must exist in the same namespace where you install NDK. For information on generating
+docker hub access tokens, see Generating Nutanix Docker Hub Access Tokens.
+To create a custom secret in the ntnx-system namespace, follow these steps:
+•
+Enter the DockerHub credentials in config.json file:
+cat > config.json << EOF
+  {
+    "auths": 
+    {
+      "https://index.docker.io/v1/": 
+      {
+        "auth": "$(echo -n 'username:password' | base64)",
+        "email": "your-email@example.com"
+      }
+    }
+  }
+  EOF 
+•
+Create a generic secret:
+$ kubectl create secret generic <name of image pull secret> -n ntnx-system --from-
+file=.dockerconfigjson=./config.json --type=kubernetes.io/dockerconfigjson
+•
+Verify that the secret created exists in ntnx-system namespace:
+$ kubectl get secret <name of image pull secret> -n ntnx-system 
+Note:  If you use the pre-configured secret approach imagePullSecretName, you must manually
+create this secret on every workload cluster where you deployed NDK. The secret is not automatically
+referenced across clusters, so each cluster requires its own copy of the secret in the appropriate
+namespace.
+Deploying Nutanix Data Services for Kubernetes on Air-Gapped NKP Environments
+You can deploy Nutanix Data Services for Kubernetes (NDK) on a Nutanix Nutanix Kubernetes
+Platform(NKP) cluster in an air-gapped environment.
+About this task
+The NKP catalog includes NDK as an application, enabling you to deploy NDK on your Nutanix clusters
+with a single click.
+Note:
+•
+Starting with NKP 2.17, you can install Nutanix Data Services for Kubernetes directly from the
+NKP UI.
+For more information on the NDK functionalities and workflows, see Nutanix Data Services for
+Kubernetes.
+Nutanix Kubernetes Platform | Cluster Operations Management | 339
+
+--- page 340 ---
+•
+NDK deployment is supported on management and workload clusters.
+•
+NDK is a cluster-scoped application and therefore each cluster runs its own NDK instance.
+To enable NDK catalog application in the Nutanix air-gapped environment:
+Procedure
+1.
+Clone the repository:
+$ git clone https://github.com/nutanix-cloud-native/nkp-nutanix-product-catalog.git
+2.
+Go to the cloned repository:
+cd nkp-nutanix-product-catalog/
+3.
+Log in to DockerHub using the credentials generated in Nutanix Support Portal:
+$ docker login --username nutanixndk 
+Password: 
+You must log in to the Nutanix Support Portal to generate the access token for image pull secret. Your
+organization can have up to two access tokens. For more information, see Generating Nutanix Docker
+Hub Access Tokens.
+For air-gapped environments, the bundle includes Helm charts, container images, and NDK images
+pulled from the Nutanix DockerHub, which requires corresponding credentials.
+4.
+Create a bundle for the catalog application:
+$ nkp create catalog-bundle --airgapped --apps=ndk="ndk-version"
+5.
+Push the bundle to the registry mirror that you configured:
+$ nkp push bundle --bundle ndk-ndk-version-airgapped.tar 
+--to-registry-mirror-url=${REGISTRY_URL} 
+--to-registry-mirror-username=${REGISTRY_USERNAME} \
+--to-registry-mirror-password=${REGISTRY_PASSWORD}
+6.
+Create a catalog application.
+Copy the nkp create catalog-application command from the output of nkp create catalog-
+bundle:
+$ nkp create catalog-application --url oci://<registry-url>/nkp-nutanix-product-
+catalog/ndk --tag ndk-version --workspace kommander-workspace
+Adding the catalog in kommander-workspace automatically propagates it to all workspaces.
+7.
+Log in to the NKP UI dashboard.
+8.
+From the workspace header dropdown list, select your target workspace.
+9.
+Click View Details in the cluster widget (management, managed, or attached clusters).
+The General Cluster Configuration page is displayed.
+10. In the Applications tab, select Nutanix Data Services for Kubernetes and click Enable.
+Nutanix Kubernetes Platform | Cluster Operations Management | 340
+
+--- page 341 ---
+11. In the General page, follow these steps:
+a. In the Selected Cluster section, choose at least one target cluster.
+b. In the Workspace Application Configuration Override code editor, enter the configuration
+override:
+•
+(Optional) To enable TLS for the webhook and NDK server, provide the following configuration
+override:
+Note:  By default, the TLS is in a disabled state.
+•
+For self-signed certificates by cert-manager:
+tls:
+  server: 
+    enable: true
+    clusterName: <name of NKP cluster on which this configuration is
+ applied>
+•
+For custom issuer (a pre-configured issuer in ntnx-system namespace):
+tls:
+  server: 
+    enable: true
+    mode: "ISSUER"
+    issuer: 
+      issuerName: <issuer-name>
+    clusterName: <name of NKP clusters>
+•
+For custom secret (a pre-configured secret in ntnx-system namespace):
+tls:
+  server: 
+    enable: true
+    mode: "SECRET"
+    secretName: <name of pre-existing secret in ntnx-system namespace>
+    clusterName: <name of NKP cluster>
+For more information about creating issuer and secret, see Installing NDK with Server Side
+TLS Using CA-signed Certificates in the Nutanix Data Services for Kubernetes guide.
+•
+(Optional) To enable MTLS between the NDK intercom service on the source cluster and the
+replication Kubernetes cluster, provide the following configuration override:
+tls:
+  server: 
+    enableMTLS: true
+Note:  By default, the MTLS is in a disabled state.
+The same trusted CA must sign the certificates used by the primary and replication clusters.
+•
+(Optional) To enable communication between the NDK intercom service on the source cluster
+and the replication Kubernetes cluster using your own load balancer:
+intercomService:
+  type: LoadBalancer
+  loadBalancerClass:
+  loadBalancerIP:
+•
+Provide both loadBalancerClass and loadBalancerIP.
+Nutanix Kubernetes Platform | Cluster Operations Management | 341
+
+--- page 342 ---
+•
+If you do not provide both loadBalancerClass and loadBalancerIP, MetalLB assigns a
+free IP address from its pool.
+•
+IP assignment fails with an error, in the following cases:
+•
+No free IP address is available in the MetalLB address pool.
+•
+The loadBalancerIP you specify is not present in the MetalLB address pool.
+•
+(Optional) By default, the NDK UI is disabled. The UI authenticates locally configured users and
+does not use NKP single sign-on.
+Note:  Applications backed by Files Storage are not supported in the NDK UI.
+To enable the NDK UI, hash a password for each local user, create a TLS secret when you use
+SECRET mode, and provide the following configuration override.
+The UI uses two roles.
+•
+The ADMIN role provides full create, read, update, and delete access on NDK custom
+resources.
+•
+The VIEWER role provides read-only access.
+Choose a password of 12 or more characters for each user, and generate a bcrypt hash:
+$ htpasswd -bnBC 10 "" '<password>' | tr -d ':\n'
+Copy the resulting hash (for example, $2y$10$...) into the catalog values. Sign in to the UI
+with the password that you hashed.
+For production environments, expose the UI through an Ingress controller with TLS termination.
+Before you enable the application in SECRET mode, create a TLS secret in the ntnx-system
+namespace:
+$ kubectl create secret tls ndk-ui-tls \
+  --cert=<path-to-tls.crt> \
+  --key=<path-to-tls.key> \
+  -n ntnx-system
+When enabling NDK from the NKP catalog, provide the following values:
+ui:
+  enable: true
+deployment:
+  ui:
+    ndkUIService:
+      type: ClusterIP
+config:
+  uiConfig:
+    security:
+      publicScheme: https
+      headers:
+        hsts: false
+    secrets:
+      create: true
+      jwtSecret: ''
+      usersConfig: |
+        [
+          {
+            "id": "1",
+            "username": "admin",
+            "password": "REPLACE_WITH_ADMIN_BCRYPT_HASH",
+            "role": "ADMIN"
+Nutanix Kubernetes Platform | Cluster Operations Management | 342
+
+--- page 343 ---
+          },
+          {
+            "id": "2",
+            "username": "viewer",
+            "password": "REPLACE_WITH_VIEWER_BCRYPT_HASH",
+            "role": "VIEWER"
+          }
+        ]
+    ingress:
+      enabled: true
+      host: <ndk-ui-hostname>
+      className: <ingress-class>
+      tls:
+        mode: SECRET
+        secretName: ndk-ui-tls
+Replace the following placeholders:
+•
+<password>: The password for the local user.
+•
+REPLACE_WITH_ADMIN_BCRYPT_HASH and REPLACE_WITH_VIEWER_BCRYPT_HASH: The bcrypt
+hashes generated by htpasswd.
+•
+<ndk-ui-hostname>: The DNS name used to access the UI. The hostname must resolve to
+the external IP address of the Ingress controller.
+•
+<ingress-class>: The Ingress class, for example nginx. You can use kommander-traefik
+when that class is present.
+•
+<path-to-tls.crt> and <path-to-tls.key>: The certificate and private key files for the
+TLS secret.
+The UI supports the following TLS modes:
+•
+SECRET: Uses a pre-created Kubernetes TLS secret.
+•
+ISSUER: Uses an existing cert-manager Issuer or ClusterIssuer. Cert-manager must be
+installed.
+•
+SELF_SIGNED: Uses cert-manager to create a self-signed certificate. Use this mode for
+testing. The browser displays a certificate warning. Cert-manager must be installed.
+For ISSUER mode, replace the config.uiConfig.ingress.tls configuration with:
+tls:
+  mode: ISSUER
+  issuer:
+    name: <issuer-name>
+    kind: ClusterIssuer
+For SELF_SIGNED mode, use:
+tls:
+  mode: SELF_SIGNED
+Access the UI at https://<ndk-ui-hostname>.
+12. Click Enable.
+What to do next
+After you enable an application for a workspace, you can deploy this application on all the clusters within
+that workspace. To configure the various policies and schedules in NDK, see Configure NDK.
+Nutanix Kubernetes Platform | Cluster Operations Management | 343
+
+--- page 344 ---
+For more information on managing cluster-scoped applications in the NKP UI, see Cluster-scoped
+Application Configuration from the NKP UI on page 319.
+Deploying Nutanix Data Services for Kubernetes on Non Air-Gapped NKP Environments
+You can deploy Nutanix Data Services for Kubernetes (NDK) on a Nutanix Nutanix Kubernetes
+Platform(NKP) cluster in a non-air-gapped environment.
+About this task
+The NKP catalog includes NDK as an application, enabling you to deploy NDK on your clusters with a
+single click.
+Note:
+•
+Starting with NKP 2.17, you can install Nutanix Data Services for Kubernetes directly from the
+NKP UI.
+For more information on the NDK functionalities and workflows, see Nutanix Data Services for
+Kubernetes.
+•
+NDK deployment is supported on Management and Workload clusters.
+•
+NDK is a cluster-scoped application and therefore each cluster runs its own NDK instance.
+To enable NDK catalog application in the Nutanix non-air-gapped environment:
+Procedure
+1. Log into the NKP UI dashboard.
+2. From the workspace header drop-down list, select your target workspace.
+3. Click View Details in the cluster widget (management, managed, or attached clusters).
+The General Cluster Configuration page is displayed.
+4. In the Applications tab, select Nutanix Data Services for Kubernetes and click Enable.
+5. In the General page, follow these steps:
+a. In the Selected Cluster section, choose at least one target cluster.
+b. In the Workspace Application Configuration Override code editor, enter the configuration
+override to customize the application deployment:
+•
+To pull the image from the container registry, update the <username>, <password> and <email>
+fields with the Docker Hub credentials provided as part of the NDK purchase.
+imageCredentials:
+  credentials:
+    registry: https://index.docker.io/v1/  # Leave as-is for Docker Hub, or
+ enter your private registry URL
+    username: <your-username>
+    password: <your-password>  # For Docker Hub, use a generated access token
+    email: <your-email>
+If you already configured the credential secret, provide the imagePullSecretName:
+imageCredentials:
+  # Name of the secret that will be created to pull images.
+Nutanix Kubernetes Platform | Cluster Operations Management | 344
+
+--- page 345 ---
+  imagePullSecretName: <name of the secret with image pull credentials>
+The secret must exist in the same namespace where you install NDK. For information on
+generating docker hub access tokens, see Generating Nutanix Docker Hub Access Tokens.
+•
+Note:  By default, the TLS is in a disabled state.
+(Optional) To enable TLS for the webhook and NDK server, provide the following configuration
+override:
+•
+For self-signed certificates by cert-manager:
+tls:
+  server: 
+    enable: true
+    clusterName: <name of NKP cluster on which this configuration is applied>
+•
+For custom issuer (a pre-configured issuer in ntnx-system namespace):
+tls:
+  server: 
+    enable: true
+    mode: "ISSUER"
+    issuer: 
+      issuerName: <issuer-name>
+    clusterName: <name of NKP cluster>
+•
+For custom secret (a pre-configured secret in ntnx-system namespace):
+tls:
+  server: 
+    enable: true
+    mode: "SECRET"
+    secretName: <name of pre-existing secret in ntnx-system namespace>
+    clusterName: <name of NKP cluster>
+For more information about creating issuer and secret, see Installing NDK with Server Side TLS
+Using CA-signed Certificates in the Nutanix Data Services for Kubernetes guide.
+•
+Note:  By default, the MTLS is in a disabled state.
+(Optional) To enable MTLS between the NDK intercom service on the source cluster and the
+replication Kubernetes cluster, provide the following configuration override:
+tls:
+  server: 
+    enableMTLS: true
+The same trusted CA must sign the certificates used by the primary and replication clusters.
+•
+(Optional) To enable communication between the NDK intercom service on the source cluster
+and the replication Kubernetes cluster using your own load balancer:
+intercomService:
+  type: LoadBalancer
+  loadBalancerClass:
+  loadBalancerIP:
+•
+To make the configuration valid, provide both loadBalancerClass and loadBalancerIP.
+•
+If you do not provide both loadBalancerClass and loadBalancerIP, MetalLB assigns a free
+IP address from its pool.
+Nutanix Kubernetes Platform | Cluster Operations Management | 345
+
+--- page 346 ---
+•
+IP assignment fails with an error, when:
+•
+No free IP address is available in the MetalLB address pool.
+•
+The loadBalancerIP you specify is not present in the MetalLB address pool.
+•
+(Optional) By default, the NDK UI is disabled. The UI authenticates locally configured users and
+does not use NKP single sign-on.
+Note:  Applications backed by Files Storage are not supported in the NDK UI
+To enable the NDK UI, hash a password for each local user, create a TLS secret when you use
+SECRET mode, and provide the following configuration override.
+The UI uses two roles.
+•
+The ADMIN role provides full create, read, update, and delete access on NDK custom
+resources.
+•
+The VIEWER role provides read-only access.
+Choose a password of 12 or more characters for each user, and generate a bcrypt hash:
+$ htpasswd -bnBC 10 "" '<password>' | tr -d ':\n'
+Copy the resulting hash into the catalog values. Sign in to the UI with the password that you
+hashed.
+For production environments, expose the UI through an Ingress controller with TLS termination.
+Before you enable the application in SECRET mode, create a TLS secret in the ntnx-system
+namespace:
+$ kubectl create secret tls ndk-ui-tls \
+  --cert=<path-to-tls.crt> \
+  --key=<path-to-tls.key> \
+  -n ntnx-system
+When enabling NDK from the NKP catalog, provide the following values:
+ui:
+  enable: true
+deployment:
+  ui:
+    ndkUIService:
+      type: ClusterIP
+config:
+  uiConfig:
+    security:
+      publicScheme: https
+      headers:
+        hsts: false
+    secrets:
+      create: true
+      jwtSecret: ''
+      usersConfig: |
+        [
+          {
+            "id": "1",
+            "username": "admin",
+            "password": "REPLACE_WITH_ADMIN_BCRYPT_HASH",
+            "role": "ADMIN"
+          },
+          {
+            "id": "2",
+Nutanix Kubernetes Platform | Cluster Operations Management | 346
+
+--- page 347 ---
+            "username": "viewer",
+            "password": "REPLACE_WITH_VIEWER_BCRYPT_HASH",
+            "role": "VIEWER"
+          }
+        ]
+    ingress:
+      enabled: true
+      host: <ndk-ui-hostname>
+      className: <ingress-class>
+      tls:
+        mode: SECRET
+        secretName: ndk-ui-tls
+Replace the following placeholders:
+•
+<password>: The password for the local user.
+•
+REPLACE_WITH_ADMIN_BCRYPT_HASH and REPLACE_WITH_VIEWER_BCRYPT_HASH: The bcrypt
+hashes generated by htpasswd.
+•
+<ndk-ui-hostname>: The DNS name used to access the UI. The hostname must resolve to
+the external IP address of the Ingress controller.
+•
+<ingress-class>: The Ingress class, for example nginx. You can use kommander-traefik
+when that class is present.
+•
+<path-to-tls.crt> and <path-to-tls.key>: The certificate and private key files for the
+TLS secret.
+The UI supports the following TLS modes:
+•
+SECRET: Uses a pre-created Kubernetes TLS secret.
+•
+ISSUER: Uses an existing cert-manager Issuer or ClusterIssuer. Cert-manager must be
+installed.
+•
+SELF_SIGNED: Uses cert-manager to create a self-signed certificate. Use this mode for testing.
+The browser displays a certificate warning. Cert-manager must be installed.
+For ISSUER mode, replace the config.uiConfig.ingress.tls configuration with:
+tls:
+  mode: ISSUER
+  issuer:
+    name: <issuer-name>
+    kind: ClusterIssuer
+For SELF_SIGNED mode, use:
+tls:
+  mode: SELF_SIGNED
+•
+(Optional) By default, Pulse telemetry is disabled. To enable Pulse telemetry, provide the
+following configuration override:
+pulseTelemetry: true
+When enabled, NDK generates telemetry reports every 24 hours and transmits them
+to Nutanix Insights over HTTPS. Pulse telemetry requires outbound HTTPS access to
+insights.nutanix.com over TCP port 443.
+6. Click Enable.
+Nutanix Kubernetes Platform | Cluster Operations Management | 347
+
+--- page 348 ---
+What to do next
+After you enable an application for a workspace, you can deploy this application on all the clusters within
+that workspace. To configure the various policies and schedules in NDK, see Configure NDK.
+For more information on managing cluster-scoped applications in the NKP UI, see Cluster-scoped
+Application Configuration from the NKP UI on page 319.
+Deployment of Catalog Applications in Workspaces
+Deploy applications to attached clusters using the CLI. This topic describes how to use the CLI to deploy a
+workspace catalog application to attached clusters within a workspace.
+To deploy an application to selected clusters within a workspace, see Cluster-scoped Application for
+Existing AppDeployments on page 321.
+Enabling the Catalog Application Using the UI
+Before you begin
+Before you begin, you must have:
+•
+A running cluster with Kommander installed. The cluster must be on a supported Kubernetes version for
+this release of NKP and also compatible with the catalog application version you want to install.
+•
+Attach an Existing Kubernetes Cluster section of the documentation completed. For more information,
+see Attaching an Existing Kubernetes Cluster on page 426.
+•
+Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace the
+attached cluster exists in.
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+•
+A Git Repository. After creating a GitRepository, use either the NKP UI or the CLI to enable your catalog
+applications. For more information, see Creating a Catalog Collection or an Application  on page 357.
+Warning:  From within a workspace, you can enable applications to deploy. Verify that an application has
+successfully deployed through the CLI.
+About this task
+Follow these steps to enable your catalog applications from the NKP UI:
+Procedure
+1. Ultimate only: From the top menu bar, select your target workspace.
+2. From the sidebar menu to browse the available applications from your configured repositories and
+select Applications.
+3. Select the three dot button on the required application tile and select Enable.
+4. If available, select a version from the dropdown list.
+This dropdown list will only be visible if there is more than one version.
+5. (Optional) If you want to override the default configuration values, copy your customized values into the
+text editor under Workspace Configuration or upload your YAML file that contains the values.
+someField: someValue
+Nutanix Kubernetes Platform | Cluster Operations Management | 348
+
+--- page 349 ---
+6. Confirm the details are correct, and then click Enable.
+For all applications, you must provide a display name and an ID which is automatically generated
+based on what you enter for the display name, unless or until you edit the ID directly. The ID must be
+compliant with Kubernetes DNS subdomain name validation rules in the Kubernetes documentation.
+Alternately, you can use the CLI to enable your catalog applications.
+Enabling the Catalog Application Using the CLI
+See Workspace Catalog Applications for the list of available applications that you can deploy on the
+attached cluster.
+Before you begin
+Procedure
+1. Enable a supported application to deploy to your attached Kubernetes cluster with an AppDeployment
+resource.
+For more information, see Attaching an Existing Kubernetes Cluster on page 426.
+2. Within the AppDeployment, define the appRef to specify which App to enable.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: operator
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: operator-0.25.1
+    kind: App
+EOF
+Note:
+•
+The appRef.name must match the app name from the list of available catalog applications.
+•
+Create the resource in the workspace you just created, which instructs Kommander to
+deploy the AppDeployment to the KommanderClusters in the same workspace.
+Enabling the Catalog Application With a Custom Configuration Using the CLI
+About this task
+To enable the catalog application:
+Procedure
+1. Provide the name of a ConfigMap in the AppDeployment, which provides custom configuration on top of
+the default configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: operator
+  namespace: ${WORKSPACE_NAMESPACE}
+Nutanix Kubernetes Platform | Cluster Operations Management | 349
+
+--- page 350 ---
+spec:
+  appRef:
+    name: operator-0.25.1
+    kind: App
+  configOverrides:
+    name: operator-overrides
+EOF
+2. Create the ConfigMap with the name provided in the step above, with the custom configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: operator-overrides
+data:
+  values.yaml: |
+    operator:
+      verboseLogging: true
+EOF
+Kommander waits for the ConfigMap to be present before deploying the AppDeployment to the
+managed or attached clusters.
+Verify the Catalog Applications
+The applications are now enabled.
+Procedure
+Connect to the attached cluster and check the HelmReleases to verify the deployment.
+kubectl get helmreleases -n ${WORKSPACE_NAMESPACE}
+The result appears as follows.
+NAMESPACE               NAME               READY   STATUS                            
+ AGE
+workspace-test-vjsfq    operator     True    Release reconciliation succeeded   7m3s
+Workspace Catalog Application Upgrade
+Upgrade catalog applications using the CLI or UI.
+Before upgrading, keep in mind the distinction between Platform applications and Catalog applications.
+Platform applications are deployed and upgraded as a set for each cluster or workspace. Catalog
+applications are deployed separately, so that you can deploy and upgrade them individually for each
+workspace or project.
+Upgrading the Catalog Applications Using the UI
+Before you begin
+Complete the upgrade prerequisites tasks. For more information, see Plan the Upgrade on page 1008.
+About this task
+To upgrade an application from the NKP UI:
+Procedure
+1. From the top menu bar, select your target workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 350
+
+--- page 351 ---
+2. From the sidebar menu, select Applications.
+3. Select the three dot button on the required application tile, and then select Edit.
+4. Select the Version from the dropdown list and select a new version.
+This dropdown list is only available if there is a newer version to upgrade to.
+5. Click Save.
+Upgrading the Catalog Applications Using the CLI
+Before you begin
+Note:  The commands use the workspace name and not namespace.
+You can retrieve the workspace name by running the following command.
+nkp get workspaces
+To view a list of the deployed apps to your workspace, run the following command.
+nkp get appdeployments --workspace=<workspace-name>
+Complete the upgrade prerequisites tasks. For more information, see Plan the Upgrade on page 1008.
+About this task
+To upgrade an application from the CLI:
+Procedure
+1. To see what app(s) and app versions are available to upgrade, run the following command.
+Note:  You can reference the app version by going into the app name (e.g. <APP ID>-<APP
+VERSION>.
+kubectl get apps -n ${WORKSPACE_NAMESPACE}
+You can also use this command to display the apps and app versions, for example.
+kubectl get apps -n ${WORKSPACE_NAMESPACE} -o jsonpath='{range .items[*]}
+{@.spec.appId}{"----"}{@.spec.version}{"\n"}{end}'
+The output displays the different application and application versions.
+2. Run the following command to upgrade an application from the NKP CLI.
+nkp upgrade catalogapp <appdeployment-name> --workspace=<my-workspace-name> --to-
+version=<version.number>
+Note:  Platform applications cannot be upgraded on a one-off basis, and must be upgraded in a single
+process for each workspace. If you attempt to upgrade a platform application with these commands, you
+receive an error and the application is not upgraded.
+Partner Catalog in NKP
+The NKP Partner Catalog is a curated marketplace of third-party applications that extend the capabilities of
+NKP. Using NKP partner catalog, you can showcase your solutions within NKP and provide an easy way to
+discover, deploy, and update partner-certified software.
+You can contribute to partner catalog only if you are a Nutanix Elevate Technology Alliance Partner with
+Kubernetes-based applications that meet NKP quality and security standards.
+Nutanix Kubernetes Platform | Cluster Operations Management | 351
+
+--- page 352 ---
+NKP partner catalog helps NKP customers discover their product or application across hybrid-cloud, multi-
+cloud, and multi-cluster environments. By submitting applications to the catalog, you can:
+•
+Reach the enterprise customer base of NKP without requiring separate installation channels. You can
+deploy and update your software through a familiar NKP workflow.
+•
+Tag releases against specific NKP versions so that customers see only the compatible versions.
+After onboarding the application, you are granted access to a dedicated Git repository.
+•
+Prepare and test your application. Package the application into a Helm chart, test installation, and
+upgrade flows locally before submission.
+•
+Fork and contribute. Fork the catalog repository, place the application under the appropriate directory
+(for NKP specific apps or cross-cluster apps), and create a pull request (PR).
+•
+Provide metadata. Each submission must include a metadata file, specifying description, version,
+supported NKP releases, support contacts, categories, keywords and a logo. NKP requires capabilities,
+container image, creation date, support contact, and repository fields, and NKP will require analogous
+metadata.
+•
+Run automated tests. When a PR is opened, the CI system of NKP automatically validates if the
+application is installed and can be upgraded. Applications that fail installation or upgrade tests are
+flagged for partner correction.
+•
+Review and approval. The NKP engineering team reviews submissions for security, licensing, and
+quality. Once approved and merged, the application appears in the partner catalog Git repository and is
+visible when enabled in the catalog.
+Note:
+•
+Partners can update or remove applications by submitting additional PRs.
+•
+Each application version must be tagged with the NKP releases it supports. Only the versions
+compatible with the your NKP version is displayed.
+In NKP UI, Applications Catalog displays Preferred Partner Apps category containing all approved
+partner applications. You can browse descriptions, see which NKP versions are supported, and deploy
+the apps with a few clicks. The catalog ensures that only applications qualified for your NKP version are
+displayed, reducing the risk of incompatible deployments. The support contacts are provided by the partner
+for assistance.
+Creating a New Application
+This page details the creation of a new application in Partner Catalog.
+About this task
+To create a new application and update an existing application, follow these steps:
+Nutanix Kubernetes Platform | Cluster Operations Management | 352
+
+--- page 353 ---
+Procedure
+1. Clone the repository.
+git clone git@github.com:nutanix-cloud-native/nkp-partner-catalog.git
+Note:
+•
+You must fork and work off the repository.
+•
+You must download the NKP binary to create a new application in partner catalog.
+2. Install devbox.
+Devbox is a CLI tool used for creating isolated shells for development. For more information, see
+devbox.
+3. Run devbox shell to enter the devbox environment in the cloned repository directory.
+An environment with all the necessary dependencies is set up. Subsequently, you can run commands
+like nkp, just, and go directly.
+4. Generate a placeholder application version directory by running the following command:
+nkp generate catalog-repository --apps=<app-name>=<app-version>
+A placeholder directory layout for your new application is generated in applications/ directory with
+your application name and version.
+Overview of the Application Structure
+This page details about the partner catalog application repository structure.
+•
+Each application can have multiple versions with its own directory.
+•
+Each version must include metadata.yaml used by NKP UI for rendering metadata description.
+•
+After merging, the OCI artifacts are built and pushed to the ghcr.io/nutanix-cloud-native/nkp-
+partner-catalog/<app-name> automatically.
+Sample directory structure:
+...
+    ### applications
+    #   ### <app-name>
+    #       ### <app-version1>
+    #           ### helmrelease
+    #           #   ### cm.yaml             // ConfigMap specifying default
+ configuration overrides for HelmRelease
+    #           #   ### helmrelease.yaml    // OCIRepository and HelmRelease
+    #           #   ### kustomization.yaml  // Kubernetes Kustomization file
+    #           ### helmrelease.yaml        // FluxCD Kustomization file for the
+ HelmRelease
+    #           ### kustomization.yaml      // Kubernetes Kustomization file
+    #           ### metadata.yaml           // Application details
+    #       ### <app-version2>
+    #           ### helmrelease
+    #           #   ### cm.yaml
+    #           #   ### helmrelease.yaml
+    #           #   ### kustomization.yaml
+    #           ### helmrelease.yaml
+    #           ### kustomization.yaml
+    #           ### metadata.yaml
+Nutanix Kubernetes Platform | Cluster Operations Management | 353
+
+--- page 354 ---
+   ...
+Note:  For more information about Git Repository Structure and Application Metadata, see
+Custom Applications on page 354.
+Structuring an Application in Partner Catalog
+This page details the structuring of application in the partner catalog.
+About this task
+To structure an application in the partner catalog.
+Procedure
+1. Update open container initiative OCIRepository URL to point the Helm chart of your application.
+2. Add optional overrides for application HelmRelease into cm.yaml as necessary.
+The default layout (generated in the previous step) addresses most use cases that deploy a simple
+application with no dependencies. If there are dependencies in deploying various components of the
+application, see Flux Kustomization. Flux Kustomization provides the necessary details to deploy an
+application with multiple top level Flux Kustomization files that depends on each other and the ability
+to define health checks for each kustomization. For more information, see Dependencies and Health
+checks.
+You can use substitution variables in application manifests so Flux replaces workspace, project, and
+cluster values at deploy time. For the complete list and availability, see Git Repository Structure on
+page 355.
+The following example uses substitution variables in a ConfigMap for a project deployment:
+apiVersion: v1
+                        kind: ConfigMap
+                        metadata:
+                        name: ${releaseName}-${appName}
+                        namespace: ${projectNamespace}
+                        data:
+                        clusterName: ${clusterName}
+                        clusterType: ${clusterType}
+Note:  Project variables such as ${projectNamespace} are populated only when you deploy the
+application through a project.
+3. Validate your directory by running the following command.
+nkp validate catalog-repository --repo-dir=/path/to/nkp-partner-catalog
+(Optional) Customize the validation behavior by adding a bloodhound configuration file. Bloodhound
+is the linter configuration used for catalog application validation during CI/CD processes. You can
+configure validation settings by creating a .bloodhound.yaml or .bloodhound.yml file at the repository
+root or application level. For more information, see Bloodhound Configuration.
+Custom Applications
+Custom applications are third-party applications you have added to the NKP Catalog. Custom applications
+are not provided in the NKP Application Catalog.
+Custom applications can leverage applications from the NKP Catalog or be fully-customized. There is
+no expectation of support by Nutanix for a Custom application. Custom applications can be deployed on
+Konvoy clusters or on any Nutanix supported third party Kubernetes distribution.
+Nutanix Kubernetes Platform | Cluster Operations Management | 354
+
+--- page 355 ---
+Git Repository Structure
+Structure the Git repository so Kommander can process the applications you define.
+Git Repository Directory Structure
+The following command generates a new Git repository for catalog applications:
+mkdir -p /new/directory/for/catalog
+        cd /new/directory/for/catalog
+        nkp generate catalog-repository
+The following command generates a directory for an application version:
+nkp generate catalog-repository --apps <app-name>=<app-version>
+Use a separate command for each version of an application.
+These commands generate the following directory structure:
+...
+        ### applications
+        #   ### <app-name>
+        #       ### <app-version1>
+        #           ### helmrelease
+        #           #   ### cm.yaml             // ConfigMap specifying default
+ configuration overrides for HelmRelease
+        #           #   ### helmrelease.yaml    // OCIRepository and HelmRelease
+        #           #   ### kustomization.yaml  // Kubernetes Kustomization file
+        #           ### helmrelease.yaml        // FluxCD Kustomization file for the
+ HelmRelease
+        #           ### kustomization.yaml      // Kubernetes Kustomization file
+        #           ### metadata.yaml           // Application details
+        #       ### <app-version2>
+        #           ### helmrelease
+        #           #   ### cm.yaml
+        #           #   ### helmrelease.yaml
+        #           #   ### kustomization.yaml
+        #           ### helmrelease.yaml
+        #           ### kustomization.yaml
+        #           ### metadata.yaml
+        ...
+Remember the following guidelines:
+•
+Define applications in the applications/ directory.
+•
+You can define multiple versions of an application, under different directories nested under the
+applications/<app name>/ directory.
+•
+Populate the HelmRelease and OCIRepository details in the versioned directory applications/
+<app name>/<app version>/helmrelease in the helmrelease.yaml file. For more information, see
+HelmRelease, OCIRepository in the Flux documentation, and The Kustomization File in the SIG CLI
+documentation.
+•
+Define the default values ConfigMap for HelmReleases in the applications/<app name>/<app
+version>/helmrelease/cm.yaml file accompanied by a kustomization.yaml Kubernetes
+Kustomization file pointing to the ConfigMap file.
+•
+Define the metadata.yaml of each application under the applications/<app name>/<app version>
+directory. For more information, see Application Metadata on page 358.
+Nutanix Kubernetes Platform | Cluster Operations Management | 355
+
+--- page 356 ---
+•
+You can generate a new application version directory that includes the required layout and files with the
+following command:
+nkp generate catalog-repository --apps=<app-name>=<app-version>
+For an example of how to structure catalog Git repositories, see Overview of the Application Structure on
+page 353.
+OCI Repositories
+You must include the OCIRepository that is referenced in each HelmRelease's Chart spec.
+Each applications/<app name>/<app version>/helmrelease/helmrelease.yaml file must include
+YAML definition of the OCIRepository along with the HelmRelease definition.
+For more information, see OCI Repository in the Flux documentation.
+Substitution Variables
+Use the following substitution variables in HelmRelease, ConfigMap, and other manifests in the application
+version directory. These variables are available for workspace and project deployments. Flux replaces
+each variable when it applies the Kustomization. For more information, see Variable substitution in the Flux
+documentation.
+Table 38: Catalog Substitution Variables
+Variable
+Description
+${releaseName}
+Specifies the AppDeployment name.
+${releaseNamespace}
+Specifies the namespace where the application is deployed.
+${workspaceName}
+Specifies the workspace name.
+${workspaceNamespace}
+Specifies the workspace namespace.
+${appName}
+Specifies the catalog application name.
+${appVersion}
+Specifies the catalog application version.
+${projectName}*
+Specifies the project name.
+${projectNamespace}*
+Specifies the project namespace.
+${clusterName}
+Specifies the target cluster name.
+${clusterType}
+Specifies the infrastructure cluster type of the target cluster, such
+as NutanixCluster.
+${clusterUUID}
+Specifies the unique identifier of the kube-system namespace on
+the target cluster.
+Use ${releaseName} as a prefix or suffix in resource names so that you can deploy multiple instances of
+the same application. If you create resources without ${releaseName} in the name field, name conflicts
+can occur in the same namespace.
+Note:  * NKP populates these variables only when you deploy the application in a project. Cluster labels are
+not available as substitution variables.
+Nutanix Kubernetes Platform | Cluster Operations Management | 356
+
+--- page 357 ---
+Creating a Catalog Collection or an Application
+Use CLI to create a Flux OCIRepository resource in your workspace or project that acts as a source for
+your catalog applications.
+About this task
+Create an OCIRepository in the workspace or project namespace.
+Procedure
+1. To build an OCI artifact from your catalog git repository run the following command. This generates a .tar
+file locally.
+nkp create catalog-bundle --collection-tag <tag>
+Above command will bundle up all versions of all applications in the current directory.
+Note:
+•
+To include only selected applications use --apps flag.
+•
+To include the container images use --airgapped flag. This is required for air-gapped
+environments.
+2. Push the OCI artifact to a registry that is accessible to the cluster. The registry used must be OCI
+Compliant.
+nkp push bundle --bundle <path-to-file-generated-above.tar> --to-registry <your-
+registry-url>
+3. You can either create a catalog collection (group of applications) or just one application in your NKP
+Cluster. Note that creating a catalog in the Kommander workspace will automatically propagate it to
+all other workspaces/projects/. If you prefer to limit the scope of catalog to a single workspace
+or project, use the --workspace or --project flags accordingly. Run either one of the following
+commands:
+•
+Create a Catalog Collection
+nkp create catalog-collection --url oci://<registry-url>/<repo-name>/collection --
+workspace <workspace-or-project-namespace> --tag <tag>
+•
+Create a Catalog Application
+nkp create catalog-collection --url oci://<registry-url>/<repo-name>/<app-name> --
+workspace <workspace-or-project-namespace> --tag <app-version>
+4. Optionally, ensure the status of the OCIRepository signals a ready state.
+kubectl get ocirepository -n <workspace-or-project-namespace>${WORKSPACE_NAMESPACE}
+ <name-printed-in-above-create-command>
+The repository commit also displays the ready state.
+NAME                    URL                                       READY   STATUS     
+                                                                                     
+     AGE
+example-repo      https://github.com/example-org/example-repo     True stored
+ artifact for digest
+ '2.16@sha256:c7cbee436dc81ac09c7b985696ba798c4d55f6964634c0f1e89e282e632aaaf3'     
+   1m
+Nutanix Kubernetes Platform | Cluster Operations Management | 357
+
+--- page 358 ---
+Troubleshooting an OCIRepository
+Logs used for troubleshooting issues with creating OCIRepository sources.
+Procedure
+Review the following logs:
+kubectl -n kommander-flux logs -l app=source-controller
+[...]
+kubectl -n kommander-flux logs -l app=kustomize-controller
+[...]
+kubectl -n kommander-flux logs -l app=helm-controller
+[...]
+For more information, see:
+•
+Flux: https://fluxcd.io/
+•
+Flux documentation: https://fluxcd.io/docs
+Application Metadata
+You can define how custom applications display in the NKP UI by defining a metadata.yaml file for each
+version of an application in the git repository. You must define this file at applications/<app name>/<app
+version>/metadata.yaml for it to process correctly.
+You can define the following fields:
+Table 39: Application Metadata Schema
+Field
+Default
+Description
+displayName
+App ID
+Display name of the application for the UI.
+allowMultipleInstances
+true
+Whether multiple instances of the application can
+be installed.
+category
+[general]
+One or more categories for this application.
+Categories are used to group applications in the UI.
+description
+“”
+Short description, must be a sentence or two,
+displayed in the UI on the application card.
+dependencies
+List of applications that must be installed in order
+for the application to function properly. The UI will
+not block the installation of the application if the
+dependencies are not installed
+requiredDependencies
+List of applications that are required to be installed
+in order for the application to be enabled in the UI.
+k8sVersionSupport
+A string indicating the compatible Kubernetes
+version or range. For example, from 1.29 to 1.32).
+icon
+Base64 encoded icon SVG file used for application
+logos in the UI.
+nkpVersionSupport
+A string indicating the compatible NKP version or
+range.
+Nutanix Kubernetes Platform | Cluster Operations Management | 358
+
+--- page 359 ---
+Field
+Default
+Description
+overview
+Markdown overview used on the application detail
+page in the UI.
+supportLink
+A link to the support page
+scope
+[project]
+List of scopes, can be set only to project or
+workspace currently.
+upgradesFrom
+A string indicating the version or range of versions
+that the application can be upgraded from.
+licensing
+[Pro, Ultimate]
+Cluster must have one of these licenses applied in
+order for the application to be installable.
+certifications
+List of certifications that the application has.
+type
+custom
+Type of application
+The following JSON Schema must be adhered to in the metadata.yaml file for it to be processed
+accurately. To validate metadata.yaml against the schema, run the following command:
+nkp validate catalog-repository --repo-dir=/path/to/catalog-repository
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "catalog.nkp.nutanix.com/v1/application-metadata",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "description": "Identifies the schema used."
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Display name of the application for the UI.\nFalls back to App ID
+ if not given."
+    },
+    "allowMultipleInstances": {
+      "type": "boolean",
+      "description": "Whether multiple instances of the application can be installed.
+ Defaults to true.",
+      "default": true
+    },
+    "category": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "1 or more categories for this application. Categories are used to
+ group applications in the UI.\nDefaults to [general].",
+      "default": [
+        "general"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description, should be a sentence or two, displayed in the
+ UI on the application card."
+    },
+    "dependencies": {
+      "items": {
+        "type": "string"
+      },
+Nutanix Kubernetes Platform | Cluster Operations Management | 359
+
+--- page 360 ---
+      "type": "array",
+      "description": "List of applications that should be installed in order for the
+ application to function properly.\nThe UI will not block the installation of the
+ application if the dependencies are not installed."
+    },
+    "requiredDependencies": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "List of applications that are required to be installed in order
+ for the application to be enabled in the UI."
+    },
+    "k8sVersionSupport": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)(\\.(0|[1-9]\\d*)){0,2}$|^((>=?|<=?)\\s*(v)?(0|[1-9]\
+\d*)(\\.(0|[1-9]\\d*)){0,2})(\\s*(>=?|<=?)\\s*(v)?(0|[1-9]\\d*))?(\\.(0|[1-9]\\d*))
+{0,2}?$",
+      "description": "A string indicating the compatible Kubernetes version or range."
+    },
+    "icon": {
+      "type": "string",
+      "description": "Base64 encoded icon SVG file used for application logos in the
+ UI."
+    },
+    "nkpVersionSupport": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)(\\.(0|[1-9]\\d*)){0,2}$|^((>=?|<=?)\\s*(v)?(0|[1-9]\
+\d*)(\\.(0|[1-9]\\d*)){0,2})(\\s*(>=?|<=?)\\s*(v)?(0|[1-9]\\d*))?(\\.(0|[1-9]\\d*))
+{0,2}?$",
+      "description": "A string indicating the compatible NKP version or range."
+    },
+    "overview": {
+      "type": "string",
+      "description": "Markdown overview used on the application detail page in the UI."
+    },
+    "supportLink": {
+      "type": "string",
+      "pattern": "^https?:\\/\\/([a-zA-Z0-9\\.-]+)\\.([a-zA-Z]{2,6})(:[0-9]{1,5})?(\\/
+[^\\s]*)?$",
+      "description": "A link to the support page."
+    },
+    "scope": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "project",
+          "workspace"
+        ]
+      },
+      "type": "array",
+      "description": "List of scopes, can be set only to project and/or workspace.
+ Defaults to project.",
+      "default": [
+        "project"
+      ]
+    },
+    "upgradesFrom": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)(\\.(0|[1-9]\\d*)){0,2}$|^((>=?|<=?)\\s*(v)?(0|[1-9]\
+\d*)(\\.(0|[1-9]\\d*)){0,2})(\\s*(>=?|<=?)\\s*(v)?(0|[1-9]\\d*))?(\\.(0|[1-9]\\d*))
+{0,2}?$",
+Nutanix Kubernetes Platform | Cluster Operations Management | 360
+
+--- page 361 ---
+      "description": "A string indicating the version or range of versions that the
+ application can be upgraded from."
+    },
+    "licensing": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "Starter",
+          "Pro",
+          "Ultimate"
+        ]
+      },
+      "type": "array",
+      "description": "Cluster must have one of these licenses applied in order for the
+ application to be installable.\nDefaults to [Pro, Ultimate].",
+      "default": [
+        "Pro",
+        "Ultimate"
+      ]
+    },
+    "certifications": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "airgapped",
+          "qualified",
+          "nutanix-supported"
+        ]
+      },
+      "type": "array",
+      "description": "List of certifications that the application has."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "nkp-core-platform",
+        "nkp-catalog",
+        "preferred-partner",
+        "custom"
+      ],
+      "description": "Type of application.",
+      "default": "custom"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "description": "Metadata for an application."
+}
+None of these fields are required for the application to display in the UI.
+Here is an example metadata.yaml file.
+schema: "catalog.nkp.nutanix.com/v1/application-metadata"
+displayName: Prometheus Monitoring Stack
+description: Stack of applications that collect metrics and provides visualization and
+ alerting capabilities. Includes Prometheus, Prometheus Alertmanager and Grafana.
+category:
+  - monitoring
+Nutanix Kubernetes Platform | Cluster Operations Management | 361
+
+--- page 362 ---
+overview: >
+  # Overview
+  A stack of applications that collects metrics and provides visualization and alerting
+ capabilities. Includes Prometheus, Prometheus Alertmanager and Grafana.
+  ## Dashboards
+  By deploying the Prometheus Monitoring Stack, the following platform applications and
+ their respective dashboards are deployed. After deployment to clusters in a workspace,
+ the dashboards are available to access from a respective cluster's detail page.
+  ### Prometheus
+  A software application for event monitoring and alerting. It records real-time
+ metrics in a time series database built using a HTTP pull model, with flexible and
+ real-time alerting.
+  - [Prometheus Documentation - Overview](https://prometheus.io/docs/introduction/
+overview/)
+  ### Prometheus Alertmanager
+  A Prometheus component that enables you to configure and manage alerts sent by the
+ Prometheus server and to route them to notification, paging, and automation systems.
+  - [Prometheus Alertmanager Documentation - Overview](https://prometheus.io/docs/
+alerting/latest/alertmanager/)
+  ### Grafana
+  A monitoring dashboard from Grafana that can be used to visualize metrics collected
+ by Prometheus.
+  - [Grafana Documentation](https://grafana.com/docs/)
+icon:
+ PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMzAwIiBzdHlsZT0iZW5hYm
+Custom Application from the Workspace Catalog
+Enable a Custom Application from the Workspace Catalog
+After creating a catalog collection or an application, you can either use the NKP user interface or the CLI
+to enable your custom applications. To deploy an application to selected clusters within a workspace, see
+Cluster-scoped Application Configuration from the NKP UI on page 319.
+From within a workspace, you can enable applications to deploy. Verify that the application has
+successfully deployed through the CLI.
+Enabling the Custom Application Using the UI
+About this task
+To enabling the custom application using the UI:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. From the sidebar menu to browse the available applications from your configured repositories, select
+Applications.
+3. Select the three dot button on the required application tile and click Enable.
+Nutanix Kubernetes Platform | Cluster Operations Management | 362
+
+--- page 363 ---
+4. If available, select a version from the dropdown list.
+This dropdown list will only be visible if there is more than one version.
+5. (Optional) If you want to override the default configuration values, copy your customized values into the
+text editor under Workspace Configuration or upload your YAML file that contains the values.
+someField: someValue
+6. Confirm the details are correct, and then click Enable.
+For all applications, you must provide a display name and an ID which is automatically generated
+based on what you enter for the display name, unless or until you edit the ID directly. The ID must be
+compliant with Kubernetes DNS subdomain name validation rules. For more information, see DNS
+Subdomain Names section in the Kubernetes documentation.
+Alternately, you can use the CLI to enable your catalog applications.
+Enabling the Custom Application Using the CLI
+Before you begin
+•
+Determine the name of the workspace where you wish to perform the deployments. You can use
+the nkp get workspaces command to see the list of workspace names and their corresponding
+namespaces.
+•
+Set the WORKSPACE_NAMESPACE environment variable to the name of the workspace’s namespace where
+the cluster is attached:
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+To enabling the custom application using the CLI:
+Procedure
+1. Get the list of available applications to enable using the following command.
+kubectl get apps -n ${WORKSPACE_NAMESPACE}
+2. Deploy one of the supported applications from the list with an AppDeployment resource.
+3. Within the AppDeployment, define the appRef to specify which App to enable.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: my-custom-app
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: custom-app-0.0.1
+    kind: App
+EOF
+Note:
+•
+The appRef.name must match the app name from the list of available catalog applications.
+Nutanix Kubernetes Platform | Cluster Operations Management | 363
+
+--- page 364 ---
+•
+Create the resource in the workspace you just created, which instructs Kommander to
+deploy the AppDeployment to the KommanderClusters in the same workspace.
+Enabling the Custom Application With Custom Configuration Using the CLI
+About this task
+To enabling the custom application with custom configuration using the CLI:
+Procedure
+1. Provide the name of a ConfigMap in the AppDeployment, which provides custom configuration on top of
+the default configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: my-custom-app
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: custom-app-0.0.1
+    kind: App
+  configOverrides:
+    name: my-custom-app-overrides
+EOF
+2. Create the ConfigMap with the name provided in the step above, with the custom configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: my-custom-app-overrides
+data:
+  values.yaml: |
+    someField: someValue
+EOF
+Kommander waits for the ConfigMap to be present before deploying the AppDeployment to the
+managed or attached clusters.
+Verify the Custom Applications
+After completing the previous steps, your applications are enabled.
+Procedure
+Connect to the attached cluster and check the HelmReleases to verify the deployment.
+kubectl get helmreleases -n ${WORKSPACE_NAMESPACE}
+The output is as follows.
+NAMESPACE               NAME            READY   STATUS                             AGE
+workspace-test-vjsfq    my-custom-app   True    Release reconciliation succeeded   7m3s
+Nutanix Kubernetes Platform | Cluster Operations Management | 364
+
+--- page 365 ---
+Configuring Workspace Role Bindings
+Workspace Role Bindings grant access to specified Workspace Roles for a specified group of people.
+Before you begin
+Before you can create a Workspace Role Binding, ensure you have created a workspace Group. A Group
+can contain one or several Identity Provider users, groups or both.
+The syntax for the Identity Provider groups you add to a [UNKNOWN:product_name_short] Group varies
+depending on the context for which you have established an Identity Provider.
+•
+If you have set up an identity provider globally, for All Workspaces:
+•
+For groups: Add an Identity Provider Group in the oidc:<IdP_user_group> format. For example,
+oidc:engineering.
+•
+For users: Add an Identity Provider User in the <user_email>. For example,
+jane.doe@example.com.
+•
+If you have set up an identity provider for a Specific Workspace:
+•
+For groups: Add an Identity Provider Group in the oidc:<workspace_name>:<IdP_user_group>
+format. For example, oidc:tenant-z:engineering.
+•
+For users: Add an Identity Provider User in the <workspace_ID>:<user_email> format. For
+example, tenant-z:jane.doe@example.com.
+Note:  Run kubectl get workspaces to obtain a list of all existing workspaces. The workspace_ID is
+listed under the NAME column.
+About this task
+You can assign a role to this Kommander Group:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Access Control in the Administration section of the sidebar menu.
+3. Select the Cluster Role Bindings tab, and then select Add Roles next to the group you want.
+4. Select the Role, or Roles, you want from the dropdown list and click Save.
+It will take a few minutes for the resource to be created.
+Multi-Tenancy in NKP
+You can use workspaces to manage your tenants' environments separately, while still maintaining control
+over clusters and environments centrally. For example, if you operate as a Managed Service Provider
+(MSP), you can manage your clients clusters' life cycles, resources, and applications. If you operate as an
+environment administrator, you can manage these resources per department, division, employee group,
+etc.
+Here are some important concepts:
+•
+Multi-tenancy in NKP is an architecture model where a single NKP Ultimate instance serves multiple
+organization’s divisions, customers or tenants. In NKP, each tenant system is represented by a
+Nutanix Kubernetes Platform | Cluster Operations Management | 365
+
+--- page 366 ---
+workspace. Each workspace and its resources can be isolated from other workspaces (by using
+separate Identity Providers), even though they all fall under a single Ultimate license.
+Multi-tenant environments have at least two participating parties: the Ultimate license administrator (for
+example, an MSP), and one or several tenants.
+•
+Managed Service Providers or MSPs are partner organizations that use NKP to facilitate cloud
+infrastructure services to their customers or tenants.
+•
+Tenants can be customers of Managed Service Provider partners. They outsource their cloud
+management requirements to MSPs, so they can focus on the development of their products.
+Tenants can also be divisions within an organization that require a strict isolation from other divisions,
+for example, through differentiated access control.
+In NKP, a workspace is assigned to a tenant.
+Access Control in Multi-Tenant Environments
+To isolate each tenant’s information and environment, multi-tenancy allows you to configure an identity
+provider per workspace or tenant. In this setup, NKP keeps all workspaces and tenants separate and
+isolated from each other.
+You, as a global administrator, manage tenant access at the Workspace level. A tenant can further adapt
+user access at the Project level.
+Nutanix Kubernetes Platform | Cluster Operations Management | 366
+
+--- page 367 ---
+Figure 5: Multi-tenant Cluster
+Here are some important concepts:
+•
+Workspaces: In a multi-tenant system, workspaces and tenants are synonymous. You can set up an
+identity provider to control all workspaces, including the Management cluster’s kommander workspace.
+You can then set up additional identity providers for each workspace/tenant, and generate a dedicated
+Login URL so each tenant has its own user access.
+For more information see, Generating a Dedicated Login URL for Each Tenant on page 368.
+•
+Projects: After you set up an identity provider per workspace or tenant, the tenant can choose to further
+narrow down access with an additional layer. A tenant can choose to organize clusters into projects and
+assign differentiated access to user groups with Project Role Bindings.
+For more information, see Project Role Bindings on page 397.
+By assigning clusters to one or several projects, you can enable more complex user access.
+Multi-Tenancy Enablement
+To enable multi-tenancy, you must:
+Nutanix Kubernetes Platform | Cluster Operations Management | 367
+
+--- page 368 ---
+•
+If you want to use a single IdP to access all of your tenant’s environments, configure an Identity
+Provider globally.
+•
+Configure an Identity Provider per workspace. This way, each tenant has a dedicated IdP to access
+their workspace.
+•
+Create NKP Identity Provider groups with the correct prefixes to map your existing IdP groups.
+For an Identity Provider configured for a specific workspace, each group must begin with
+oidc:<workspace_name>:.
+•
+Create a dedicated login URL for each tenant. You can provide a workspace login link to each tenant for
+access to the NKP UI and for the generation of kubectl API access tokens.
+To enforce security, place each tenant in isolated infrastructure environments or separate provider
+accounts so they remain truly independent of each other.
+Generating a Dedicated Login URL for Each Tenant
+This page contains instructions on how to generate a workspace-specific URL to access the NKP UI.
+About this task
+By making this URL available to your tenant, you provide them with a dedicated login page, where users
+can enter their SSO credentials to access their workspace in the NKP UI and to where users can create a
+token to access a cluster’s kubectl API. Other tenants and their SSO configurations are not visible.
+Before you begin
+•
+Complete the steps in Multi-Tenancy in NKP on page 365.
+•
+Ensure you have administrator permissions and access to all workspaces.
+Procedure
+1. Set an environment variable to point at the workspace for which you want to generate a URL:
+Replace <name_target_workspace> with the workspace name. If you do not know the exact name of
+the workspace, run kubectl get workspace to get a list of all workspace names.
+export WORKSPACE_NAME=<name_target_workspace>
+2. Generate an NKP UI login URL for that workspace.
+echo https://$(kubectl get nkpcluster -n kommander -l 'kommander.d2iq.io/host=true'
+ -o jsonpath='{.items[0].kommanderCluster.status.ingress.address }')/token/landing/
+${WORKSPACE_NAME}
+The output is as follows.
+https://example.com/token/landing/<WORKSPACE_NAME>
+3. Share the output login URL with your tenant, so users can start accessing their workspace from the
+NKP UI.
+Note:  The login page displays:
+•
+Identity providers set globally.
+•
+Identity providers set for that specific workspace.
+The login page does not display any resources or workspaces for which the tenant has no
+permissions.
+Nutanix Kubernetes Platform | Cluster Operations Management | 368

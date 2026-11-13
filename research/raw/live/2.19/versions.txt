@@ -1,0 +1,115 @@
+# NKP 2.19.0 — component versions read from a live management cluster
+# Source: images of running pods, HelmRelease chart versions, ClusterApp catalog versions.
+# Everything below is a live observation, not a document claim. Scrubbed.
+
+## Platform and OS
+
+| Component | Version | Evidence |
+|---|---|---|
+| NKP CLI (`nkp`) | v2.19.0 | `nkp version` |
+| nkp sub-tools | catalog v0.11.1, diagnose v0.14.0, imagebuilder v2.19.0, kommander v2.19.0, konvoy v2.19.0, konvoy-cli v2.19.0, konvoybundlepusher v2.19.0, mindthegap v1.26.1 | `nkp version` |
+| Kubernetes | v1.36.2 | `kubectl version`, node kubelet |
+| Client kubectl in bundle | v1.37.2 (kustomize v5.8.1) | `kubectl version` |
+| etcd | 3.6.8-0 (`registry.k8s.io/etcd:3.6.8-0`) | kube-system pod image |
+| containerd | 2.3.1-d2iq.1 | node `containerRuntimeVersion` |
+| Node OS | Ubuntu 24.04.5 LTS, kernel 6.8.0-124-generic | node status |
+| CoreDNS | v1.14.2 | pod image |
+
+## Cluster API stack
+
+| Component | Version | Evidence |
+|---|---|---|
+| CAPI core (controller, kubeadm bootstrap, kubeadm control plane) | v1.12.11 | pod images |
+| CAPI operator | v0.26.0 | pod image + chart `cluster-api-operator@0.26.0` |
+| CAPI stack operator (Nutanix, CAREN host) | v0.6.29 | pod image + chart `cluster-api-stack-operator@0.6.29` |
+| CAPX (cluster-api-provider-nutanix) | v1.10.15 | `nkp-cluster-api-provider-nutanix:v1.10.15` |
+| CAREN (cluster-api-runtime-extensions-nutanix) | v0.62.7 | pod image + chart-bundle initializer image |
+| CAAPH (cluster-api-helm-controller) | v0.6.2 | pod image |
+| CAPA (AWS) | v2.11.0-ncn.1 | pod image |
+| CAPV (vSphere) | v1.16.1 | pod image |
+| CAPZ (Azure) | v1.26.0 (+ ASO v2.18.0) | pod images |
+| CAPG (GCP) | v1.12.0 | pod image |
+| CAPPP (pre-provisioned) | v0.42.1 | `cluster-api-preprovisioned-controller:v0.42.1` |
+| CAPH (host agent, Metal/pre-prov) | v0.9.4 | pod image |
+
+## CAREN addons (HelmChartProxy: chart name / version)
+
+| Addon | Chart | Chart version | Namespace | Notes |
+|---|---|---|---|---|
+| Cilium | `cilium` | 1.19.4 | kube-system | CNI |
+| Calico | — | — | — | NOT installed (Cilium chosen) |
+| MetalLB | `metallb` | 0.15.3 | metallb-system | service LB |
+| Nutanix CCM | `nkp-cloud-provider-nutanix` | 0.8.12 | kube-system | node metadata only |
+| Nutanix CSI | `nutanix-csi-storage` | 3.9.0 | ntnx-system | image `ntnx-csi:3.9.0` |
+| snapshot-controller | `snapshot-controller` | 5.0.3 | kube-system | image v8.5.0 |
+| cluster-autoscaler | `cluster-autoscaler` | 9.59.0 | kommander | image v1.36.1 |
+| Multus | `multus` | 0.1.1 | kube-system | image `multus-cni:v4.2.4-thick` |
+| NFD | `node-feature-discovery` | 0.19.0 | node-feature-discovery | — |
+| COSI controller | `cosi` | 0.2.2 | container-object-storage-system | image `objectstorage-controller:v0.2.2` |
+| Konnector agent | `konnector-agent` | 1.4.2 | ntnx-system | image `nutanix/konnector-agent:1.4.2` |
+| kube-vip | — (not a HelmChartProxy) | — | kube-system | image `kube-vip:v1.1.1`, static pod |
+
+CSI sidecars (from nutanix-csi-controller pod): csi-provisioner v5.3.0, csi-attacher v4.12.0,
+csi-resizer v2.2.1, csi-snapshotter v8.6.0, livenessprobe v2.19.0,
+csi-external-health-monitor-controller v0.18.0, node-driver-registrar v2.17.0.
+
+## Platform apps (ClusterApp catalog version; HelmRelease chart version where installed)
+
+| App | Catalog version | Chart version seen | Image version |
+|---|---|---|---|
+| cert-manager | 1.20.3 | `cert-manager@v1.20.3` | controller/cainjector/webhook v1.20.3 |
+| Gatekeeper | 3.23.0 | `gatekeeper@3.23.0` | `gatekeeper:v3.23.0` |
+| Gatekeeper proxy mutations | — | `gatekeeper-proxy-mutations@v0.3.0` | kube-rbac-proxy v0.21.1 |
+| Traefik | 39.0.7 | `traefik@39.0.7` | `traefik:v3.6.12` |
+| Traefik CRDs / Gateway API CRDs | 1.11.2 | `traefik-crds@1.11.1` | — |
+| Traefik forward auth (workspace) | 0.3.18 | `traefik-forward-auth@0.3.10` | `traefik-forward-auth:v3.3.1` |
+| Traefik forward auth mgmt | 0.3.18 | `traefik-forward-auth@0.3.10` | v3.3.1 |
+| Reloader | 2.2.14 | `reloader@2.2.14` | `reloader:v1.4.19` |
+| External Secrets | 2.7.0 | `external-secrets@2.7.0` | `external-secrets:v2.7.0` |
+| Dex | 2.14.5 | `dex@2.14.2` | `dex:v2.42.0-d2iq.0` |
+| dex-k8s-authenticator | 1.4.9 | `dex-k8s-authenticator@1.4.3` | `v1.4.7-d2iq` |
+| Flux (kommander-flux) | 2.8.5 | `flux2@2.18.3` | source 1.8.2, kustomize 1.8.3, helm 1.5.4, notification 1.8.3, image-* 1.1.1 |
+| kubefed | 0.12.1 | `kubefed@0.12.1` | `kubefed:v0.12.1` |
+| kubetunnel | 0.2.0 | not installed | — |
+| kube-oidc-proxy | 0.3.8 | `kube-oidc-proxy@0.3.4` | `kube-oidc-proxy:1.0.9` |
+| git-operator | 0.13.24 | not a HelmRelease | `git-operator:v0.13.24`, `gitwebserver:v0.13.24` |
+| kommander core | 0.19.0 | `kommander-chart@v2.19.0` | `kommander2-*:v2.19.0` |
+| kommander-appmanagement | 0.19.0 | `kommander-appmanagement-chart@v2.19.0` | v2.19.0 |
+| kommander-ui | 17.313.79 | `kommander-ui@17.313.79` | `mesosphere/kommander:17.313.79` |
+| runtime-extension-kommander | — | — | `kommander2-runtime-extension:v1.7.7` |
+| Kube Prometheus Stack | 87.16.0 | not installed (Pro+) | — |
+| prometheus-adapter | 5.3.0 | not installed | — |
+| Thanos | 17.3.2 | not installed (Ultimate) | — |
+| Karma | 2.0.10 | not installed (Ultimate) | — |
+| centralized-grafana | 87.16.0 | not installed (Ultimate) | — |
+| OpenCost / centralized-opencost | 2.5.28 | not installed (Ultimate) | — |
+| Logging Operator | 6.7.0 | not installed (Pro+) | — |
+| Fluent Bit | 0.57.9 | not installed (Pro+) | — |
+| Grafana Loki v3 | 3.6.7 | not installed (Pro+) | — |
+| Grafana Logging | 11.3.3 | not installed (Pro+) | — |
+| project-logging | 1.1.0 | not installed (Ultimate) | — |
+| Rook Ceph / rook-ceph-cluster | 1.19.5 / 1.19.5 | not installed (Pro+) | — |
+| Velero | 12.0.0 | not installed (Pro+) | — |
+| Harbor | 1.19.1 | not installed (Pro+) | — |
+| Headlamp | 0.45.0 | not installed (Pro+) | — |
+| cloudnative-pg | 0.29.0 | not installed (Pro+) | — |
+| cloudnative-pg-plugin-barman-cloud | 0.7.1 | not installed (Pro+) | — |
+| Istio (`istio-helm`) | 1.25.0 | not installed (Pro+) | — |
+| Kiali | 2.29.0 | not installed (Pro+) | — |
+| Jaeger | 2.57.4 | not installed (Pro+) | — |
+| Knative | 1.21.0 | not installed (Pro+) | — |
+| ExternalDNS | 10.20.0 | not installed (Pro+) | — |
+| COSI driver Nutanix | 0.6.3 | not installed | controller 0.2.2 runs (CAREN addon) |
+| NVIDIA GPU Operator | 26.3.3 | not installed (Pro+) | — |
+| NVIDIA Network Operator | 26.4.1 | not installed | NEW vs map |
+| vGPU Token Operator | 1.0.8 | not installed | — |
+| NKP Insights | 1.9.7 | not installed (Ultimate) | — |
+| NKP Insights Management | 1.9.7 | not installed (Ultimate) | — |
+
+## Absent on this cluster (confirmed by API resource / pod / CRD scan)
+
+- Calico: no pods, no CRDs, not the CNI. `addons.cni.provider` = Cilium.
+- kube-proxy: no DaemonSet, no pods, `kubeProxyVersion` empty. `kubeProxy.mode: disabled`.
+- Kyverno: no pods, no CRDs, no api-resources. Policy = OPA Gatekeeper only.
+- Ceph (Rook): `cephcluster` resource type does not exist. Storage = Nutanix CSI only.
+- Multus NetworkAttachmentDefinitions: none defined.

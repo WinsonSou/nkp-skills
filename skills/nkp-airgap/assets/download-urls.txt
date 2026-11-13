@@ -1,0 +1,7 @@
+# Pinned downloads for a connected host. Used by skill nkp-airgap, references/prestage.md.
+# Format: <name> <url> <sha256 of the downloaded file, or "-" when the file is built, not downloaded>
+# Checked on 2026-11-02.
+kubeseal https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.18.1/kubeseal-0.18.1-linux-amd64.tar.gz 78875afdbfa958d06b4fe6e7ea63bdea8c7e944fda6425769e2a0394ac33899e
+trivy-bundles-repo https://github.com/mesosphere/trivy-bundles.git -
+ndk-alert-config https://raw.githubusercontent.com/nutanix-cloud-native/ndk-config-samples/769718665b4538abe54143f6187582e242b8ba36/Alert/ndk-alert-config.yaml bd14bac16fe2a761bed2815a720e72eae47654ccef54af66b68b485b91c4e797
+gatekeeper-library-repo https://github.com/open-policy-agent/gatekeeper-library/tree/a8d4799d8dafd47ec5fafe945ef277d329e2cceb -

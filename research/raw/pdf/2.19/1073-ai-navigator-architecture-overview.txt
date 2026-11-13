@@ -1,0 +1,42 @@
+
+--- page 1073 ---
+13
+AI NAVIGATOR
+AI Navigator provides real-time interactive responses to Nutanix Kubernetes Platform (NKP)-related
+queries using NKP and Kubernetes® documentation.
+AI Navigator is an AI-powered application that delivers instant answers to queries ranging from basic
+instructions to advanced NKP functionalities. Nutanix trains AI Navigator on NKP product documentation,
+the Nutanix Support Knowledge Base, and upstream Kubernetes® documentation.
+To use AI Navigator, ensure that the following requirements are met:
+•
+You have a Pro or Ultimate license for DKP version 2.6.0 or later, or NKP version 2.12 or later.
+•
+You accepted the user agreement.
+•
+Your environment has internet access.
+Warning:  Nutanix does not support AI Navigator in air-gapped environments to maintain security for public
+sector, defense, and network-restricted deployments.
+AI Navigator Architecture Overview
+AI Navigator integrates with Nutanix Kubernetes Platform (NKP) clusters and external services to provide
+secure and authorized access to AI-driven insights.
+The AI Navigator architecture consists of core components that work together across different deployment
+models to deliver AI-driven insights and cluster-specific information.
+Core Components
+•
+AI Navigator app:
+The AI Navigator app is the primary user-facing interface that provides access to AI-powered features
+and coordinates interactions between backend services.
+•
+Retrieval-augmented generation:
+The retrieval-augmented generation (RAG) engine sources relevant documents, enriches queries with
+contextual information, and interfaces with large language models (LLMs) to generate responses.
+•
+NKP MCP Server:
+Since NKP 2.19, the NKP MCP Server deploys automatically alongside AI Navigator. It injects cluster-
+specific data into user queries and enriches the context for the RAG component to produce accurate
+and relevant responses based on the target cluster's characteristics.
+Deployment Models
+The following deployment models describe how AI Navigator connects your management cluster to
+language services. You can use Nutanix-managed Azure OpenAI by default, or point it at your own Azure
+OpenAI instance.
+Nutanix Kubernetes Platform | AI Navigator | 1073

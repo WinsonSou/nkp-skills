@@ -1,0 +1,144 @@
+# Networking facts for skill nkp-networking (read-only lab checks, 2026-11-02)
+# Lab: NKP 2.19.0 management cluster <mgmt-cluster> (AHV, Starter, k8s v1.36.2). Scrubbed: IPs -> <ip>, names -> <mgmt-cluster>.
+# Commands: kubectl get / get -o json|jsonpath, --help, server dry runs (see "Dry runs"). Also read-only
+# `kubectl exec ds/cilium -c cilium-agent -- cilium-dbg status | hubble observe --last 3 | ip -o link show` (no change).
+
+=== Webhook check before the dry runs ===
+All validating and mutating webhooks on the cluster have sideEffects=None (jq over all webhook configurations: no other value).
+metallb-webhook-configuration: sideEffects None.
+
+=== MetalLB ===
+CRDs: bfdprofiles, bgpadvertisements, bgppeers, communities, configurationstates, ipaddresspools, l2advertisements, servicebgpstatuses, servicel2statuses (metallb.io).
+Versions: bgppeers v1beta1 (served, deprecated) + v1beta2 (storage); ipaddresspools, l2advertisements, bgpadvertisements v1beta1.
+Pods: metallb-controller (Deployment, quay.io/metallb/controller:v0.15.3), metallb-speaker (DaemonSet on every node: speaker v0.15.3, frr/reloader/frr-metrics quay.io/frrouting/frr:9.1.3).
+Speaker env: METALLB_BGP_TYPE=frr, memberlist port 7946.
+Default objects: IPAddressPool `metallb` (autoAssign true, one range from clusterConfig.addons.serviceLoadBalancer.configuration.addressRanges), L2Advertisement `metallb` -> pool metallb. No BGPPeer, no BGPAdvertisement.
+HelmChartProxy metallb-<uid>: chart metallb 0.15.3, namespace metallb-system. CAREN values template: caren-system/default-metallb-helm-values-template (priorityClass system-cluster-critical, frr tag 9.1.3, tolerations).
+Bundle: metallb/controller and speaker v0.15.2 and v0.15.3, frrouting/frr:9.1.3.
+Traefik service annotation: metallb.io/ip-allocated-from-pool: metallb.
+FRR: `vtysh -c "show bgp summary"` in the speaker frr container -> "% BGP instance not found" (no BGP configured).
+
+=== Dry runs (kubectl ... --dry-run=server; nothing changed) ===
+1. IPAddressPool skilltest-bgp (203.0.113.0/28, autoAssign false) -> "created (server dry run)".
+2. BGPAdvertisement skilltest-bgp -> "created (server dry run)".
+3. BGPPeer skilltest-peer (metallb.io/v1beta2, myASN 64500, peerASN 64501, peerAddress 198.51.100.1) -> REJECTED:
+   The BGPPeer "skilltest-peer" is invalid:
+   * <nil>: Invalid value: "": Maximum boundary value must be of type integer with format int32 in spec.myASN
+   * <nil>: Invalid value: "": Maximum boundary value must be of type integer with format int32 in spec.peerASN
+   Same error with v1beta1 (plus "v1beta1 is deprecated, please use v1beta2"), with ASN 100 and 65000, with --validate=ignore,
+   and with dynamicASN: external (error on myASN only). CRD schema: myASN/peerASN type integer, format int32, maximum 4294967295.
+   The CRD is Established. Result: a BGPPeer cannot be created on this 2.19.0 cluster (k8s 1.36.2). Open item N-20.
+4. IPAddressPool with the same range as the default pool -> denied by webhook ipaddresspoolvalidationwebhook.metallb.io:
+   "CIDR "<ip>/32" in pool "skilltest-overlap" overlaps with already defined CIDR "<ip>/32"".
+5. L2Advertisement skilltest-l2 -> "created (server dry run)".
+6. NKPCluster JSON patch add clusterConfig.proxy {http, https, additionalNo:[".example.com","198.51.100.10"]} -> accepted, value kept.
+7. NKPCluster JSON patch add clusterConfig.kubeProxy.mode iptables (was disabled) -> REJECTED by schema CEL:
+   "...kubeProxy.mode: Invalid value: ...: Value cannot be changed after cluster creation".
+8. NKPCluster JSON patch replace clusterConfig.addons.cni.provider Cilium -> Calico -> accepted (no webhook stops a CNI switch).
+9. NKPCluster JSON patch add a second item to clusterConfig.addons.serviceLoadBalancer.configuration.addressRanges -> accepted (2 items).
+   Effect on the MetalLB pool not tested (open item N-21).
+10. NKPCluster merge patch spec.kommanderCluster.spec.ingress {hostname, certificateSecretRef{name}} -> accepted.
+11. NKPCluster merge patch spec.kommanderCluster.spec.ingress {hostname, issuerRef{name: kommander-acme-issuer, kind: ClusterIssuer}} -> accepted.
+12. CAPIStack capi-stack merge patch spec.proxy {http, https, no:[...]} -> accepted (field exists).
+13. `kubectl patch --local` of the NKPCluster YAML with clusterConfig.addons.cni.values.sourceRef {kind ConfigMap, name} -> valid shape.
+14. `nkp create cluster nutanix ... --namespace kommander-default-workspace --kubeconfig <mgmt> --http-proxy ... --no-proxy ... --dry-run -o yaml`
+    with a fake Prism Central: (a) image names without "release-cis" -> "invalid VM Image for license level: starter";
+    (b) with a Rocky CIS image name -> the CAREN defaulter webhook tried to reach Prism Central and failed (DNS). No output file.
+    Checked after: no skilltest objects in kommander-default-workspace. So the proxy mapping of the create flags is not confirmed (N-23).
+
+=== ClusterClass nkp-nutanix-v2.19.0, clusterConfig schema ===
+proxy: {http (string 1-2048), https (string 1-2048), additionalNo (list, max 128)}.
+  additionalNo description: "AdditionalNo Proxy list that will be added to the automatically calculated values that will apply
+  no_proxy configuration for cluster internal network. Default values: localhost,127.0.0.1,<POD_NETWORK>,<SERVICE_NETWORK>,
+  kubernetes,kubernetes.default,.svc,.svc.<SERVICE_DOMAIN>"
+kubeProxy.mode: enum iptables|nftables|disabled, CEL "Value cannot be changed after cluster creation".
+extraAPIServerCertSANs: list max 100, DNS-1123 pattern; Nutanix default SANs always added: localhost, 127.0.0.1, 0.0.0.0.
+dns.coreDNS.image {repository, tag} only.
+addons.cni: provider enum Calico|Cilium|Flow (required), strategy ClusterResourceSet|HelmAddon (default HelmAddon),
+  values.sourceRef {kind: ConfigMap, name} ("ConfigMap inside the same namespace"), imagePullCredentials.secretRef.name.
+addons.serviceLoadBalancer: provider enum [MetalLB] ("Not required in infrastructures where the CCM acts as the provider"),
+  configuration.addressRanges[] {start, end} ipv4, 1-10 items.
+addons.ingress: not in the schema (null).
+
+=== CAREN default values templates (caren-system ConfigMaps) ===
+default-cilium-cni-helm-values-template: values.yaml + preflight-values.yaml. Same as the guide values (pdf p.727-728), with
+  templates: kubeProxyReplacement/tunnelProtocol geneve/loadBalancer dsr+dsrDispatch geneve only if .EnableKubeProxyReplacement;
+  else cni.chainingMode portmap; EKS: ipam eni, routingMode native.
+calico-cni-helm-values-template-nutanixcluster: installation.calicoNetwork bgp Enabled, ipPools from .Cluster.spec.clusterNetwork.pods.cidrBlocks,
+  encapsulation None, natOutgoing Enabled; registry quay.io/. Also calico-cni-crs-installation-<infra> ConfigMaps.
+Bundle images: calico/* v3.32.1 (apiserver, cni, csi, ctl, kube-controllers, node, node-driver-registrar, pod2daemon-flexvol, typha),
+  tigera/operator v1.42.3, cilium v1.19.4, hubble-relay v1.19.4, kube-vip v0.8.10 and v1.1.1.
+
+=== Cilium (agent on a node) ===
+cilium-dbg status: KubeProxyReplacement True (Direct Routing on the node NIC), Cilium Ok 1.19.4, Routing Network Tunnel [geneve] Host Legacy,
+  Attach Mode TCX, Masquerading IPTables (IPv4), Hubble Ok (flows buffer 4095), Encryption Disabled, Cluster health 5/5.
+cilium-config: enable-bgp-control-plane and enable-l2-announcements not set; bpf-lb-dsr-dispatch geneve; cluster-name default, cluster-id 0.
+CRDs ciliumloadbalancerippools / ciliuml2announcementpolicies exist; ciliumbgpclusterconfigs does not.
+`hubble` binary is in the cilium-agent container; `hubble observe --last 3` prints flows. hubble-relay image has no shell.
+Services: kube-system/hubble-relay (ClusterIP 443), hubble-peer. No Hubble UI.
+MTU on this lab (nodes on a VPC overlay subnet): ens3 1442, cilium_geneve/cilium_host/lxc 1442, route MTU 1392 (geneve 50 bytes less);
+  cilium status "MTU updated (1442)".
+
+=== Ingress and certificates ===
+IngressClass kommander-traefik (default). GatewayClass traefik (ACCEPTED Unknown).
+svc kommander/kommander-traefik: LoadBalancer, externalTrafficPolicy Cluster, ports external-ceph 8085, registry 5000, web 80, websecure 443.
+TLSStore default -> secret kommander-traefik-tls; Certificate kommander-traefik-tls issued by ClusterIssuer kommander-ca.
+ClusterIssuers: kommander-ca, selfsigned-issuer. cert-manager v1.20.3 (AppDeployment cert-manager-1.20.3 in workspace namespaces;
+  ClusterApps cert-manager-1.20.3 and cert-manager-bootstrap).
+KommanderCluster ingress: spec {hostname: <ip>}, status.address <ip>; conditions IngressAddressReady True (IngressServiceAddressFound),
+  IngressCertificateReady True (Ready). KommanderCluster spec.ingress keys: certificateSecretRef, hostname, issuerRef.
+ClusterApps: cilium-hubble-relay-traefik-0.0.5, traefik-39.0.7, external-dns-10.20.0, traefik-forward-auth(-mgmt)-0.3.18.
+AppDeployment traefik (kommander): clusterConfigOverrides with empty configMapName (no override).
+
+=== Proxy surface ===
+Gatekeeper defaults (kommander/gatekeeper-3.23.0-config-defaults): mutations.enablePodProxy false, podProxySettings noProxy/httpProxy/httpsProxy empty,
+  namespaceSelectorForProxy {}. No gatekeeper-overrides ConfigMap. No namespace has label gatekeeper.d2iq.com/mutate. No Assign objects.
+Mutation CRDs exist: assign, assignimage, assignmetadata, modifyset (mutations.gatekeeper.sh).
+CAPI controller Deployments (all present): caaph, capa, capg, capi-kubeadm-bootstrap, capi-kubeadm-control-plane, capi, cappp, capv, capx, capz
+  (+ azureserviceoperator), caren (cluster-api-runtime-extensions-nutanix), capi-host-agent-controller-manager; StatefulSet git-operator-system/git-operator-git.
+capx-controller-manager ownerReference: InfrastructureProvider nutanix (operator.cluster.x-k8s.io/v1alpha2). Env: POD_NAMESPACE, NODE_NAME only.
+CAPIStack capi-stack (cluster-scoped): spec keys affinity, providers (13); CRD spec also has nodeSelector and proxy {http, https, no[] max 128}.
+`nkp upgrade capi-components --help`: "deprecated, ... now automatically run as part of nkp upgrade kommander"; flags --http-proxy, --https-proxy, --no-proxy.
+`nkp create capi-components --help` and `nkp create bootstrap --help`: --http-proxy, --https-proxy, --no-proxy ("for CAPI controllers").
+`nkp create cluster vsphere|aws --help`: --control-plane-(http|https|no)-proxy, --worker-(http|https|no)-proxy (nodes) and --http-proxy/--https-proxy/--no-proxy (CAPI controllers).
+`nkp install kommander --help`, `nkp upgrade kommander --help`: no proxy flags.
+FederatedNamespace kommander template labels: no gatekeeper.d2iq.com/mutate.
+HelmRelease kommander/gatekeeper valuesFrom: ConfigMap gatekeeper-3.23.0-config-defaults, then ConfigMap gatekeeper-overrides (optional, key
+  controller-synced-values.yaml), then ConfigMap gatekeeper-overrides (optional, values.yaml). So a gatekeeper-overrides ConfigMap in the
+  HelmRelease namespace is read. Extra HelmRelease gatekeeper-proxy-mutations exists in kommander.
+
+=== Extra read-only checks (2026-11-02, second session) ===
+kubectl get kommanderclusters -A: one KommanderCluster <mgmt-cluster> in kommander, STATUS Joined.
+KommanderCluster condition types: IngressAddressReady IngressCertificateReady PlatformAppDeploymentsReady
+  LoggingStackVersionReconciled PlatformVersionReconciled OCIRegistryConfigSynced AttachmentCompleted
+  WorkspaceKustomizationCreated ClusterKustomizationCreated.
+kube-system: ds cilium, ds cilium-envoy, deploy cilium-operator 2/2, deploy hubble-relay 1/1, deploy coredns 2/2.
+HelmChartProxies (kommander ns, name <addon>-<cluster-uid>): ca(-), cilium, cosi-controller, konnector-agent, metallb, multus,
+  node-feature-discovery, nutanix-ccm, nutanix-csi, snapshot-controller.
+caren-system ConfigMaps: calico-cni-crs-installation-{aws,docker,nutanix}cluster, calico-cni-helm-values-template-{aws,docker,nutanix}cluster,
+  cilium, default-cilium-cni-helm-values-template (2 keys), default-metallb-helm-values-template.
+NKPCluster jsonpath: clusterNetwork pods/services cidrBlocks (defaults), addons.cni {provider Cilium, strategy HelmAddon}, proxy empty,
+  kubeProxy {mode disabled}, spec.kommanderCluster.spec.ingress.hostname = <ip> (first LB IP).
+LoadBalancer Services: only kommander/kommander-traefik. CAPIStack capi-stack spec.proxy empty.
+KubeadmControlPlane YAML: 0 lines with no_proxy (no proxy configured).
+cilium-dbg status --brief: OK.
+Skill READ-ONLY blocks run on the lab (step 1 jsonpath, KommanderCluster conditions, traefik go-template, hubble observe,
+  ip link, cilium-dbg mtu, gatekeeper helmreleases, AllocationFailed events, vtysh, BGPPeer CRD myASN schema, cilium-config): all work.
+  gatekeeper-overrides ConfigMap: NotFound. HelmReleases in kommander: gatekeeper, gatekeeper-proxy-mutations.
+kommander-flux Deployments (helm-controller etc.) have env HTTP_PROXY, HTTPS_PROXY, NO_PROXY with empty values (no proxy on the site).
+Operator host (bastion) has jq, openssl, getent.
+
+=== Fix pass B (2026-11-02, batch 2 review checks; read-only, server dry runs only) ===
+Webhook check first: all validating and mutating webhooks have sideEffects None (1209) or NoneOnDryRun (7). Webhooks that match pods or
+  configmaps: gatekeeper mutation.gatekeeper.sh None, gatekeeper validation.gatekeeper.sh None, webhook.federation.kommander.mesosphere.io NoneOnDryRun.
+`nkp create cluster aks --help`: only --worker-http-proxy, --worker-https-proxy, --worker-no-proxy ("HTTP proxy for nodes").
+`nkp create cluster eks --help`: no proxy flag (grep -ci proxy = 0).
+`nkp create cluster metal --help`: --http-proxy, --https-proxy, --no-proxy ("for all nodes in the cluster"), no per-role flags.
+15. `kubectl -n kommander patch nkpcluster <mgmt-cluster> --type json` replace /spec/capiCluster/clusterNetwork/pods/cidrBlocks/0 -> 172.20.0.0/16,
+    --dry-run=server -> accepted, prints ["172.20.0.0/16"]. Then get: still ["192.168.0.0/16"].
+16. `kubectl -n kommander run proxy-check --image=busybox --restart=Never --dry-run=server -o json | jq -c '[.spec.containers[0].env[]?.name]'`
+    -> [] (mutation off). Then `get pod proxy-check`: NotFound.
+17. `kubectl -n kommander create configmap gatekeeper-overrides --from-file=values.yaml=<tmp> --dry-run=client -o yaml | kubectl apply --dry-run=server -f -`
+    (test values: RFC 5737 proxy) -> "configmap/gatekeeper-overrides created (server dry run)". Then get: NotFound. Temp file made with umask 077, removed.
+kommander-flux deploy helm-controller env: HTTP_PROXY, HTTPS_PROXY, NO_PROXY with length 0 (chart flux2, not Gatekeeper).
+Certificates: cert-manager/kommander-ca duration 87600h; kommander/kommander-traefik-tls duration 2160h0m0s.

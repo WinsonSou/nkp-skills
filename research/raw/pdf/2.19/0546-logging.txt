@@ -1,0 +1,1336 @@
+
+--- page 546 ---
+6. Prepare the target cluster by removing existing Prometheus workload resources:
+a. Scale down the Prometheus operator deployment to 0:
+kubectl --kubeconfig ${TARGET_KUBECONFIG} scale deploy -n kommander kube-
+prometheus-stack-operator --replicas 0
+b. Force-delete the Prometheus statefulset:
+kubectl --kubeconfig ${TARGET_KUBECONFIG} delete sts -n kommander prometheus-kube-
+prometheus-stack-prometheus --force
+c. Delete the existing PVC:
+kubectl --kubeconfig ${TARGET_KUBECONFIG} delete pvc -n kommander db-prometheus-
+kube-prometheus-stack-prometheus-0
+If you are migrating workloads across different infrastructure providers (for example, moving from AWS
+to Azure), map the storage class conversion by creating the following ConfigMap on the target cluster:
+kubectl --kubeconfig ${TARGET_KUBECONFIG} apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: change-storage-class-config
+  namespace: kommander
+  labels:
+    velero.io/plugin-config: ""
+    velero.io/change-storage-class: RestoreItemAction
+data:
+  ebs-sc: azuredisk-sc
+EOF
+7. Restore the Backup:
+a. Execute the Velero restore operation:
+velero --kubeconfig ${TARGET_KUBECONFIG} restore create -n kommander --from-backup
+ restic-prometheus -w
+b. Force-delete the temporary pod created during the restore operation to allow the Prometheus
+operator to properly manage pod initialization:
+kubectl --kubeconfig ${TARGET_KUBECONFIG} delete pod -n kommander prometheus-kube-
+prometheus-stack-prometheus-0 --force
+c. Scale the Prometheus operator deployment back to 1:
+kubectl --kubeconfig ${TARGET_KUBECONFIG} scale deploy -n kommander kube-
+prometheus-stack-operator --replicas 1
+What to do next
+To validate restore success, sign in to the target NKP dashboard, open the Grafana dashboard for the
+Management Cluster, and confirm data in Kubernetes / Compute Resources / Node (Pods).
+Logging
+Nutanix Kubernetes Platform (NKP) comes with a pre-configured logging stack that allows you to collect
+and visualize pod and admin log data at the Workspace level. The logging stack is also multi-tenant
+capable, and multi-tenancy is enabled at the Project level through role-based access control (RBAC).
+Nutanix Kubernetes Platform | Cluster Operations Management | 546
+
+--- page 547 ---
+By default, logging is disabled on managed and attached clusters. You need to enable the logging stack
+applications explicitly on the workspace to make use of these capabilities.
+The primary components of the logging stack include these platform services:
+•
+BanzaiCloud Logging-operator
+•
+Grafana and Grafana Loki
+•
+Fluent Bit and Fluentd
+In addition to these platform services, logging relies on other software and system facilities, including the
+container runtime, the journal facility, and system configuration, to collect logs and messages from all the
+machines in the cluster.
+The following diagram illustrates how different components of the logging stack collect log data and provide
+information about clusters:
+Figure 12: Logging Architecture
+The NKP logging stack aggregates logs from applications and nodes running inside your cluster.
+NKP uses the BanzaiCloud Logging operator to manage the Fluent Bit and Fluentd deployments that
+collect pod logs using Kubernetes API extensions called custom resources. The custom resources allow
+users to declare logging configurations using kubectl commands. The Fluent Bit instance deployed by
+the Logging-operator gathers pod logs data and sends it to Fluentd, which forwards it to the appropriate
+Grafana Loki servers based on the configuration defined in custom resources.
+Loki then indexes the log data by label and stores it for querying. Loki maintains log order integrity but does
+not index the log messages themselves, which improves its efficiency and lowers its footprint.
+Nutanix Kubernetes Platform | Cluster Operations Management | 547
+
+--- page 548 ---
+Logging Operator
+This section contains information about setting up the logging operator to manage the Fluent Bit and
+Fluentd resources.
+Fluent Bit Buffer Information
+Fluent Bit collects container logs from the host filesystem and performs the following:
+•
+Maintains a small buffer of logs (5 MB in memory)
+•
+Maintains a checkpoint on each host for each file it's consumed, so if it’s restarted, it can resumed
+where it left off.
+•
+Flushes the buffer every one second.
+•
+There is a five-second grace period to flush the buffer on exit (along with a 30-second termination grace
+period on the pod).
+Every pod restart should result in the buffer being flushed to fluentd(allows up to five seconds for that
+flush to happen).
+If the buffer is not fully flushed during that five seconds, a small amount of log data might be dropped, but if
+fluentdis functional, it is unlikely that fluent-bit will be unable to flush its logs on pod termination.
+Fluent Bit can be configured to use a hostPath volume to store the buffer information, so it can be picked
+up again when Fluent Bit restarts.
+For more information on Fluent Bit and Fluent Bit log collector, see https://kube-logging.dev/docs/logging-
+infrastructure/fluentbit/#hostpath-volumes-for-buffers-and-positions.
+For more information on Logging in relation to how it is used in NKP, refer to these pages in our Help
+Center:
+•
+Admin-level Logs on page 555
+•
+Workspace-level Logging on page 555
+•
+Multi-Tenant Logging on page 563
+•
+Fluent Bit on page 569
+•
+Logging Stack Scaling on page 548
+•
+Configuring Grafana Loki to Use AWS S3 Storage in NKP on page 549
+•
+Customizing Logging Stack Applications on page 574
+Logging Stack Scaling
+Depending on the application workloads you run on your clusters, you might find that the default settings
+for the NKP logging stack do not meet your needs. In particular, if your workloads produce lots of log
+traffic, you might find you need to adjust the logging stack components to capture all the log traffic properly.
+Follow the suggestions below to tune the logging stack components as needed.
+Logging Operator
+In a high log traffic environment, fluentd usually becomes the bottleneck of the logging stack.
+According to scaling (see https://kube-logging.dev/docs/operation/scaling/), the typical sign of this is when
+fluentd cannot handle its buffer (see https://kube-logging.dev/docs/configuration/plugins/outputs/buffer/
+directory size growth for more than the configured or calculated (timekey + timekey_wait) flush interval.
+For metrics to monitor by Prometheus, see https://docs.fluentd.org/monitoring-fluentd/monitoring-
+prometheus#metrics-to-monitor.
+Nutanix Kubernetes Platform | Cluster Operations Management | 548
+
+--- page 549 ---
+Grafana Dashboard
+In NKP, if the Prometheus Monitoring (kube-prometheus-stack) platform application is enabled, you can
+view the Logging Operator dashboard in the Grafana UI.
+You can also improve Fluentd throughput by turning off the buffering for loki clusterOutput.
+Example Configuration
+You can see an example configuration of the logging operator in Logging Stack Application Sizing
+Recommendations on page 274.
+For more information on performance tuning, Fluentd 1.0, see https://docs.fluentd.org/deployment/
+performance-tuning-single-process.
+Grafana Loki
+Grafana Loki provides a scalable log aggregation system that Nutanix Kubernetes® Platform (NKP)
+deploys in microservice mode for maximum scaling flexibility.
+For more information about microservice mode, see Grafana Loki Deployment modes.
+For high log traffic environments, Nutanix recommends the following scaling approach:
+•
+Scale the ingester components first, as they handle the primary log ingestion workload.
+•
+Scale distributor components only when existing distributors experience high computing resource
+usage.
+The number of Distributor pods must be much lesser than the number of Ingester pods.
+Grafana Dashboard
+When you enable the Prometheus Monitoring (kube-prometheus-stack) platform app in NKP, you can
+view Loki dashboards in the Grafana UI.
+Example Configuration
+For an example configuration of the logging operator, see Logging Stack App Sizing Recommendations.
+For more information about Grafana Loki:
+•
+Loki components: See Grafana Loki architecture components.
+•
+Scaling Loki: See Grafana Loki scalability operations.
+•
+Labeling best practices: See Grafana Loki best practices.
+Configuring Grafana Loki to Use AWS S3 Storage in NKP
+Configure Grafana Loki to store logs in AWS S3 storage instead of local storage for better scalability and
+data persistence.
+About this task
+By default, Grafana Loki stores logs locally. To improve scalability and data persistence, configure Grafana
+Loki to use AWS S3 storage for log data.
+To set up AWS S3 as the storage for Grafana Loki, follow these steps:
+Nutanix Kubernetes Platform | Cluster Operations Management | 549
+
+--- page 550 ---
+Procedure
+1. Get the namespace of your workspace:
+nkp get workspaces
+2. Set the WORKSPACE_NAMESPACE variable to your workspace namespace:
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+Replace <WORKSPACE_NAMESPACE> with the namespace you copied from the output of the previous step.
+3. Create a secret containing your AWS S3 credentials:
+kubectl create secret generic nkp-aws-s3-creds -n${WORKSPACE_NAMESPACE} \
+--from-literal=AWS_ACCESS_KEY_ID=<key id> \
+--from-literal=AWS_SECRET_ACCESS_KEY=<secret key>
+This secret mounts into each Grafana Loki pod as environment variables.
+4. Create a ConfigMap that overrides the storage configuration:
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-loki-v3-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    loki:
+      annotations:
+        secret.reloader.stakater.com/reload: nkp-aws-s3-creds
+      structuredConfig:
+        storage_config:
+          aws:
+            s3: s3://<region>/<bucket name>
+    ingester:
+      extraEnvFrom:
+        - secretRef:
+            name: nkp-aws-s3-creds 
+    querier:
+      extraEnvFrom:
+        - secretRef:
+            name: nkp-aws-s3-creds 
+    queryFrontend:
+      extraEnvFrom:
+        - secretRef:
+            name: nkp-aws-s3-creds 
+    compactor:
+      extraEnvFrom:
+        - secretRef:
+            name: nkp-aws-s3-creds  
+    ruler:
+      extraEnvFrom:
+        - secretRef:
+            name: nkp-aws-s3-creds 
+    distributor:
+      extraEnvFrom:
+        - secretRef:
+            name: nkp-aws-s3-creds
+Nutanix Kubernetes Platform | Cluster Operations Management | 550
+
+--- page 551 ---
+EOF
+If you configure Grafana Loki on the management cluster, you can add this configuration to the installer
+configuration instead.
+5. Apply the configuration override to the grafana-loki-v3 AppDeployment:
+cat << EOF | kubectl -n ${WORKSPACE_NAMESPACE} patch appdeployment grafana-loki-v3 --
+type="merge" --patch-file=/dev/stdin
+spec:
+  configOverrides:
+    name: grafana-loki-v3-overrides
+EOF
+Note:  If you use the Kommander CLI installation configuration file, you can skip this step.
+Migrating Grafana Loki to Time Series Database Index Type
+Grafana Loki currently uses boltdb-shipper as its default index type. However, you can migrate to the
+recommended time series database (TSDB) index type by making configuration changes that automatically
+switch from boltdb-shipper to TSDB at a specified future date.
+About this task
+To migrate Grafana Loki to TSDB index type, follow these steps:
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the top-left corner, click the Global dropdown list and select your target workspace.
+For example, if your target cluster is a management cluster, select Management Cluster Workspace.
+3. In the cluster widget, click View Details.
+4. In the General Cluster Information page, click the Enabled Applications tab.
+5. Locate Grafana Loki and click View Details.
+6. On the Grafana Loki page, click the Configuration tab.
+7. In the top right corner, click Edit.
+8. In the Workspace Application Configuration Override field, paste the override configuration to begin
+the migration:
+# Loki configuration
+loki:
+  schemaConfig:
+    configs:
+      - from: "2020-09-07"
+        store: boltdb-shipper
+        schema: v11
+        ...
+      - from: "2027-01-01"      [1]
+        store: tsdb             [2]
+        object_store: s3        [3]
+        schema: v13             [4]
+        index:
+          prefix: loki_index_
+          period: 24h
+  storage_config:
+Nutanix Kubernetes Platform | Cluster Operations Management | 551
+
+--- page 552 ---
+    boltdb_shipper:
+      ...
+    tsdb_shipper:               [5]
+      active_index_directory: /data/tsdb-index
+      cache_location: /data/tsdb-cache
+Important:  You must add a new period_config entry in your schema_config section.
+Configure the migration parameters based on the following guidelines:
+•
+[1] Migration Date: Ensure that the new period begins on a future date. The TSDB migration takes
+place at 00:00:00 UTC on the specified date.
+•
+[2] Index Type: To update the new period to use TSDB as the index type, set store to  tsdb.
+•
+[3] Object Store: The sample configuration uses filesystem as the storage in both periods. To use a
+different storage for the TSDB index, specify a different object_store in the new period.
+•
+[4] Schema Version: Update the schema to the recommended version v13.
+•
+[5] TSDB Shipper Configuration: In the storage_config section, configure the tsdb_shipper block
+by specifying the active index directory and cache location.
+9. Click Save.
+The migration from using boltdb-shipper to TSDB as the index type, automatically begins at the
+specified date and time. Ensure that your system is prepared for the transition and that you configured
+adequate storage for the new TSDB index.
+Troubleshooting LoggingStack GrafanaLokiV3Deployed Failure
+Resolve LoggingStack condition failures when the logging stack controller cannot convert existing Grafana
+Loki v2 override ConfigMaps to Grafana Loki v3 format during platform upgrades.
+About this task
+During a platform upgrade, the logging stack controller automatically migrates Grafana Loki from v2 to v3.
+As part of the migration, the logging stack controller validates and converts existing Grafana Loki override
+ConfigMaps into the v3 format. If the logging stack controller fails to convert one or more ConfigMaps, the
+migration is blocked and requires manual resolution.
+To detect, diagnose, and resolve conversion failures, follow these steps:
+Procedure
+1. Check the loggingstack condition:
+kubectl get loggingstack <name> -n <namespace> -o jsonpath='{.status.conditions}' |
+ jq '.[] | select(.type == "GrafanaLokiV3Deployed")'
+Sample output:
+{
+  "type": "GrafanaLokiV3Deployed",
+  "status": "False",
+  "reason": "Failed",
+  "message": "Failed to convert Loki v2 overrides configurations to v3 format for:
+ workspace 'my-workspace', cluster 'my-cluster' in workspace 'my-workspace'. Please
+ update the affected override ConfigMaps manually and annotate the LoggingStack with
+ reconcile.loggingstack.nkp.nutanix.com/requestedAt=<timestamp> to retry."
+}
+The message field lists every scope that failed and identifies the ConfigMaps that needs attention.
+Nutanix Kubernetes Platform | Cluster Operations Management | 552
+
+--- page 553 ---
+2. (Optional) Check Kubernetes events for additional diagnostic information:
+kubectl get events -n <namespace> --field-selector reason=GrafanaLokiV3Deployed
+3. Identify the specific scopes that require attention.
+Sample message field:
+Failed to convert Loki v2 overrides configurations to v3 format for:
+  workspace 'platform-team',
+  project 'analytics',
+  cluster 'prod-east-1' in workspace 'platform-team'.
+Please update the affected override ConfigMaps manually and annotate the
+LoggingStack with reconcile.loggingstack.nkp.nutanix.com/requestedAt=<timestamp> to
+ retry.
+The following shows the scope type and name for each failure in the message field:
+•
+workspace 'platform-team': Workspace-level override
+•
+project 'analytics': Project-level override
+•
+cluster 'prod-east-1' in workspace 'platform-team': Per-cluster override on the workspace
+AppDeployment
+4. Prepare valid Grafana Loki v3 configuration values.
+For each failing scope that the message field identifies, create a YAML configuration snippet that works
+with Grafana Loki v3. Include only the settings specific to that scope.
+Important:  To find the correct field names and structure, use the Grafana Loki configuration
+parameters reference. The values you paste into the Nutanix Kubernetes® Platform (NKP) UI are
+standard Loki Helm chart values, not the raw Loki server config file.
+5. Deploy Grafana Loki using the NKP UI at each failing scope.
+The scope type that the failure message shows determines where you deploy the application in the
+NKP UI:
+•
+To deploy Grafana Loki at the workspace-level failures for your workspace, see Cluster-scoped
+Application Configuration from the NKP UI on page 319.
+•
+To deploy Grafana Loki at the project-level failures for your project, see Enabling the Platform
+Application Using the UI on page 371.
+•
+To deploy Grafana Loki per-cluster failures for the cluster at workspace level or for the cluster at the
+project level, see Application Management Using the UI on page 278.
+A per-cluster failure means that the cluster-specific configuration override on the Loki
+AppDeployment fails to convert. Deploy Grafana Loki with a configuration that targets the specific
+cluster.
+Note:  If the message field lists multiple clusters, repeat these steps for each cluster. Alternatively, deploy
+once with a configuration that targets all listed clusters if the values are identical.
+6. Trigger a reconciliation:
+kubectl annotate loggingstack <name> -n <namespace> \
+  reconcile.loggingstack.nkp.nutanix.com/requestedAt="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+ \
+  --overwrite
+Nutanix Kubernetes Platform | Cluster Operations Management | 553
+
+--- page 554 ---
+7. Verify that the failure resolves and the migration succeeds:
+kubectl get loggingstack <name> -n <namespace> -o jsonpath='{.status.conditions}' | \
+  jq '.[] | select(.type == "GrafanaLokiV3Deployed")'
+A successful migration displays the following output:
+{
+  "type": "GrafanaLokiV3Deployed",
+  "status": "True",
+  "reason": "Succeeded",
+  "message": "Loki v3 deployment completed"
+}
+Rook Ceph
+Ceph is the default S3 storage provider. In NKP, a Rook Ceph Operator and a Rook Ceph Cluster are
+deployed together to have a Ceph Cluster.
+Storage
+The default configuration of Rook Ceph Cluster in NKP has a 33% overhead in data storage for
+redundancy. Meaning, if the data disks allocated for your Rook Ceph Cluster is 1000Gb, 750Gb will be
+used to store your data. Thus, it is important to account for that in planning the capacity of your data disks
+to prevent issues.
+ObjectBucketClaim Storage Limit
+ObjectBucketClaim has a storage limit option to prevent your S3 bucket from growing over a limit. In NKP
+this is enabled by default.
+After you size up the Rook Ceph Cluster, also increase the ObjectBucketClaim storage limit for grafana-
+loki and project-grafana-loki. For the OSD procedure, see Increasing Rook Ceph Storage Capacity
+on page 651.
+To change it for grafana-loki , provide an override configmap in rook-ceph-cluster platform app to
+override dkp.grafana-loki.additionalConfig.maxSize.
+To change it for project-grafana-loki , provide an override configmap in project-grafana-loki
+platform app to override nkp.project-grafana-loki.maxSize
+Example Configuration
+You can see an example configuration in Rook Ceph Cluster Sizing Recommendations on page 276. For
+the upgrade-safe override procedure, see Increasing Rook Ceph Storage Capacity on page 651.
+Ceph OSD CPU Considerations
+ceph-osd is the object storage daemon for the Ceph distributed file system. It is responsible for storing
+objects on a local file system and providing access to them over the network.
+If you determine that the Ceph OSD component is the bottleneck, then you may wish to consider
+increasing the CPU allocated to it.
+For more information on Ceph OSD CPU Scaling, see https://ceph.io/en/news/blog/2022/ceph-osd-cpu-
+scaling/.
+Grafana Dashboard
+In NKP, if the Prometheus Monitoring (kube-prometheus-stack) platform app is enabled, you can view
+the Ceph dashboards in the Grafana UI.
+Nutanix Kubernetes Platform | Cluster Operations Management | 554
+
+--- page 555 ---
+Audit Log
+Overhead
+Enabling audit logging requires additional computing and storage resources.
+When you enable audit logging by enabling the kommander-fluent-bit AppDeployment, inbound traffic to
+the logging stack increases the log traffic by approximately 3-4 more times.
+Thus, when enabling the audit log, consider scaling up all components in the logging stack mentioned
+above.
+Fine-tuning audit log Fluent Bit
+If you are certain that you only need to collect a subset of the logs that the default config makes the
+kommander-fluent-bit pods collect, you can add your own override configmap to kommander-fluent-
+bit with proper Fluent Bit INPUT , FILTER, OUTPUT settings. This helps reduce the audit log traffic.
+To see the default configuration of Fluent Bit, see NKP Release Notes on the Nutanix Support Portal.
+For more information:
+•
+On admin-level logs, see Admin-level Logs on page 555.
+•
+On configuration files, see https://docs.fluentbit.io/manual/administration/configuring-fluent-bit/classic-
+mode/configuration-file.
+Admin-level Logs
+NKP also includes a Fluentbit instance to collect admin-level log information, which is sent to the
+workspace Grafana Loki, which is running on the cluster. The admin log information includes:
+•
+Logs for host processes managed by systemd
+•
+Kernel logs
+•
+Kubernetes audit logs
+This approach helps to isolate the more sensitive logs from the Logging-operator, eliminating the possibility
+that users might gain inadvertent access to that data.
+For more information on these logs, see Fluent Bit on page 569.
+Warning:  On the Management cluster, the Fluentbit application is disabled by default. The amount of admin
+logs ingested to Loki requires additional disk space to be configured on the rook-ceph-cluster. Enabling
+admin logs might take around 2GB/day per node. See
+For more details on how to configure the Ceph Cluster, see Rook Ceph in NKP on page 646.
+Workspace-level Logging
+How to enable Workspace-level Logging for use with NKP.
+Logging is disabled by default on managed and attached clusters. You will need to enable logging features
+explicitly at the Workspace level if you want to capture and view log data.
+Warning:  You must perform these procedures to enable multi-tenant logging at the Project level as well.
+Logging Architecture
+The NKP logging stack architecture provides a comprehensive logging solution for the NKP platform. It
+combines Fluent Bit, Fluentd, Loki, and Grafana components to collect, process, store, and visualize log
+Nutanix Kubernetes Platform | Cluster Operations Management | 555
+
+--- page 556 ---
+data. The architecture establishes a robust logging solution by assigning specific roles to each of those
+components.
+Components:
+•
+Fluent Bit - Fluent Bit is a lightweight log processor and forwarder that collects log data from various
+sources, such as application logs or Kubernetes components. It forwards the collected logs to Fluentd
+for further processing.
+•
+Fluentd - Fluentd is a powerful and flexible log aggregator that receives log data from Fluent Bit,
+processes it, and forwards it to the Loki Distributor. Fluentd can handle various log formats and enrich
+the log data with additional metadata before forwarding it.
+•
+Loki - Loki is a horizontally-scalable, highly-available, multi-tenant log aggregation system. Loki
+components include:- Compactor: Responsible for compacting index files and chunks to improve query
+performance and reduce storage usage.
+•
+Distributor: Receives log streams, partitions them into chunks, and forwards these chunks to the Loki
+Ingester component.
+•
+Gateway: Acts as a single access point to various Loki components, routing requests between the
+Distributor, Query Frontend, and other components as needed.
+•
+Ingester: Compresses, indexes, and persists received log chunks.
+•
+Querier: Fetches log chunks from the Ingester, decompresses and filters them based on the query,
+and returns the results to the Query Frontend.
+•
+Query Frontend: Splits incoming queries into smaller parts, forwards these to the Loki Querier
+component, and combines the results from all Queriers before returning the final result.
+•
+Grafana: Grafana is a visualization and analytics platform that supports Loki as one of its data
+sources. Grafana provides a user-friendly interface for querying and visualizing log data based on
+user-defined dashboards and panels.
+•
+Grafana - Grafana is a visualization and analytics platform that supports Loki as one of its data sources.
+Grafana provides a user-friendly interface for querying and visualizing log data based on user-defined
+dashboards and panels.
+Workflow
+•
+Write Path:
+•
+Fluent Bit instances running on each node collect log data from various sources, like application logs
+or Kubernetes components.
+•
+Fluent Bit forwards the collected log data to the Fluentd instance.
+•
+Fluentd processes the received log data and forwards it to the Loki Distributor through the Loki
+Gateway.
+•
+The Loki Distributor receives the log streams, partitions them into chunks, and forwards these
+chunks to the Loki Ingester component.
+•
+Loki Ingesters are responsible for compressing, indexing, and persisting the received log chunks.
+Nutanix Kubernetes Platform | Cluster Operations Management | 556
+
+--- page 557 ---
+•
+Read Path:
+•
+When a user queries logs through Grafana, the request goes to the Loki Gateway, which routes it to
+the Loki Query Frontend.
+•
+The Query Frontend splits the query into smaller parts and forwards these to the Loki Querier
+component.
+•
+Loki Queriers fetch the log chunks from the Loki Ingester, decompress and filter them based on the
+query, and return the results to the Query Frontend.
+•
+The Query Frontend combines the results from all Queriers and returns the final result to Grafana
+through the Loki Gateway.
+•
+Grafana visualizes the log data based on the user's dashboard configuration.
+Enabling Logging Applications Using the UI
+How to enable the logging stack through the UI for Workspace-level logging
+Before you begin
+You must:
+•
+Be a cluster administrator with permissions to configure cluster-level platform services.
+•
+Set a default storage class on each attached cluster for successful Loki deployment.
+For more information, see Default Storage Providers in NKP .
+About this task
+You can enable the Workspace logging stack to all attached clusters within the Workspace through the
+UI. If you prefer to enable the logging stack with kubectl, review how you Creating AppDeployments to
+Enable Workspace Logging on page 558.
+To enable workspace-level logging in NKP using the UI, follow these steps:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Applications from the sidebar menu.
+3. Ensure traefik and cert-manager are enabled on your cluster. These are deployed by default unless
+you modify your configuration.
+4. Scroll to the Logging applications section.
+5. Select the three-dot button from the bottom-right corner of the cards for Rook Ceph and Rook Ceph
+Cluster, then click Enable. On the Enable Workspace Platform Application page, you can add a
+customized configuration for settings that best fit your organization. You can leave the configuration
+settings unchanged to enable with default settings.
+6. Select Enable at the top right of the page.
+7. Repeat the process for the Grafana Loki, Logging Operator, and Grafana Logging applications.
+8. You can verify the cluster logging stack installation by waiting until the cards have a Deployed
+checkmark on the Cluster Application page, or you can verify the Cluster Logging Stack installation
+through the CLI
+Nutanix Kubernetes Platform | Cluster Operations Management | 557
+
+--- page 558 ---
+9. Then, you can view cluster log data.
+Warning:  We do not recommend installing Fluent Bit, which is responsible for collecting admin logs,
+unless you have configured the Grafana Loki Ceph Cluster Bucket with sufficient storage space. The
+amount of admin logs ingested to Loki requires additional disk space to be configured on the rook-
+ceph-cluster. Enabling admin logs might use around 2GB/day per node. For details on how to
+configure the Ceph Cluster, see Rook Ceph in NKP on page 646.
+Creating AppDeployments to Enable Workspace Logging
+How to create AppDeployments to enable Workspace-level logging
+About this task
+Workspace logging AppDeployments enable and deploy the logging stack to all attached clusters within
+the workspace. Use the NKP UI to enable the logging applications, or, alternately, use the CLI to create the
+AppDeployments.
+To enable logging in NKP using the CLI, follow these steps on the management cluster:
+Procedure
+1. Execute the following command to get the name and namespace of your workspace.
+nkp get workspaces
+And copy the values under the NAME and NAMESPACE columns for your workspace.
+2. Export the WORKSPACE_NAME variable.
+export WORKSPACE_NAME=<WORKSPACE_NAME>
+3. Export the WORKSPACE_NAMESPACE variable.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+4. Ensure that Cert-Manager and Traefik are enabled in the workspace. If you want to find out if the
+applications are enabled on the management cluster workspace, you can run them.
+nkp get appdeployments --workspace ${WORKSPACE_NAME}
+5. You can confirm that the applications are deployed on the managed or attached cluster by running this
+kubectl command in that cluster.
+Ensure you switch to the correct context or kubeconfig of the attached cluster for the following kubectl
+command. For more information, see https://kubernetes.io/docs/tasks/access-application-cluster/
+configure-access-multiple-clusters/).
+kubectl get helmreleases -n ${WORKSPACE_NAMESPACE}
+6. Copy these commands and run them on the management cluster from a command line to create the
+Logging-operator, Grafana-loki, and Grafana-logging AppDeployments.
+nkp create appdeployment logging-operator --app logging-operator-6.4.0 --workspace
+ ${WORKSPACE_NAME}
+nkp create appdeployment rook-ceph --app rook-ceph-1.19.5 --workspace
+ ${WORKSPACE_NAME}
+nkp create appdeployment rook-ceph-cluster --app rook-ceph-cluster-1.19.6 --workspace
+ ${WORKSPACE_NAME}
+nkp create appdeployment grafana-loki-v3 --app grafana-loki-v3-3.6.7 --workspace
+ ${WORKSPACE_NAME}
+Nutanix Kubernetes Platform | Cluster Operations Management | 558
+
+--- page 559 ---
+nkp create appdeployment grafana-logging --app grafana-logging-11.3.3 --workspace
+ ${WORKSPACE_NAME}
+Then, you can verify the cluster logging stack installation. For more information, see Verifying the
+Cluster Logging Stack Installation on page 561.
+To deploy the applications to selected clusters within the workspace, refer to the Cluster-scoped
+Application Configuration from the NKP UI on page 319.
+Warning:  We do not recommend installing Fluent Bit, which is responsible for collecting admin logs
+unless you have configured the Rook Ceph Cluster with sufficient storage space. Enabling admin logs
+through Fluent Bit might use around 2GB/day per node. For more information on how to configure the
+Rook Ceph Cluster, see Rook Ceph in NKP on page 646.
+7. To install Fluent Bit, create the AppDeployment.
+nkp create appdeployment fluent-bit --app fluent-bit-0.57.2 --workspace
+ ${WORKSPACE_NAME}
+Overriding ConfigMap to Restrict Logging
+About this task
+How to override the logging configMap to restrict logging to specific namespaces.
+As a cluster administrator, you may need to limit or restrict logging activities to certain namespaces.
+Kommander allows you to do this by creating an override configMap that modifies the logging configuration
+created in Creating AppDeployments to Enable Workspace Logging on page 558.
+Before you begin
+•
+Implement each of the steps listed in Workspace-level Logging on page 555.
+•
+Ensure that log data is available before you run this procedure.
+To create and use the override configMap entries, follow these steps:
+Procedure
+1. Execute the following command to get the namespace of your workspace.
+nkp get workspaces
+And copy the value under the NAMESPACE column for your workspace.
+2. Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+3. Identify one or more namespaces to which you want to restrict logging.
+4. Create a file named logging-operator-logging-overrides.yaml and paste the following YAML code
+into it to create the overrides configMap.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logging-operator-logging-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    ---
+    clusterFlows:
+Nutanix Kubernetes Platform | Cluster Operations Management | 559
+
+--- page 560 ---
+    - name: cluster-containers
+      spec:
+        globalOutputRefs:
+        - loki
+        match:
+        - exclude:
+            namespaces:
+            - <your-namespace>
+            - <your-other-namespace>
+5. Add the relevant namespace values for metadata.namespace and the
+clusterFlows[0].spec.match[0].exclude.namespaces values at the end of the file, and save the
+file.
+6. Use the following command to apply the YAML file.
+kubectl apply -f logging-operator-logging-overrides.yaml
+7. Edit the logging-operator AppDeployment to set the value of spec.configOverrides.name to
+logging-operator-logging-overrides.
+For more information, see AppDeployment Resources on page 271.
+nkp edit appdeployment -n ${WORKSPACE_NAMESPACE} logging-operator
+After your editing is complete, the AppDeployment resembles this example:
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: logging-operator
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: logging-operator-6.4.0
+    kind: ClusterApp
+  configOverrides:
+    name: logging-operator-logging-overrides
+8. Perform actions that generate log data, both in the specified namespaces and the namespaces you
+mean to exclude.
+9. Verify that the log data contains only the data you expected to receive.
+Overriding ConfigMap to Modify the Storage Retention
+NKP configures Grafana Loki to retain log metadata and logs for one week using the Compactor. This
+retention policy can be customized.
+About this task
+For more information on Compactor, see https://grafana.com/docs/loki/latest/operations/storage/boltdb-
+shipper/#compactor.
+The minimum retention period is 24 hours.
+To customize the retention policy using configOverrides, run these commands on the management
+cluster:
+Nutanix Kubernetes Platform | Cluster Operations Management | 560
+
+--- page 561 ---
+Procedure
+1. Execute the following command to get the namespace of your workspace.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace.
+2. Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+3. Create a ConfigMap with custom configuration values for Grafana Loki.
+Since the retention configuration is nested in a config string, you must copy the entire block. The
+following example sets the retention period to 360 hours (15 days). For more information on this field,
+see https://grafana.com/docs/loki/latest/operations/storage/retention/#retention-configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-loki-v3-custom-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    loki:
+      structuredConfig:
+        limits_config:
+          retention_period: 360h
+EOF
+4. Edit the grafana-loki AppDeployment to set the value of spec.configOverrides.name to grafana-
+loki-v3-custom-overrides
+For more information on deploying a service with a custom configuration, see AppDeployment
+Resources on page 271.
+nkp edit appdeployment -n ${WORKSPACE_NAMESPACE} grafana-loki-v3
+After your editing is complete, the AppDeployment resembles this example.
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: grafana-loki-v3
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: grafana-loki-v3-3.6.7
+    kind: ClusterApp
+  configOverrides:
+    name: grafana-loki-v3-custom-overrides
+Verifying the Cluster Logging Stack Installation
+How to verify the cluster's logging stack has been installed successfully.
+About this task
+You must wait for the cluster’s logging stack HelmReleases to deploy before attempting to configure or use
+the logging features.
+Run the following commands on the management cluster:
+Nutanix Kubernetes Platform | Cluster Operations Management | 561
+
+--- page 562 ---
+Procedure
+1. Execute the following command to get the namespace of your workspace.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace.
+2. Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+Run the following commands on the managed or attached cluster. Ensure you switch to the correct
+context or kubeconfig of the attached cluster for the following kubectl commands. For more
+information, see https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-
+clusters/.
+3. Check the deployment status using this command on the attached cluster.
+kubectl get helmreleases -n ${WORKSPACE_NAMESPACE}
+Note:  It may take some time for these changes to take effect, based on the duration configured for the
+Flux GitRepository reconciliation.
+When the logging stack is successfully deployed, you will see output that includes the following
+HelmReleases:
+NAME                         READY   STATUS                             AGE
+grafana-logging              True    Release reconciliation succeeded   15m
+logging-operator             True    Release reconciliation succeeded   15m
+logging-operator-logging     True    Release reconciliation succeeded   15m
+grafana-loki-v3              True    Release reconciliation succeeded   15m
+rook-ceph                    True    Release reconciliation succeeded   15m
+rook-ceph-cluster            True    Release reconciliation succeeded   15m
+object-bucket-claims         True    Release reconciliation succeeded   15m
+What to do next
+Viewing Cluster Log Data on page 562
+Viewing Cluster Log Data
+How to view the cluster's log data after enabling logging.
+About this task
+Though you enable logging at the Workspace level, you can view the log data at the cluster level using the
+cluster’s Grafana logging URL.
+Run the following commands on the management cluster:
+Procedure
+1. Execute the following command to get the namespace of your workspace.
+nkp get workspaces
+And copy the value under the NAMESPACE column for your workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 562
+
+--- page 563 ---
+2. Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+Run the following commands on the attached cluster to access the Grafana UI.
+Ensure you switch to the correct context or kubeconfig of the attached cluster for the following
+kubectl commands. For more information, see Configure Access to Multiple Clusters.
+3. Get the Grafana URL.
+kubectl get ingress -n ${WORKSPACE_NAMESPACE} grafana-logging -o go-
+template='https://{{with index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}
+{{end}}{{with index .spec.rules 0}}{{with index .http.paths 0}}{{.path }}{{end}}
+{{end}}{{"\n"}}'
+To view logs in Grafana:
+•
+1. Go to the Explore tab:
+kubectl get ingress -n ${WORKSPACE_NAMESPACE} grafana-logging -o
+ go-template='https://{{with index .status.loadBalancer.ingress 0}}
+{{or .hostname .ip}}{{end}}{{with index .spec.rules 0}}{{with index .http.paths
+ 0}}{{.path }}{{end}}{{end}}/explore{{"\n"}}'
+2. You might be prompted to log on using the SSO flow.
+3. At the top of the page, change the data source to Loki.
+For more on how to use the interface to view and query logs, see the Grafana Loki documentation.
+Warning:  Cert-Manager and Traefik must be deployed in the attached cluster to be able to access the
+Grafana UI. These are deployed by default on the workspace.
+Multi-Tenant Logging
+Multi-tenant logging in Kommander is built on the NKP Logging architecture. Multi-tenant logging uses the
+same components as the base logging architecture:
+•
+BanzaiCloud logging-operator
+•
+Grafana Loki
+•
+Grafana
+Note:
+You must perform the Workspace-level Logging on page 555 procedures as a prerequisite to
+enable multi-tenant logging at the Project level as well.
+Access to log data is done at the namespace level through the use of Projects within Kommander, as
+shown in the diagram:
+Nutanix Kubernetes Platform | Cluster Operations Management | 563
+
+--- page 564 ---
+Figure 13: Multi-tenant Logging Architecture
+Each Project namespace has a logging-operator, “Flow” that sends its pod logs to its own Loki server. A
+custom controller deploys corresponding Loki and Grafana servers in each namespace, and defines a
+logging-operator Flow in each namespace that forwards its pod logs to its respective Loki server. There is a
+corresponding Grafana server for visualizations for each namespace.
+For the convenience of cluster Administrators, a cluster-scoped Loki/Grafana instance pair is deployed with
+a corresponding Logging-operator ClusterFlow that directs pod logs from all namespaces to the pair. A
+cluster Administrator can grant access either to none of the logs, or to all logs collected from all pods in a
+given namespace. Assigning teams to specific namespaces enables the team members to see only the
+logs for the namespaces they own.
+As with any endpoint, if an Ingress controller is in use in the environment, take care that the ingress rules
+do not supersede the RBAC permissions and thus prevent access to the logs.
+Note:  Cluster Administrators will need to monitor and adjust resource usage to prevent operational
+difficulties or excessive use on a per namespace basis.
+Enabling Multi-tenant Logging
+About this task
+Context for the current task
+Before you begin
+•
+Enable workspace-level logging before you can configure multi-tenant logging. For more information,
+see Workspace-level Logging on page 555.
+Nutanix Kubernetes Platform | Cluster Operations Management | 564
+
+--- page 565 ---
+•
+Be a cluster administrator with permissions to configure cluster-level platform services.
+Multi-tenant Logging Enablement Process
+The steps required to enable multi-tenant logging include:
+Procedure
+1. Get started with multi-tenant logging by Creating a Project for Logging on page 565.
+2. Create the required Project-level AppDeployments.
+3. Verifying the Project Logging Stack Installation on page 567
+4. Viewing Project Log Data on page 568
+Creating a Project for Logging
+About this task
+To enable multi-tenant logging:
+Procedure
+1. You must first create a Project and its namespace.
+Users assigned to this namespace will be able to access log data for only that namespace and not
+others.
+2. Then, you can create project-level AppDeployments for use in multi-tenant logging.
+Creating the Project-level AppDeployments
+How to create Project-level AppDeployments for use in multi-tenant logging
+About this task
+You must create AppDeployments in the Project namespace to enable and deploy the logging stack
+to all clusters within a Project. You can use the CLI to do this, or use the DKP UI to enable the logging
+applications.
+To create the AppDeployments needed for Project-level logging, follow these steps on the management
+cluster:
+Procedure
+1. Determine the namespace of the workspace that your project is in. You can use the following command
+to see the list of workspace names and their corresponding namespaces.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace.
+2. Export the WORKSPACE_NAME variable.
+export WORKSPACE_NAME=<WORKSPACE_NAME>
+3. Export the WORKSPACE_NAMESPACE variable.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+Nutanix Kubernetes Platform | Cluster Operations Management | 565
+
+--- page 566 ---
+4. Execute the following command to get the namespace of your project.
+kubectl get projects -n ${WORKSPACE_NAMESPACE}
+Copy the value under the PROJECT NAMESPACE column for your project. This might not be identical to
+the Display Name of the Project.
+.
+5. Export the PROJECT_NAME variable.
+export PROJECT_NAME=<PROJECT_NAME    >
+6. Copy these commands and execute them from a command line:
+nkp create appdeployment project-grafana-loki-v3 --app project-grafana-loki-v3-3.6.7
+ --workspace ${WORKSPACE_NAME} --project ${PROJECT_NAME}
+nkp create appdeployment project-grafana-logging --app project-grafana-logging-11.3.3
+ --workspace ${WORKSPACE_NAME} --project ${PROJECT_NAME}
+nkp create appdeployment project-logging --app project-logging-1.1.0 --workspace
+ ${WORKSPACE_NAME} --project ${PROJECT_NAME}
+kubectl get helmreleases -n ${PROJECT_NAMESPACE}
+What to do next
+Verifying the Project Logging Stack Installation on page 567
+Overriding ConfigMap to Modify the Storage Retention
+NKP configures Grafana Loki to retain log metadata and logs for one week using the Compactor. This
+retention policy can be customized.
+About this task
+For more information on Compactor, see https://grafana.com/docs/loki/latest/operations/storage/boltdb-
+shipper/#compactor.
+The minimum retention period is 24 hours.
+To customize the retention policy using configOverrides, run these commands on the management
+cluster:
+Procedure
+1. Determine the namespace of the workspace that your project is in. You can use the nkp get
+workspaces command to see the list of workspace names and their corresponding namespaces.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace. This might NOT be identical to the
+Display Name of the Workspace.
+2. Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+3. Get the namespace of your project.
+kubectl get projects --namespace ${WORKSPACE_NAMESPACE}
+Copy the value under the PROJECT NAMESPACE column for your workspace. This may NOT be identical
+to the Display Name of the Project.
+Nutanix Kubernetes Platform | Cluster Operations Management | 566
+
+--- page 567 ---
+4. Set the PROJECT_NAMESPACE variable to the namespace copied in the previous step.
+export PROJECT_NAMESPACE=<PROJECT_NAMESPACE>
+5. Create a ConfigMap with custom configuration values for Grafana Loki.
+Since the retention configuration is nested in a config string, you must copy the entire block. The
+following example sets the retention period to 360 hours (15 days). For more information on Grafana
+Loki’s Retention Configuration, see https://grafana.com/docs/loki/latest/operations/storage/retention/
+#retention-configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: project-grafana-loki-v3-custom-overrides
+  namespace: ${PROJECT_NAMESPACE}
+data:
+  values.yaml: |
+    loki:
+      structuredConfig:
+        limits_config:
+          retention_period: 360h
+EOF
+6. Run the following command on the management cluster to reference the configOverrides in
+project-grafana-loki AppDeployment.
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: project-grafana-loki-v3
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: project-grafana-loki-v3-3.6.7
+    kind: ClusterApp
+  configOverrides:
+    name: project-grafana-loki-v3-custom-overrides
+EOF
+Verifying the Project Logging Stack Installation
+How to verify the project logging stack installation for multi-tenant logging.
+About this task
+You must wait for the project's logging stack HelmReleases , to deploy before attempting to configure or
+use the project-level logging features, including multi-tenancy.
+Run the following commands on the management cluster:
+Procedure
+1. Determine the namespace of the workspace that your project is in. You can use the following command
+to see the list of workspace names and their corresponding namespaces.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 567
+
+--- page 568 ---
+2. Export the WORKSPACE_NAMESPACE variable.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+3. Execute the following command to get the namespace of your project.
+kubectl get projects -n ${WORKSPACE_NAMESPACE}
+Copy the value under the PROJECT NAMESPACE column for your project. This might not be identical to
+the Display Name of the Project.
+.
+4. Export the PROJECT_NAMESPACE variable.
+export PROJECT_NAMESPACE=<PROJECT_NAMESPACE>
+Run the following commands on the managed or attached cluster. Ensure you switch to the correct
+context or kubeconfig of the attached cluster for the following kubectl commands. For more
+information, see https://kubernetes.io/docs/tasks/access-application-cluster/configure-access-multiple-
+clusters/.
+5. Check the deployment status using this command on the attached cluster.
+kubectl get helmreleases -n ${PROJECT_NAMESPACE}
+Note:  It may take some time for these changes to take effect, based on the duration configured for the
+Flux GitRepository reconciliation.
+When the logging stack is successfully deployed, you will see output that includes the following
+HelmReleases:
+NAMESPACE              NAME                                READY   STATUS            
+                 AGE
+${PROJECT_NAMESPACE}   project-grafana-logging             True    Release
+ reconciliation succeeded   15m
+${PROJECT_NAMESPACE}   project-grafana-loki-v3             True    Release
+ reconciliation succeeded   11m
+${PROJECT_NAMESPACE}   project-loki-object-bucket-claims   True    Release
+ reconciliation succeeded   11m
+What to do next
+Viewing Project Log Data on page 568
+Viewing Project Log Data
+How to view the project log data within multi-tenant logging.
+About this task
+You can only view the log data for a Project to which you have been granted access.
+To access Project Grafana’s UI:
+Run the following commands on the management cluster:
+Procedure
+1. Determine the namespace of the workspace that your project is in. You can use the nkp get
+workspaces command to see the list of workspace names and their corresponding namespaces.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 568
+
+--- page 569 ---
+2. Export the WORKSPACE_NAMESPACE variable.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+3. Execute the following command to get the namespace of your project.
+kubectl get projects -n ${WORKSPACE_NAMESPACE}
+And copy the value under the PROJECT NAMESPACE column for your project. This might NOT be identical
+to the Display Name of the Project.
+4. Export the PROJECT_NAMESPACE variable.
+export PROJECT_NAMESPACE=<PROJECT_NAMESPACE>
+Run the following commands on the attached cluster to access the Grafana UI.
+Ensure you switch to the correct context or kubeconfig of the attached cluster for the following
+kubectl commands. For more information, see https://kubernetes.io/docs/tasks/access-application-
+cluster/configure-access-multiple-clusters/.
+5. Get the Grafana URL.
+kubectl get ingress -n ${PROJECT_NAMESPACE} ${PROJECT_NAMESPACE}-project-grafana-
+logging -o go-template='https://{{with index .status.loadBalancer.ingress 0}}
+{{or .hostname .ip}}{{end}}{{with index .spec.rules 0}}{{with index .http.paths 0}}
+{{.path }}{{end}}{{end}}{{"\n"}}'
+To view logs in Grafana:
+•
+1. Go to the Explore tab:
+kubectl get ingress -n ${PROJECT_NAMESPACE} ${PROJECT_NAMESPACE}-
+project-grafana-logging -o go-template='https://{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}{{with
+ index .spec.rules 0}}{{with index .http.paths 0}}{{.path }}{{end}}{{end}}/
+explore{{"\n"}}'
+2. You might be prompted to log on using the SSO flow.
+For more information, see Authentication on page 578 and Authorization.
+3. At the top of the page, change the data source to Loki.
+For more on how to use the interface to view and query logs, see https://grafana.com/docs/grafana/
+v7.5/datasources/loki/.
+Warning:  Cert-Manager and Traefik must be deployed in the attached cluster to be able to access the
+Grafana UI. These are deployed by default on the workspace.
+You can configure the workspace policy to restrict access to the Project logging Grafana UI. For more
+information, see Logging on page 546.
+Each Grafana instance in a Project has a unique URL at the cluster level. Consider creating a
+WorkspaceRoleBinding that maps to a ClusterRoleBinding, on attached cluster(s), for each Project
+level Grafana instance. For example, If you have a group named sample-group and two projects
+named first-project and second-project in sample-workspace workspace, then the Role Bindings
+will look similar.
+Select the correct role bindings for each group for a project at the workspace level.
+Fluent Bit
+Fluent Bit is the NKP choice of open-source log collection and forwarding tool.
+For more information, see https://fluentbit.io/.
+Nutanix Kubernetes Platform | Cluster Operations Management | 569
+
+--- page 570 ---
+Warning:  The Fluentbit application is disabled by default on the management cluster. To ingest Kubernetes
+audit, systemd, and kernel logs, configure Loki with additional disk space. We recommend at least 2GB per
+node, per day of log retention. For a 10 node cluster and 7 days retention, configure an additional 140GB of
+disk space. Enabling admin logs might use around 2GB/day per node.
+For more details on how to configure the Rook Ceph Cluster, see Rook Ceph on page 554.
+Audit Log Collection
+Auditing in Kubernetes provides a way to document the actions taken on a cluster chronologically. For
+more information, see https://kubernetes.io/docs/tasks/debug/debug-cluster/audit/.
+On Kommander, by default, audit logs are collected and stored for quick indexing. Viewing and accessing
+can be done through the Grafana logging UI.
+To adjust the default Audit Policy log backend configuration, see Log backend. Before creating the cluster,
+you must modify the log retention settings by configuring the control plane. For more information, see
+Control Plane Configuration on page 997. This needs to be done prior to creating the cluster since it
+cannot be modified after creation. For more information, see Collecting systemd Logs from a Non-default
+Path on page 570.
+Collecting systemd Logs from a Non-default Path
+About this task
+By default, Fluent Bit pods are configured to collect systemd logs from the /var/log/journal/ path on
+cluster nodes.
+If systemd-journald running as a part of the OS on the nodes uses a different path for writing logs,
+you will need to override the configuration of the fluent-bit AppDeployment to make Fluent Bit collect
+systemd logs.
+To configure the Fluent Bit AppDeployment to collect systemd logs from a non-default path, follow these
+steps (all kubectl and nkp invocations refer to the management cluster):
+Procedure
+1.
+To get the namespace of the workspace where you want to configure Fluent Bit, run the following
+command.
+nkp get workspaces
+Copy the value under the NAMESPACE column for your workspace.
+2.
+Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+3.
+Identify the systemd-journald log data storage path on the nodes of the clusters in the workspace by
+using the OS documentation and examining the systemd configuration.
+Usually, it will be either /var/log/journal (typically used when systemd-journald is configured to
+store logs permanently; in this case, the default Fluent Bit configuration should work) or /run/log/
+journal (typically used when systemd-journald is configured to use volatile storage).
+4.
+Extract the default Helm values used by the Fluent Bit App.
+kubectl get -n ${WORKSPACE_NAMESPACE} configmaps fluent-bit-0.57.2-config-defaults
+ -o=jsonpath='{.data.values\.yaml}' > fluent-bit-values.yaml
+Nutanix Kubernetes Platform | Cluster Operations Management | 570
+
+--- page 571 ---
+5.
+Edit the resulting file fluent-bit-values.yaml by removing all sections except for extraVolumes,
+extraVolumeMounts and config.inputs. The result should look similar to this.
+extraVolumes:
+# we create this to have a persistent tail-db directory an all nodes
+# otherwise a restarted fluent-bit would rescrape all tails
+- name: tail-db
+  hostPath:
+    path: /var/log/tail-db
+    type: DirectoryOrCreate
+# we create this to get rid of error messages that would appear on non control-
+plane nodes
+- name: kubernetes-audit
+  hostPath:
+    path: /var/log/kubernetes/audit
+    type: DirectoryOrCreate
+# needed for kmsg input plugin
+- name: uptime
+  hostPath:
+    path: /proc/uptime
+    type: File
+- name: kmsg
+  hostPath:
+    path: /dev/kmsg
+    type: CharDevice
+extraVolumeMounts:
+- name: tail-db
+  mountPath: /tail-db
+- name: kubernetes-audit
+  mountPath: /var/log/kubernetes/audit
+- name: uptime
+  mountPath: /proc/uptime
+- name: kmsg
+  mountPath: /dev/kmsg
+config:
+  inputs: |
+    # Collect audit logs, systemd logs, and kernel logs.
+    # Pod logs are collected by the fluent-bit deployment managed by logging-
+operator.
+    [INPUT]
+        Name tail
+        Alias kubernetes_audit
+        Path /var/log/kubernetes/audit/*.log
+        Parser kubernetes-audit
+        DB /tail-db/audit.db
+        Tag audit.*
+        Refresh_Interval 10
+        Rotate_Wait 5
+        Mem_Buf_Limit 135MB
+        Buffer_Chunk_Size 5MB
+        Buffer_Max_Size 20MB
+        Skip_Long_Lines Off
+    [INPUT]
+        Name systemd
+        Alias kubernetes_host
+        DB /tail-db/journal.db
+        Tag host.*
+        Max_Entries 1000
+        Read_From_Tail On
+        Strip_Underscores On
+Nutanix Kubernetes Platform | Cluster Operations Management | 571
+
+--- page 572 ---
+    [INPUT]
+        Name kmsg
+        Alias kubernetes_host_kernel
+        Tag kernel
+6.
+Add the following item to the list under the extraVolumes key.
+- name: kubernetes-host
+  hostPath:
+    path: <path to systemd logs on the node>
+    type: Directory
+7.
+Add the following item to the list under the extraVolumeMounts key.
+- name: kubernetes-host
+  mountPath: <path to systemd logs on the node>
+These items will make Kubernetes mount logs into Fluent Bit pods.
+8.
+Add the following line into the [INPUT] entry identified by Name systemd and Alias
+kubernetes_host.
+Path <path to systemd logs on the node>
+This is needed to make Fluent Bit actually collect the mounted logs.
+9.
+Assuming that the path to systemd logs on the node is /run/log/journal, the result will look similar
+to this.
+extraVolumes:
+# we create this to have a persistent tail-db directory an all nodes
+# otherwise a restarted fluent-bit would rescrape all tails
+- name: tail-db
+  hostPath:
+    path: /var/log/tail-db
+    type: DirectoryOrCreate
+# we create this to get rid of error messages that would appear on non control-
+plane nodes
+- name: kubernetes-audit
+  hostPath:
+    path: /var/log/kubernetes/audit
+    type: DirectoryOrCreate
+# needed for kmsg input plugin
+- name: uptime
+  hostPath:
+    path: /proc/uptime
+    type: File
+- name: kmsg
+  hostPath:
+    path: /dev/kmsg
+    type: CharDevice
+- name: kubernetes-host
+  hostPath:
+    path: /run/log/journal
+    type: Directory
+extraVolumeMounts:
+- name: tail-db
+  mountPath: /tail-db
+- name: kubernetes-audit
+  mountPath: /var/log/kubernetes/audit
+- name: uptime
+  mountPath: /proc/uptime
+- name: kmsg
+Nutanix Kubernetes Platform | Cluster Operations Management | 572
+
+--- page 573 ---
+  mountPath: /dev/kmsg
+- name: kubernetes-host
+  mountPath: /run/log/journal
+config:
+  inputs: |
+    # Collect audit logs, systemd logs, and kernel logs.
+    # Pod logs are collected by the fluent-bit deployment managed by logging-
+operator.
+    [INPUT]
+        Name tail
+        Alias kubernetes_audit
+        Path /var/log/kubernetes/audit/*.log
+        Parser kubernetes-audit
+        DB /tail-db/audit.db
+        Tag audit.*
+        Refresh_Interval 10
+        Rotate_Wait 5
+        Mem_Buf_Limit 135MB
+        Buffer_Chunk_Size 5MB
+        Buffer_Max_Size 20MB
+        Skip_Long_Lines Off
+    [INPUT]
+        Name systemd
+        Alias kubernetes_host
+        Path /run/log/journal
+        DB /tail-db/journal.db
+        Tag host.*
+        Max_Entries 1000
+        Read_From_Tail On
+        Strip_Underscores On
+    [INPUT]
+        Name kmsg
+        Alias kubernetes_host_kernel
+        Tag kernel
+10. Create a ConfigMap manifest with override values from fluent-bit-values.yaml.
+cat <<EOF >fluent-bit-overrides.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+  name: fluent-bit-overrides
+data:
+  values.yaml: |
+$(cat fluent-bit-values.yaml | sed 's/^/    /g')
+EOF
+11. Create a ConfigMap from the manifest above.
+kubectl apply -f fluent-bit-overrides.yaml
+12. Edit the fluent-bit AppDeployment to set the value of spec.configOverrides.name to the name
+of the created ConfigMap. You can use the steps in the procedure, and deploy an application with a
+custom configuration.
+nkp edit appdeployment -n ${WORKSPACE_NAMESPACE} fluent-bit
+After your editing is complete, the AppDeployment resembles this example.
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+Nutanix Kubernetes Platform | Cluster Operations Management | 573
+
+--- page 574 ---
+metadata:
+  name: fluent-bit
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: fluent-bit-0.57.2
+    kind: ClusterApp
+  configOverrides:
+    name: fluent-bit-overrides
+13. Log in to the Grafana logging UI of your workspace and verify that logs with a label
+log_source=kubernetes_host are now present in Loki.
+Customizing Logging Stack Applications
+About this task
+This page provides instructions on how you can customize the Logging Stack Applications in NKP.
+Procedure
+1. Retrieve the Workspace Namespace
+a. On the management cluster, run the following command to get the namespace of your workspace.
+nkp get workspaces
+b. Copy the value under the NAMESPACE column for your workspace.
+c. Set the WORKSPACE_NAMESPACE variable to the namespace copied in the previous step.
+export WORKSPACE_NAMESPACE=<WORKSPACE_NAMESPACE>
+2. Customize Logging Stack applications.
+a. On the Attached or Managed Cluster, retrieve the kubeconfig for the cluster.
+b. Apply the ConfigMap directly to the managed/attached cluster using the name, logging-operator-
+logging-overrides.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logging-operator-logging-overrides
+  namespace: ${WORKSPACE_NAMESPACE}
+data:
+  values.yaml: |
+    <insert config here>
+EOF
+This is an example of a ConfigMap that contains customized resource requests and limit values for
+fluentd:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logging-operator-logging-overrides
+  namespace: kommander
+data:
+  values.yaml: |
+    fluentd:
+Nutanix Kubernetes Platform | Cluster Operations Management | 574

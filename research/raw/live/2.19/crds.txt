@@ -1,0 +1,418 @@
+
+## acme.cert-manager.io
+  challenges.acme.cert-manager.io
+  orders.acme.cert-manager.io
+
+## addons.cluster.x-k8s.io
+  clusterresourcesetbindings.addons.cluster.x-k8s.io
+  clusterresourcesets.addons.cluster.x-k8s.io
+  helmchartproxies.addons.cluster.x-k8s.io
+  helmreleaseproxies.addons.cluster.x-k8s.io
+
+## apps.kommander.d2iq.io
+  appdeploymentinstances.apps.kommander.d2iq.io
+  appdeployments.apps.kommander.d2iq.io
+  apps.apps.kommander.d2iq.io
+  clusterapps.apps.kommander.d2iq.io
+
+## bootstrap.cluster.x-k8s.io
+  eksconfigs.bootstrap.cluster.x-k8s.io
+  eksconfigtemplates.bootstrap.cluster.x-k8s.io
+  gkeconfigs.bootstrap.cluster.x-k8s.io
+  gkeconfigtemplates.bootstrap.cluster.x-k8s.io
+  kubeadmconfigs.bootstrap.cluster.x-k8s.io
+  kubeadmconfigtemplates.bootstrap.cluster.x-k8s.io
+  nodeadmconfigs.bootstrap.cluster.x-k8s.io
+  nodeadmconfigtemplates.bootstrap.cluster.x-k8s.io
+
+## cert-manager.io
+  certificaterequests.cert-manager.io
+  certificates.cert-manager.io
+  clusterissuers.cert-manager.io
+  issuers.cert-manager.io
+
+## cilium.io
+  ciliumcidrgroups.cilium.io
+  ciliumclusterwidenetworkpolicies.cilium.io
+  ciliumendpoints.cilium.io
+  ciliumidentities.cilium.io
+  ciliuml2announcementpolicies.cilium.io
+  ciliumloadbalancerippools.cilium.io
+  ciliumnetworkpolicies.cilium.io
+  ciliumnodeconfigs.cilium.io
+  ciliumnodes.cilium.io
+  ciliumpodippools.cilium.io
+
+## cluster.x-k8s.io
+  clusterclasses.cluster.x-k8s.io
+  clusters.cluster.x-k8s.io
+  machinedeployments.cluster.x-k8s.io
+  machinedrainrules.cluster.x-k8s.io
+  machinehealthchecks.cluster.x-k8s.io
+  machinepools.cluster.x-k8s.io
+  machines.cluster.x-k8s.io
+  machinesets.cluster.x-k8s.io
+
+## clusterctl.cluster.x-k8s.io
+  providers.clusterctl.cluster.x-k8s.io
+
+## clusters.nkp.nutanix.com
+  nkpclusters.clusters.nkp.nutanix.com
+
+## config.gatekeeper.sh
+  configs.config.gatekeeper.sh
+
+## connection.gatekeeper.sh
+  connections.connection.gatekeeper.sh
+
+## constraints.gatekeeper.sh
+  requiredserviceaccountname.constraints.gatekeeper.sh
+
+## containerservice.azure.com
+  fleetsmembers.containerservice.azure.com
+  maintenanceconfigurations.containerservice.azure.com
+  managedclusters.containerservice.azure.com
+  managedclustersagentpools.containerservice.azure.com
+
+## controlplane.cluster.x-k8s.io
+  awsmanagedcontrolplanes.controlplane.cluster.x-k8s.io
+  awsmanagedcontrolplanetemplates.controlplane.cluster.x-k8s.io
+  kubeadmcontrolplanes.controlplane.cluster.x-k8s.io
+  kubeadmcontrolplanetemplates.controlplane.cluster.x-k8s.io
+  rosacontrolplanes.controlplane.cluster.x-k8s.io
+
+## core.kubefed.io
+  clusterpropagatedversions.core.kubefed.io
+  federatedservicestatuses.core.kubefed.io
+  federatedtypeconfigs.core.kubefed.io
+  kubefedclusters.core.kubefed.io
+  kubefedconfigs.core.kubefed.io
+  propagatedversions.core.kubefed.io
+
+## dex.coreos.com
+  authcodes.dex.coreos.com
+  authrequests.dex.coreos.com
+  connectors.dex.coreos.com
+  devicerequests.dex.coreos.com
+  devicetokens.dex.coreos.com
+  oauth2clients.dex.coreos.com
+  offlinesessionses.dex.coreos.com
+  passwords.dex.coreos.com
+  refreshtokens.dex.coreos.com
+  signingkeies.dex.coreos.com
+
+## dex.mesosphere.io
+  clients.dex.mesosphere.io
+  connectors.dex.mesosphere.io
+
+## dispatch.d2iq.io
+  gitopsrepositories.dispatch.d2iq.io
+
+## dkp.d2iq.io
+  kommandercores.dkp.d2iq.io
+
+## expansion.gatekeeper.sh
+  expansiontemplate.expansion.gatekeeper.sh
+
+## external-secrets.io
+  clusterexternalsecrets.external-secrets.io
+  clusterpushsecrets.external-secrets.io
+  clustersecretstores.external-secrets.io
+  externalsecrets.external-secrets.io
+  pushsecrets.external-secrets.io
+  secretstores.external-secrets.io
+
+## externaldata.gatekeeper.sh
+  providers.externaldata.gatekeeper.sh
+
+## gateway.networking.k8s.io
+  gatewayclasses.gateway.networking.k8s.io
+  gateways.gateway.networking.k8s.io
+  grpcroutes.gateway.networking.k8s.io
+  httproutes.gateway.networking.k8s.io
+  referencegrants.gateway.networking.k8s.io
+
+## generators.external-secrets.io
+  acraccesstokens.generators.external-secrets.io
+  beyondtrustworkloadcredentialsdynamicsecrets.generators.external-secrets.io
+  cloudsmithaccesstokens.generators.external-secrets.io
+  clustergenerators.generators.external-secrets.io
+  ecrauthorizationtokens.generators.external-secrets.io
+  fakes.generators.external-secrets.io
+  gcraccesstokens.generators.external-secrets.io
+  generatorstates.generators.external-secrets.io
+  githubaccesstokens.generators.external-secrets.io
+  grafanas.generators.external-secrets.io
+  mfas.generators.external-secrets.io
+  passwords.generators.external-secrets.io
+  quayaccesstokens.generators.external-secrets.io
+  sshkeys.generators.external-secrets.io
+  stssessiontokens.generators.external-secrets.io
+  uuids.generators.external-secrets.io
+  vaultdynamicsecrets.generators.external-secrets.io
+  webhooks.generators.external-secrets.io
+
+## git.nutanix.com
+  gitclaims.git.nutanix.com
+  gitclaimusers.git.nutanix.com
+
+## groupsnapshot.storage.k8s.io
+  volumegroupsnapshotclasses.groupsnapshot.storage.k8s.io
+  volumegroupsnapshotcontents.groupsnapshot.storage.k8s.io
+  volumegroupsnapshots.groupsnapshot.storage.k8s.io
+
+## helm.toolkit.fluxcd.io
+  helmreleases.helm.toolkit.fluxcd.io
+
+## hostagent.nutanix.com
+  assignedhosts.hostagent.nutanix.com
+  hosts.hostagent.nutanix.com
+  hostselectorpolicies.hostagent.nutanix.com
+
+## image.toolkit.fluxcd.io
+  imagepolicies.image.toolkit.fluxcd.io
+  imagerepositories.image.toolkit.fluxcd.io
+  imageupdateautomations.image.toolkit.fluxcd.io
+
+## infrastructure.cluster.konvoy.d2iq.io
+  preprovisionedclusters.infrastructure.cluster.konvoy.d2iq.io
+  preprovisionedinventories.infrastructure.cluster.konvoy.d2iq.io
+  preprovisionedmachines.infrastructure.cluster.konvoy.d2iq.io
+  preprovisionedmachinetemplates.infrastructure.cluster.konvoy.d2iq.io
+
+## infrastructure.cluster.x-k8s.io
+  awsclustercontrolleridentities.infrastructure.cluster.x-k8s.io
+  awsclusterroleidentities.infrastructure.cluster.x-k8s.io
+  awsclusters.infrastructure.cluster.x-k8s.io
+  awsclusterstaticidentities.infrastructure.cluster.x-k8s.io
+  awsclustertemplates.infrastructure.cluster.x-k8s.io
+  awsfargateprofiles.infrastructure.cluster.x-k8s.io
+  awsmachinepools.infrastructure.cluster.x-k8s.io
+  awsmachines.infrastructure.cluster.x-k8s.io
+  awsmachinetemplates.infrastructure.cluster.x-k8s.io
+  awsmanagedclusters.infrastructure.cluster.x-k8s.io
+  awsmanagedclustertemplates.infrastructure.cluster.x-k8s.io
+  awsmanagedmachinepools.infrastructure.cluster.x-k8s.io
+  azureasomanagedclusters.infrastructure.cluster.x-k8s.io
+  azureasomanagedclustertemplates.infrastructure.cluster.x-k8s.io
+  azureasomanagedcontrolplanes.infrastructure.cluster.x-k8s.io
+  azureasomanagedcontrolplanetemplates.infrastructure.cluster.x-k8s.io
+  azureasomanagedmachinepools.infrastructure.cluster.x-k8s.io
+  azureasomanagedmachinepooltemplates.infrastructure.cluster.x-k8s.io
+  azureclusteridentities.infrastructure.cluster.x-k8s.io
+  azureclusters.infrastructure.cluster.x-k8s.io
+  azureclustertemplates.infrastructure.cluster.x-k8s.io
+  azuremachinepoolmachines.infrastructure.cluster.x-k8s.io
+  azuremachinepools.infrastructure.cluster.x-k8s.io
+  azuremachines.infrastructure.cluster.x-k8s.io
+  azuremachinetemplates.infrastructure.cluster.x-k8s.io
+  azuremanagedclusters.infrastructure.cluster.x-k8s.io
+  azuremanagedclustertemplates.infrastructure.cluster.x-k8s.io
+  azuremanagedcontrolplanes.infrastructure.cluster.x-k8s.io
+  azuremanagedcontrolplanetemplates.infrastructure.cluster.x-k8s.io
+  azuremanagedmachinepools.infrastructure.cluster.x-k8s.io
+  azuremanagedmachinepooltemplates.infrastructure.cluster.x-k8s.io
+  gcpclusters.infrastructure.cluster.x-k8s.io
+  gcpclustertemplates.infrastructure.cluster.x-k8s.io
+  gcpmachinepools.infrastructure.cluster.x-k8s.io
+  gcpmachines.infrastructure.cluster.x-k8s.io
+  gcpmachinetemplates.infrastructure.cluster.x-k8s.io
+  gcpmanagedclusters.infrastructure.cluster.x-k8s.io
+  gcpmanagedclustertemplates.infrastructure.cluster.x-k8s.io
+  gcpmanagedcontrolplanes.infrastructure.cluster.x-k8s.io
+  gcpmanagedcontrolplanetemplates.infrastructure.cluster.x-k8s.io
+  gcpmanagedmachinepools.infrastructure.cluster.x-k8s.io
+  gcpmanagedmachinepooltemplates.infrastructure.cluster.x-k8s.io
+  hostagentclusters.infrastructure.cluster.x-k8s.io
+  hostagentclustertemplates.infrastructure.cluster.x-k8s.io
+  hostagentmachines.infrastructure.cluster.x-k8s.io
+  hostagentmachinetemplates.infrastructure.cluster.x-k8s.io
+  nutanixclusters.infrastructure.cluster.x-k8s.io
+  nutanixclustertemplates.infrastructure.cluster.x-k8s.io
+  nutanixfailuredomains.infrastructure.cluster.x-k8s.io
+  nutanixmachines.infrastructure.cluster.x-k8s.io
+  nutanixmachinetemplates.infrastructure.cluster.x-k8s.io
+  nutanixmetros.infrastructure.cluster.x-k8s.io
+  nutanixmetrosites.infrastructure.cluster.x-k8s.io
+  nutanixvirtualhadomains.infrastructure.cluster.x-k8s.io
+  rosaclusters.infrastructure.cluster.x-k8s.io
+  rosamachinepools.infrastructure.cluster.x-k8s.io
+  rosanetworks.infrastructure.cluster.x-k8s.io
+  rosaroleconfigs.infrastructure.cluster.x-k8s.io
+  vsphereclusteridentities.infrastructure.cluster.x-k8s.io
+  vsphereclusters.infrastructure.cluster.x-k8s.io
+  vsphereclustertemplates.infrastructure.cluster.x-k8s.io
+  vspheredeploymentzones.infrastructure.cluster.x-k8s.io
+  vspherefailuredomains.infrastructure.cluster.x-k8s.io
+  vspheremachines.infrastructure.cluster.x-k8s.io
+  vspheremachinetemplates.infrastructure.cluster.x-k8s.io
+  vspherevms.infrastructure.cluster.x-k8s.io
+
+## ipam.cluster.x-k8s.io
+  ipaddressclaims.ipam.cluster.x-k8s.io
+  ipaddresses.ipam.cluster.x-k8s.io
+
+## k8s.cni.cncf.io
+  network-attachment-definitions.k8s.cni.cncf.io
+
+## kommander.d2iq.io
+  helmreleasestatuses.kommander.d2iq.io
+  kustomizationstatuses.kommander.d2iq.io
+
+## kommander.mesosphere.io
+  kommanderclusters.kommander.mesosphere.io
+  licenses.kommander.mesosphere.io
+  virtualgroupclusterrolebindings.kommander.mesosphere.io
+  virtualgroups.kommander.mesosphere.io
+
+## kubernetesconfiguration.azure.com
+  extensions.kubernetesconfiguration.azure.com
+
+## kustomize.toolkit.fluxcd.io
+  kustomizations.kustomize.toolkit.fluxcd.io
+
+## loggingstack.nkp.nutanix.com
+  loggingstacks.loggingstack.nkp.nutanix.com
+
+## managementplane.nkp.nutanix.com
+  managementplanes.managementplane.nkp.nutanix.com
+
+## metallb.io
+  bfdprofiles.metallb.io
+  bgpadvertisements.metallb.io
+  bgppeers.metallb.io
+  communities.metallb.io
+  configurationstates.metallb.io
+  ipaddresspools.metallb.io
+  l2advertisements.metallb.io
+  servicebgpstatuses.metallb.io
+  servicel2statuses.metallb.io
+
+## mutations.gatekeeper.sh
+  assign.mutations.gatekeeper.sh
+  assignimage.mutations.gatekeeper.sh
+  assignmetadata.mutations.gatekeeper.sh
+  modifyset.mutations.gatekeeper.sh
+
+## network.azure.com
+  bastionhosts.network.azure.com
+  natgateways.network.azure.com
+  privateendpoints.network.azure.com
+  virtualnetworks.network.azure.com
+  virtualnetworkssubnets.network.azure.com
+
+## nfd.k8s-sigs.io
+  nodefeaturegroups.nfd.k8s-sigs.io
+  nodefeaturerules.nfd.k8s-sigs.io
+  nodefeatures.nfd.k8s-sigs.io
+
+## nkp.nutanix.com
+  capistacks.nkp.nutanix.com
+
+## notification.toolkit.fluxcd.io
+  alerts.notification.toolkit.fluxcd.io
+  providers.notification.toolkit.fluxcd.io
+  receivers.notification.toolkit.fluxcd.io
+
+## objectstorage.k8s.io
+  bucketaccessclasses.objectstorage.k8s.io
+  bucketaccesses.objectstorage.k8s.io
+  bucketclaims.objectstorage.k8s.io
+  bucketclasses.objectstorage.k8s.io
+  buckets.objectstorage.k8s.io
+
+## operator.cluster.x-k8s.io
+  addonproviders.operator.cluster.x-k8s.io
+  bootstrapproviders.operator.cluster.x-k8s.io
+  controlplaneproviders.operator.cluster.x-k8s.io
+  coreproviders.operator.cluster.x-k8s.io
+  infrastructureproviders.operator.cluster.x-k8s.io
+  ipamproviders.operator.cluster.x-k8s.io
+  runtimeextensionproviders.operator.cluster.x-k8s.io
+
+## release.nkp.nutanix.com
+  releases.release.nkp.nutanix.com
+
+## resources.azure.com
+  resourcegroups.resources.azure.com
+
+## runtime.cluster.x-k8s.io
+  extensionconfigs.runtime.cluster.x-k8s.io
+
+## scheduling.kubefed.io
+  replicaschedulingpreferences.scheduling.kubefed.io
+
+## snapshot.storage.k8s.io
+  volumesnapshotclasses.snapshot.storage.k8s.io
+  volumesnapshotcontents.snapshot.storage.k8s.io
+  volumesnapshots.snapshot.storage.k8s.io
+
+## source.toolkit.fluxcd.io
+  buckets.source.toolkit.fluxcd.io
+  externalartifacts.source.toolkit.fluxcd.io
+  gitrepositories.source.toolkit.fluxcd.io
+  helmcharts.source.toolkit.fluxcd.io
+  helmrepositories.source.toolkit.fluxcd.io
+  ocirepositories.source.toolkit.fluxcd.io
+
+## status.gatekeeper.sh
+  configpodstatuses.status.gatekeeper.sh
+  connectionpodstatuses.status.gatekeeper.sh
+  constraintpodstatuses.status.gatekeeper.sh
+  constrainttemplatepodstatuses.status.gatekeeper.sh
+  expansiontemplatepodstatuses.status.gatekeeper.sh
+  mutatorpodstatuses.status.gatekeeper.sh
+  providerpodstatuses.status.gatekeeper.sh
+
+## syncset.gatekeeper.sh
+  syncsets.syncset.gatekeeper.sh
+
+## templates.gatekeeper.sh
+  constrainttemplates.templates.gatekeeper.sh
+
+## traefik.io
+  ingressroutes.traefik.io
+  ingressroutetcps.traefik.io
+  ingressrouteudps.traefik.io
+  middlewares.traefik.io
+  middlewaretcps.traefik.io
+  serverstransports.traefik.io
+  serverstransporttcps.traefik.io
+  tlsoptions.traefik.io
+  tlsstores.traefik.io
+  traefikservices.traefik.io
+
+## types.kubefed.io
+  federatedclusterrolebindings.types.kubefed.io
+  federatedclusterroles.types.kubefed.io
+  federatedconfigmaps.types.kubefed.io
+  federatedcustomresourcedefinitions.types.kubefed.io
+  federateddeployments.types.kubefed.io
+  federatedingresses.types.kubefed.io
+  federatedjobs.types.kubefed.io
+  federatedlimitranges.types.kubefed.io
+  federatednamespaces.types.kubefed.io
+  federatednetworkpolicies.types.kubefed.io
+  federatedreplicasets.types.kubefed.io
+  federatedresourcequotas.types.kubefed.io
+  federatedrolebindings.types.kubefed.io
+  federatedroles.types.kubefed.io
+  federatedsecrets.types.kubefed.io
+  federatedserviceaccounts.types.kubefed.io
+  federatedservices.types.kubefed.io
+
+## upgrade.nkp.nutanix.com
+  upgradeplans.upgrade.nkp.nutanix.com
+
+## workspaces.kommander.mesosphere.io
+  kommanderprojectroles.workspaces.kommander.mesosphere.io
+  kommanderworkspaceroles.workspaces.kommander.mesosphere.io
+  projectroles.workspaces.kommander.mesosphere.io
+  projects.workspaces.kommander.mesosphere.io
+  virtualgroupkommanderclusterrolebindings.workspaces.kommander.mesosphere.io
+  virtualgroupkommanderprojectrolebindings.workspaces.kommander.mesosphere.io
+  virtualgroupkommanderworkspacerolebindings.workspaces.kommander.mesosphere.io
+  virtualgroupprojectrolebindings.workspaces.kommander.mesosphere.io
+  virtualgroupworkspacerolebindings.workspaces.kommander.mesosphere.io
+  workspaceroles.workspaces.kommander.mesosphere.io
+  workspaces.workspaces.kommander.mesosphere.io

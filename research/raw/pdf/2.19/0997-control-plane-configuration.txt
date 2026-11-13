@@ -1,0 +1,362 @@
+
+--- page 997 ---
+### application-charts
+#   ### NOTICES.txt
+#   ### nkp-insights-charts-bundle-nkp-version-rc.2.tar.gz
+#   ### nkp-kommander-charts-bundle-nkp-version-rc.2.tar.gz
+### application-repositories
+#   ### nkp-insights-nkp-version-rc.2.tar.gz
+### container-images
+#   ### NOTICES.txt
+#   ### nkp-insights-image-bundle-nkp-version-rc.2.tar
+#   ### kommander-image-bundle-nkp-version-rc.2.tar
+#   ### konvoy-image-bundle-nkp-version>-rc.2.tar
+### nkp
+### nib
+#   ### LICENSE
+#   ### README.md
+#   ### ansible
+#   ### artifacts
+#   ### goss
+#   ### images
+#   ### konvoy-image
+#   ### overrides
+### konvoy-bootstrap-image-nkp-version-rc.2.tar
+### kubectl
+Control Plane Configuration
+Users can modify the KubeadmControlplane cluster-api object to configure different kubelet options. See
+the following guide if you wish to configure your control plane beyond the existing options available from
+flags.
+Prerequisites
+Make sure you have created your cluster using a bootstrap cluster from the respective Infrastructure
+Providers section.
+Modifying Audit Logs
+Modify control plane audit logs.
+About this task
+To modify the control plane option, get the appropriate cluster-api objects that describe the cluster by
+running the following command:
+Note:  The following example uses AWS, but can be used for non-ClusterClass based clusters such as gcp,
+azure, preprovisioned, and vsphere clusters.
+nkp create cluster aws -c {MY_CLUSTER_NAME} -o yaml --dry-run >>
+ {MY_CLUSTER_NAME}.yaml 
+Procedure
+1. When you open {MY_CLUSTER_NAME}.yaml with your favorite text editor, look for the
+KubeadmControlPlane object for your cluster. For example.
+apiVersion: controlplane.cluster.x-k8s.io/v1beta1
+kind: KubeadmControlPlane
+metadata:
+  name: my-cluster-control-plane
+  namespace: default
+spec:
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 997
+
+--- page 998 ---
+  kubeadmConfigSpec:
+    clusterConfiguration:
+      apiServer:
+        extraArgs:
+          audit-log-maxage: "30"
+          audit-log-maxbackup: "10"
+          audit-log-maxsize: "100"
+          audit-log-path: /var/log/audit/kube-apiserver-audit.log
+          audit-policy-file: /etc/kubernetes/audit-policy/apiserver-audit-policy.yaml
+          cloud-provider: aws
+          encryption-provider-config: /etc/kubernetes/pki/encryption-config.yaml
+        extraVolumes:
+        - hostPath: /etc/kubernetes/audit-policy/
+          mountPath: /etc/kubernetes/audit-policy/
+          name: audit-policy
+        - hostPath: /var/log/kubernetes/audit
+          mountPath: /var/log/audit/
+          name: audit-logs
+      controllerManager:
+        extraArgs:
+          cloud-provider: aws
+          configure-cloud-routes: "false"
+      dns: {}
+      etcd:
+        local:
+          imageTag: 3.5.7
+      networking: {}
+      scheduler: {}
+    files:
+    - content: |
+        # Taken from https://github.com/kubernetes/kubernetes/blob/master/cluster/
+gce/gci/configure-helper.sh
+        # Recommended in Kubernetes docs
+        apiVersion: audit.k8s.io/v1
+        kind: Policy
+        rules:
+          # The following requests were manually identified as high-volume and low-
+risk,
+          # so drop them.
+          - level: None
+            users: ["system:kube-proxy"]
+            verbs: ["watch"]
+            resources:
+              - group: "" # core
+                resources: ["endpoints", "services", "services/status"]
+          - level: None
+            # Ingress controller reads 'configmaps/ingress-uid' through the unsecured
+ port.
+            # TODO(#46983): Change this to the ingress controller service account.
+            users: ["system:unsecured"]
+            namespaces: ["kube-system"]
+            verbs: ["get"]
+            resources:
+              - group: "" # core
+                resources: ["configmaps"]
+          - level: None
+            users: ["kubelet"] # legacy kubelet identity
+            verbs: ["get"]
+            resources:
+              - group: "" # core
+                resources: ["nodes", "nodes/status"]
+          - level: None
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 998
+
+--- page 999 ---
+            userGroups: ["system:nodes"]
+            verbs: ["get"]
+            resources:
+              - group: "" # core
+                resources: ["nodes", "nodes/status"]
+          - level: None
+            users:
+              - system:kube-controller-manager
+              - system:kube-scheduler
+              - system:serviceaccount:kube-system:endpoint-controller
+            verbs: ["get", "update"]
+            namespaces: ["kube-system"]
+            resources:
+              - group: "" # core
+                resources: ["endpoints"]
+          - level: None
+            users: ["system:apiserver"]
+            verbs: ["get"]
+            resources:
+              - group: "" # core
+                resources: ["namespaces", "namespaces/status", "namespaces/finalize"]
+          - level: None
+            users: ["cluster-autoscaler"]
+            verbs: ["get", "update"]
+            namespaces: ["kube-system"]
+            resources:
+              - group: "" # core
+                resources: ["configmaps", "endpoints"]
+          # Don't log HPA fetching metrics.
+          - level: None
+            users:
+              - system:kube-controller-manager
+            verbs: ["get", "list"]
+            resources:
+              - group: "metrics.k8s.io"
+          # Don't log these read-only URLs.
+          - level: None
+            nonResourceURLs:
+              - /healthz*
+              - /version
+              - /swagger*
+          # Don't log events requests.
+          - level: None
+            resources:
+              - group: "" # core
+                resources: ["events"]
+          # node and pod status calls from nodes are high-volume and can be large,
+ don't log responses for expected updates from nodes
+          - level: Request
+            users: ["kubelet", "system:node-problem-detector",
+ "system:serviceaccount:kube-system:node-problem-detector"]
+            verbs: ["update","patch"]
+            resources:
+              - group: "" # core
+                resources: ["nodes/status", "pods/status"]
+            omitStages:
+              - "RequestReceived"
+          - level: Request
+            userGroups: ["system:nodes"]
+            verbs: ["update","patch"]
+            resources:
+              - group: "" # core
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 999
+
+--- page 1000 ---
+                resources: ["nodes/status", "pods/status"]
+            omitStages:
+              - "RequestReceived"
+          # deletecollection calls can be large, don't log responses for expected
+ namespace deletions
+          - level: Request
+            users: ["system:serviceaccount:kube-system:namespace-controller"]
+            verbs: ["deletecollection"]
+            omitStages:
+              - "RequestReceived"
+          # Secrets, ConfigMaps, and TokenReviews can contain sensitive & binary
+ data,
+          # so only log at the Metadata level.
+          - level: Metadata
+            resources:
+              - group: "" # core
+                resources: ["secrets", "configmaps"]
+              - group: authentication.k8s.io
+                resources: ["tokenreviews"]
+            omitStages:
+              - "RequestReceived"
+          # Get responses can be large; skip them.
+          - level: Request
+            verbs: ["get", "list", "watch"]
+            resources:
+              - group: "" # core
+              - group: "admissionregistration.k8s.io"
+              - group: "apiextensions.k8s.io"
+              - group: "apiregistration.k8s.io"
+              - group: "apps"
+              - group: "authentication.k8s.io"
+              - group: "authorization.k8s.io"
+              - group: "autoscaling"
+              - group: "batch"
+              - group: "certificates.k8s.io"
+              - group: "extensions"
+              - group: "metrics.k8s.io"
+              - group: "networking.k8s.io"
+              - group: "node.k8s.io"
+              - group: "policy"
+              - group: "rbac.authorization.k8s.io"
+              - group: "scheduling.k8s.io"
+              - group: "settings.k8s.io"
+              - group: "storage.k8s.io"
+            omitStages:
+              - "RequestReceived"
+          # Default level for known APIs
+          - level: RequestResponse
+            resources:
+              - group: "" # core
+              - group: "admissionregistration.k8s.io"
+              - group: "apiextensions.k8s.io"
+              - group: "apiregistration.k8s.io"
+              - group: "apps"
+              - group: "authentication.k8s.io"
+              - group: "authorization.k8s.io"
+              - group: "autoscaling"
+              - group: "batch"
+              - group: "certificates.k8s.io"
+              - group: "extensions"
+              - group: "metrics.k8s.io"
+              - group: "networking.k8s.io"
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 1000
+
+--- page 1001 ---
+              - group: "node.k8s.io"
+              - group: "policy"
+              - group: "rbac.authorization.k8s.io"
+              - group: "scheduling.k8s.io"
+              - group: "settings.k8s.io"
+              - group: "storage.k8s.io"
+            omitStages:
+              - "RequestReceived"
+          # Default level for all other requests.
+          - level: Metadata
+            omitStages:
+              - "RequestReceived"
+      path: /etc/kubernetes/audit-policy/apiserver-audit-policy.yaml
+      permissions: "0600"
+    - content: |
+        #!/bin/bash
+        # CAPI does not expose an API to modify KubeProxyConfiguration
+        # this is a workaround to use a script with preKubeadmCommand to modify the
+ kubeadm config files
+        # https://github.com/kubernetes-sigs/cluster-api/issues/4512
+        for i in $(ls /run/kubeadm/ | grep 'kubeadm.yaml\|kubeadm-join-config.yaml');
+ do
+          cat <<EOF>> "/run/kubeadm//$i"
+        ---
+        kind: KubeProxyConfiguration
+        apiVersion: kubeproxy.config.k8s.io/v1alpha1
+        metricsBindAddress: "0.0.0.0:10249"
+        EOF
+        done
+      path: /run/kubeadm/konvoy-set-kube-proxy-configuration.sh
+      permissions: "0700"
+    - content: |
+        [metrics]
+          address = "0.0.0.0:1338"
+          grpc_histogram = false
+      path: /etc/containerd/conf.d/konvoy-metrics.toml
+      permissions: "0644"
+    - content: |
+        #!/bin/bash
+        systemctl restart containerd
+        SECONDS=0
+        until crictl info
+        do
+          if (( SECONDS > 60 ))
+          then
+             echo "Containerd is not running. Giving up..."
+             exit 1
+          fi
+          echo "Containerd is not running yet. Waiting..."
+          sleep 5
+        done
+      path: /run/konvoy/restart-containerd-and-wait.sh
+      permissions: "0700"
+    - contentFrom:
+        secret:
+          key: value
+          name: my-cluster-etcd-encryption-config
+      owner: root:root
+      path: /etc/kubernetes/pki/encryption-config.yaml
+      permissions: "0640"
+    format: cloud-config
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 1001
+
+--- page 1002 ---
+    initConfiguration:
+      localAPIEndpoint: {}
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: aws
+        name: '{{ ds.meta_data.local_hostname }}'
+    joinConfiguration:
+      discovery: {}
+      nodeRegistration:
+        kubeletExtraArgs:
+          cloud-provider: aws
+        name: '{{ ds.meta_data.local_hostname }}'
+    preKubeadmCommands:
+    - systemctl daemon-reload
+    - /run/konvoy/restart-containerd-and-wait.sh
+    - /run/kubeadm/konvoy-set-kube-proxy-configuration.sh
+  machineTemplate:
+    infrastructureRef:
+      apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
+      kind: AWSMachineTemplate
+      name: my-cluster-control-plane
+      namespace: default
+    metadata: {}
+  replicas: 3
+  rolloutStrategy:
+    rollingUpdate:
+      maxSurge: 1
+    type: RollingUpdate
+  version: kubernetes-version
+Note:  If you use the previous example as-is, update the Kubernetes version number on the final line. For
+more information about the supported Kubernetes version, see Supported Kubernetes Versions section
+in the NKP Release Notes.
+2. Now, you can configure the fields below for the log backend. The log backend will write audit events
+to a file in JSON format https://jsonlines.org/. You can configure the log audit backend using the kube-
+apiserver flags shown in the example.
+audit-log-maxage
+audit-log-maxbackup
+audit-log-maxsize
+audit-log-path
+Note:  For more information, see upstream documentation at https://kubernetes.io/docs/tasks/debug/
+debug-cluster/audit/#log-backend.
+3. After modifying the values appropriately, you can create the cluster by running the kubectl create -f
+{MY_CLUSTER_NAME}.yaml command.
+kubectl create -f {MY_CLUSTER_NAME}.yaml
+4. Once the cluster is created, users can get the corresponding kubeconfig for the cluster by running the
+command.
+nkp get kubeconfig -c {MY_CLUSTER_NAME} >> {MY_CLUSTER_NAME}.conf 
+Viewing the Audit Logs
+View the NKP audit logs.
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 1002

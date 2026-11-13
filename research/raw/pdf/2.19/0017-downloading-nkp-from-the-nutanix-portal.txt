@@ -1,0 +1,37 @@
+
+--- page 17 ---
+2
+DOWNLOADING NKP
+You can download the Nutanix Kubernetes Platform (NKP) binary from the Nutanix Portal for interactive
+use or from the command line for scripted and air-gapped installations.
+Both methods produce the same nkp binary that you use to install and manage NKP clusters. Choose the
+method that fits your environment:
+•
+Nutanix Portal: Use for interactive, one-off downloads through a browser. For instructions, see
+Downloading NKP from the Nutanix Portal on page 17.
+•
+Command line: Use for scripted installations, repeatable lab environments, and air-gapped workflows.
+For instructions, see Downloading NKP Using Command Line on page 18.
+After you download the binary, complete the installation. For instructions, see Installing NKP on
+page 46. To activate the license, see Adding a Nutanix Kubernetes® Platform License Through the UI
+on page 28.
+Downloading NKP from the Nutanix Portal
+Use the Nutanix Portal to download the NKP binary interactively for a single machine or a small number of
+installations.
+Before you begin
+Log in to the Nutanix Portal with your Nutanix credentials.
+Procedure
+1. In the Nutanix Portal, from the Product dropdown list, select Nutanix Kubernetes Platform (NKP).
+2. Select the NKP package that matches your operating system and architecture.
+3. Click Download.
+4. Extract the downloaded .tar.gz file:
+•
+On macOS, double-click the file, or right-click it and extract it.
+•
+On Linux, run the following command:
+tar -xzvf nkp_version_os_arch.tar.gz
+5. Move the nkp binary to a directory on your PATH:
+sudo mv nkp /usr/local/bin/
+6. Verify the installation:
+nkp version
+Nutanix Kubernetes Platform | Downloading NKP | 17

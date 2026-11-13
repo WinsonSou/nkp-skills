@@ -1,0 +1,68 @@
+# Node registry plumbing on a live NKP 2.19.0 management cluster (AHV, site registry mirror)
+# Read-only: kubectl get kubeadmcontrolplane / kubeadmconfigtemplates (file paths and non-secret file contents), 2026-11-02.
+# Scrubbed: registry host -> <registry-fqdn>, cluster name -> <mgmt-cluster>. Secret-backed files (static-image-credentials.json) not read.
+
+=== NKPCluster clusterConfig (registry part) ===
+globalImageRegistryMirror.url: https://<registry-fqdn>/nutanix
+globalImageRegistryMirror.credentials.secretRef.name: <mgmt-cluster>-image-registry-mirror-credentials
+imageRegistries[0].url: https://<registry-fqdn>
+kommanderCluster.spec.ociRegistry.mirrorURL: https://<registry-fqdn>/nutanix
+
+=== Files that CAREN writes on control-plane and worker nodes (KubeadmControlPlane + KubeadmConfigTemplate <mgmt-cluster>-md-0-*) ===
+/etc/caren/install-kubelet-credential-providers.sh            0700
+/etc/kubernetes/image-credential-provider-config.yaml
+/etc/kubernetes/dynamic-credential-provider-config.yaml
+/etc/kubernetes/static-image-credentials.json                (secret-backed, not read)
+/etc/containerd/certs.d/_default/hosts.toml                   0600
+/etc/containerd/certs.d/<registry-fqdn>/ca.crt                0600
+/etc/caren/containerd/patches/registry-config.toml            0600
+/etc/caren/containerd/patches/metrics-config.toml             0600
+/etc/caren/containerd/patches/unprivileged-ports-config.toml  0600
+/etc/caren/containerd/apply-patches.sh                        0700
+/etc/caren/containerd/restart.sh                              0700
+preKubeadmCommands (end): /bin/bash /etc/caren/install-kubelet-credential-providers.sh ; /bin/bash /etc/caren/containerd/apply-patches.sh ; /bin/bash /etc/caren/containerd/restart.sh
+Node SSH user: konvoy (sudo NOPASSWD)
+
+Note: field notes for older releases (pre-provisioned, KIB era) show /etc/containerd/konvoy-conf.d/konvoy-mirror.toml and
+/etc/containerd/ca-konvoy-mirror.crt. These paths are NOT used on 2.19.0 CAREN clusters.
+
+=== /etc/containerd/certs.d/_default/hosts.toml ===
+[host."https://<registry-fqdn>/v2/nutanix"]
+  capabilities = ["pull", "resolve"]
+  ca = "/etc/containerd/certs.d/<registry-fqdn>/ca.crt"
+  # don't rely on Containerd to add the v2/ suffix
+  # there is a bug where it is added incorrectly for mirrors with a path
+  override_path = true
+
+=== /etc/caren/containerd/patches/registry-config.toml ===
+[plugins."io.containerd.grpc.v1.cri".registry]
+  config_path = "/etc/containerd/certs.d"
+[plugins."io.containerd.cri.v1.images".registry]
+  config_path = "/etc/containerd/certs.d"
+
+=== /etc/kubernetes/dynamic-credential-provider-config.yaml ===
+apiVersion: credentialprovider.d2iq.com/v1alpha1
+kind: DynamicCredentialProviderConfig
+mirror:
+  endpoint: <registry-fqdn>/nutanix
+  credentialsStrategy: MirrorCredentialsFirst
+credentialProviderPluginBinDir: /etc/kubernetes/image-credential-provider/
+credentialProviders:
+  apiVersion: kubelet.config.k8s.io/v1
+  kind: CredentialProviderConfig
+  providers:
+  - name: static-credential-provider
+    args:
+    - /etc/kubernetes/static-image-credentials.json
+    matchImages: ["registry-1.docker.io", "docker.io", "<registry-fqdn>", "<registry-fqdn>/nutanix"]
+    defaultCacheDuration: "0s"
+    apiVersion: credentialprovider.kubelet.k8s.io/v1
+
+=== /etc/kubernetes/image-credential-provider-config.yaml (matchImages) ===
+"<registry-fqdn>", "<registry-fqdn>/nutanix", "registry-1.docker.io", "docker.io", "*", "*.*", ... "*.*.*.*.*.*"
+
+=== Other live checks (same day) ===
+CRD referencegrants.gateway.networking.k8s.io: present, served version v1beta1, managed by Helm release kommander/gateway-api-crds, annotation gateway.networking.k8s.io/bundle-version=v1.3.0, channel standard.
+Workspaces: default-workspace (ns kommander-default-workspace), kommander-workspace (ns kommander).
+nkp diagnose default-config (bundle cli/nkp v2.19.0, diagnose v0.14.0): node collector image docker.io/mesosphere/dkp-diagnostics-node-collector:v0.14.0, pauseImage docker.io/mesosphere/pause-busybox:3.6.
+The image bundles hold dkp-diagnostics-node-collector:v0.12.0 (konvoy and kommander bundles) and pause-busybox:3.6 (see bundle-images.txt).

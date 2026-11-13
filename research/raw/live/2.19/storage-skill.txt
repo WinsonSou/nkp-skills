@@ -1,0 +1,84 @@
+=== For skill nkp-storage-backup. Read-only collection + server dry runs, 2026-11-03 ===
+Lab: NKP 2.19.0 management cluster <mgmt-cluster> (AHV, Starter). Scrubbed: cluster name, PE cluster name, storage container, IPs, UUIDs.
+Base facts (StorageClass, CSIDriver, VolumeSnapshotClass, PVs): storage.txt. This file adds to it.
+
+=== ntnx-system ===
+Deployment nutanix-csi-controller: 2 replicas, containers csi-provisioner csi-attacher csi-resizer csi-snapshotter authagent nutanix-csi-plugin liveness-probe csi-external-health-monitor-controller (8/8 Ready).
+  images: registry.k8s.io/sig-storage/csi-provisioner:v5.3.0, csi-attacher:v4.12.0, csi-resizer:v2.2.1, csi-snapshotter:v8.6.0, docker.io/nutanix/ntnx-csi-authagent:3.9.0, docker.io/nutanix/ntnx-csi:3.9.0, livenessprobe:v2.19.0, csi-external-health-monitor-controller:v0.18.0
+DaemonSet nutanix-csi-node: one pod per node (5/5), containers driver-registrar nutanix-csi-node liveness-probe (3/3 Ready).
+  images: csi-node-driver-registrar:v2.17.0, docker.io/nutanix/ntnx-csi:3.9.0, livenessprobe:v2.19.0
+Deployment konnector-agent (docker.io/nutanix/konnector-agent:1.4.2) also runs in ntnx-system.
+Secrets (names only, values not read): nutanix-csi-credentials (one data key: "key"), konnector-agent, two helm release secrets.
+Management cluster namespace kommander: Secret <mgmt-cluster>-pc-credentials-for-csi (one data key: "key"). It is the secretRef in clusterConfig.addons.csi.providers.nutanix.credentials.
+
+=== CSIDriver csi.nutanix.com ===
+{"attachRequired":true,"fsGroupPolicy":"File","podInfoOnMount":true,"requiresRepublish":false,"seLinuxMount":false,"storageCapacity":false,"volumeLifecycleModes":["Persistent"]}
+CSINode: every node lists driver csi.nutanix.com, allocatable count 64.
+VolumeAttachments: 3, attacher csi.nutanix.com, ATTACHED true (one per bound PV).
+
+=== PV attributes (Nutanix Volumes) ===
+volumeHandle: NutanixVolumes-<uuid>   (the uuid is the Prism Central volume group)
+volumeAttributes keys: description, flashMode, hypervisorAttachedDiskUUIDs, peClusterRef, storage.kubernetes.io/csiProvisionerIdentity
+description value: "CSI StorageClass nutanix-volume for <mgmt-cluster>, PVC:<pvc>, NS:<namespace>"   (cluster name, PVC, and namespace are in the volume group description)
+
+=== Snapshot ===
+Deployment kube-system/snapshot-controller image registry.k8s.io/sig-storage/snapshot-controller:v8.5.0, args --feature-gates=CSIVolumeGroupSnapshot=true.
+CRDs: volumesnapshots, volumesnapshotclasses, volumesnapshotcontents (snapshot.storage.k8s.io), volumegroupsnapshot* (groupsnapshot.storage.k8s.io).
+VolumeSnapshotClass nutanix-snapshot-class: driver csi.nutanix.com, deletionPolicy Retain, parameters storageType NutanixVolumes, Helm release nutanix-csi (ns ntnx-system). No velero.io/csi-volumesnapshot-class label.
+
+=== COSI ===
+Deployment container-object-storage-system/container-object-storage-controller (ghcr.io/mesosphere/dkp-container-images/objectstorage-controller:v0.2.2) 1/1.
+CRDs objectstorage.k8s.io: bucketclasses, bucketaccessclasses, bucketclaims, bucketaccesses, buckets. No BucketClass on the cluster (storage.txt).
+clusterConfig.addons.cosi on the NKPCluster: {"strategy":"HelmAddon"}. Schema: only "strategy" (enum HelmAddon).
+
+=== CAREN addons (HelmChartProxy in kommander) ===
+cosi-controller-<uid>      chart cosi                 ns container-object-storage-system  0.2.2
+nutanix-csi-<uid>          chart nutanix-csi-storage  ns ntnx-system                      3.9.0
+snapshot-controller-<uid>  chart snapshot-controller  ns kube-system                      5.0.3
+nutanix-csi valuesTemplate: createPrismCentralSecret false, createSecret false, createPESecrets false, pcSecretName nutanix-csi-credentials ("the Secret will be created by the handler"). No StorageClass values in the template: CAREN makes the StorageClass itself. The StorageClass nutanix-volume has no owner reference and no labels.
+
+=== clusterConfig.addons.csi schema (class nkp-nutanix-v2.19.0) ===
+required: defaultStorage, providers
+defaultStorage: {provider: enum [nutanix], storageClassConfig: string (name of a key in storageClassConfigs)}
+providers.nutanix (required): credentials.secretRef.name, storageClassConfigs (map name -> {allowExpansion bool, parameters map[string]string, reclaimPolicy enum Delete|Retain|Recycle default Delete, volumeBindingMode enum Immediate|WaitForFirstConsumer default WaitForFirstConsumer}) (required), strategy enum ClusterResourceSet|HelmAddon default HelmAddon
+snapshotController: {strategy enum ClusterResourceSet|HelmAddon default HelmAddon}
+Class nkp-host-agent-v2.19.0: addons.csi.providers has only "nutanix".
+Live value: defaultStorage {provider nutanix, storageClassConfig volume}; storageClassConfigs.volume {allowExpansion true, reclaimPolicy Delete, volumeBindingMode WaitForFirstConsumer, parameters fstype ext4, description "CSI StorageClass nutanix-volume for <mgmt-cluster>", flashMode DISABLED, hypervisorAttached ENABLED, storageContainer <storage-container>, storageType NutanixVolumes}. The StorageClass name is "nutanix-" + the config key ("volume" -> nutanix-volume).
+
+=== nkp create cluster nutanix --help (CSI flags) ===
+--csi-file-system string (ext4|xfs, default ext4); --csi-flash-mode; --csi-hypervisor-attached-volumes (default true; "allows disks to attach directly to the host without using iSCSI"); --csi-reclaim-policy string (Delete|Retain, default Delete); --csi-storage-container string.
+
+=== Platform apps (catalog only on this Starter cluster) ===
+ClusterApps: cosi-driver-nutanix-0.6.3, rook-ceph-1.19.5, rook-ceph-cluster-1.19.5, velero-12.0.0. No AppDeployment for any of them in kommander (Starter). No CephCluster CRD. No velero CLI on the bastion.
+Bundle (bundle-images.txt): velero/velero:v1.18.0, velero/velero-plugin-for-aws:v1.14.0, rook/ceph:v1.19.5, ceph/ceph:v19.2.3, ceph/cosi:v0.1.4, nutanix-cloud-native/cosi-driver-nutanix:v0.6.0, charts velero:12.0.0, rook-ceph(-cluster):v1.19.5, cosi-driver-nutanix:0.6.0, cosi-bucket-kit 0.0.5/0.0.8.
+Note: the guide (p.652) says chart rook-ceph-cluster-1.19.6; the live ClusterApp is rook-ceph-cluster-1.19.5.
+
+=== Webhook check before the server dry runs ===
+Matching webhooks for StorageClass and NKPCluster: validation.gatekeeper.sh (sideEffects None), mutation.gatekeeper.sh (None), nkp-cluster-validating webhook.nkpcluster.kommander.mesosphere.io (None), nkp-cluster-defaulting (None), cert-manager webhook (None, other groups). All have sideEffects None -> server dry runs are safe.
+
+=== Server dry runs (nothing changed) ===
+DRY RUN 1: kubectl apply --dry-run=server of StorageClass nutanix-volume-metal (pdf p.751 form, xfs, prismElementRef zero UUID, storageContainer dryrun-container) -> "created (server dry run)". The API does not check the container or the PE UUID for a plain StorageClass.
+DRY RUN 2: kubectl patch storageclass nutanix-volume is-default-class "false" --dry-run=server -> patched (allowed).
+DRY RUN 3: kubectl patch storageclass nutanix-volume parameters.flashMode ENABLED --dry-run=server -> rejected: "The StorageClass "nutanix-volume" is invalid: parameters: ... field is immutable".
+DRY RUN 4: NKPCluster JSON patch add clusterConfig.addons.csi.providers.nutanix.storageClassConfigs/volume-metal with storageContainer dryrun-container -> rejected by the CAREN preflight: "...storageClassConfigs.volume.parameters.storageContainer: Found no Storage Containers with name "dryrun-container" on Cluster "<pe-cluster>". Create a Storage Container with this name on Cluster "<pe-cluster>", and then retry." (The message names the key "volume" for any key.)
+DRY RUN 4b: same, with the existing container -> accepted; storageClassConfigs keys ["volume","volume-metal"].
+DRY RUN 5: replace defaultStorage.storageClassConfig with "nope" (no such key) -> accepted (no webhook check).
+DRY RUN 6: replace storageClassConfigs.volume.parameters.flashMode ENABLED -> accepted by the NKPCluster webhook. (The StorageClass itself is immutable, DRY RUN 3; what CAREN does with the change is not tested.)
+DRY RUN 7: replace storageClassConfigs.volume.parameters.storageContainer with a missing container -> rejected by the same preflight message.
+DRY RUN 8: NKPCluster JSON patch (test pool 0 name md-0; add workers.machineDeployments/0/deletion {"nodeVolumeDetachTimeoutSeconds":600}) -> accepted. Schema (kubectl explain clusters.spec.topology.workers.machineDeployments.deletion): nodeDeletionTimeoutSeconds, nodeDrainTimeoutSeconds, nodeVolumeDetachTimeoutSeconds, order (Random|Newest|Oldest).
+Machine conditions (CAPI v1beta2) include Deleting, NodeHealthy, Ready, Paused.
+Webhook check for clusters.cluster.x-k8s.io: capi validating/mutating, caren preflight/cluster-validator/addons-defaulter/cluster-defaulter, gatekeeper, nkp-cluster-validating (webhook.nkpcluster.child) -> all sideEffects None.
+DRY RUN 9: kubectl patch clusters.cluster.x-k8s.io <mgmt-cluster> -n kommander --type merge spec.paused=true --dry-run=server -> accepted (spec.paused true). The NKPCluster child webhook does not block spec.paused. Whether the NKPCluster controller resets it is not tested (D-24).
+api-resources for the management DR restore list (pdf p.543): appdeployments, kommanderprojectroles, kommanderworkspaceroles, projectroles, virtualgroups, virtualgroupclusterrolebindings, virtualgroupkommanderclusterrolebindings, virtualgroupkommanderprojectrolebindings, virtualgroupkommanderworkspacerolebindings, virtualgroupprojectrolebindings, virtualgroupworkspacerolebindings, kommanderclusters, workspaces, projects all exist.
+ClusterApp velero-12.0.0 annotations: dependencies rook-ceph-cluster, licensing pro,ultimate,essential,enterprise, scope workspace. No velero, rook-ceph, or cosi ConfigMap in kommander (Starter).
+
+=== Velero restore preparation (pdf p.535-536), read-only + dry runs ===
+ResourceQuota kommander/one-kommandercluster-per-kommander-workspace exists: count/kommanderclusters.kommander.mesosphere.io 1/1.
+ValidatingWebhookConfiguration kommander-validating: webhooks[0] webhook.federation.kommander.mesosphere.io (sideEffects NoneOnDryRun); rules[3] = apiGroups workspaces.kommander.mesosphere.io, operations [CREATE, UPDATE], resources [projects, workspaces, virtualgroupprojectrolebindings, virtualgroupkommanderclusterrolebinding]. webhooks[1] secrets.webhook.federation... (NoneOnDryRun).
+Webhooks that match a patch of validatingwebhookconfigurations: gatekeeper validating and mutating only (sideEffects None).
+DRY RUN 10: kubectl patch validatingwebhookconfigurations kommander-validating --type json with test ops (rules/3/resources/1 == workspaces, rules/3/operations/0 == CREATE) then remove rules/3/operations/0 --dry-run=server -> accepted, operations ["UPDATE"].
+DRY RUN 11: same with a wrong index (rules/2) -> "The request is invalid: the server rejected our request due to an error in our request" (test op stops it).
+No velero CRDs on the Starter lab (kubectl explain backups.velero.io -> no resource type).
+
+=== Batch 3 fix pass (2026-11-03) ===
+No new lab commands. The B3 no-CLI decision uses the line above: "No velero CRDs on the Starter lab (kubectl explain backups.velero.io -> no resource type)". So the skill gives no kubectl form of a velero.io/v1 Backup; the guide (pdf p.532-544) gives only the velero CLI for backups (its only velero.io/v1 YAML is a BackupStorageLocation in the DR section).

@@ -1,0 +1,100 @@
+=== workspaces ===
+NAME                  DISPLAY NAME                   WORKSPACE NAMESPACE           AGE
+default-workspace     Default Workspace              kommander-default-workspace   3d2h
+kommander-workspace   Management Cluster Workspace   kommander                     3d2h
+
+=== projects ===
+No resources found
+
+=== kommanderclusters ===
+NAMESPACE   NAME          DISPLAY NAME   STATUS   KUBEFED CLUSTER   AGE
+kommander   <mgmt-cluster>                  Joined   <mgmt-cluster>       3d2h
+
+=== kommandercluster spec (ingress/platform) ===
+{
+  "ns": "kommander",
+  "name": "<mgmt-cluster>",
+  "spec": {
+    "platform": {
+      "version": "v2.19.0"
+    },
+    "ingress": {
+      "hostname": "<ip>"
+    },
+    "appDeployments": null
+  }
+}
+
+=== licenses ===
+NAMESPACE   NAME              VALID   START DATE   END DATE   CORE CAPACITY   CLUSTER CAPACITY   JWT REFERENCE
+kommander   nutanix-license   true                            0               0                  
+
+=== license CRD type ===
+licenses                                                                           kommander.mesosphere.io/v1beta1                                true         License
+
+=== gitrepositories -A ===
+NAMESPACE        NAME         URL                                                                                                    AGE    READY   STATUS
+kommander-flux   management   https://git-operator-git.git-operator-system.svc.cluster.local./repositories/kommander/kommander.git   3d2h   True    stored artifact for revision 'main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f'
+
+=== ocirepositories -A ===
+NAMESPACE   NAME                                     URL                                                                    READY   STATUS                                                                                                           AGE
+kommander   cert-manager-1.20.3-chart                oci://quay.io/jetstack/charts/cert-manager                             True    stored artifact for digest 'v1.20.3@sha256:ef5cf71fc9494e8b06b2f7450e9e31fcb6b78bca1af415f6e2149e744e98faa2'     3d2h
+kommander   cert-manager-1.20.3-crds                 oci://ghcr.io/mesosphere/charts/cert-manager-crds                      True    stored artifact for digest 'v1.20.3@sha256:67d7b839adf28f67b851646a877d4885b3256667d9792aac79af6ee219d4d34b'     3d2h
+kommander   cluster-api-operator                     oci://ghcr.io/mesosphere/charts/cluster-api-operator                   True    stored artifact for digest '0.26.0@sha256:1660bb071b5e67c0c38a734c7ed382cc7ede416667c5f0e892db9f3cb2856358'      3d2h
+kommander   cluster-api-stack-operator               oci://ghcr.io/nutanix-cloud-native/charts/cluster-api-stack-operator   True    stored artifact for digest '0.6.29@sha256:979bd496dc9085b346144d213d72274505f34e0be69d4c345ef9ca6bbc05f640'      3d2h
+kommander   dex-2.14.5-chart                         oci://ghcr.io/mesosphere/charts/dex                                    True    stored artifact for digest '2.14.2@sha256:5149b0838273dda757c1c9796400e37464c15134f6376477d3aa91f0b3f986d4'      3d2h
+kommander   dex-k8s-authenticator-1.4.9-chart        oci://ghcr.io/mesosphere/charts/dex-k8s-authenticator                  True    stored artifact for digest '1.4.3@sha256:72cfc7bb9fe80b26445fc037470436874f57e5a2a8640652fb5faa844c0a6631'       3d2h
+kommander   external-secrets-2.7.0-chart             oci://ghcr.io/external-secrets/charts/external-secrets                 True    stored artifact for digest '2.7.0@sha256:7c3d2356d4008337fb939ca96fa2f6e3e1822024d8ba92895b71d1750ff649db'       3d2h
+kommander   gatekeeper-3.23.0-chart                  oci://ghcr.io/mesosphere/charts/gatekeeper                             True    stored artifact for digest '3.23.0@sha256:277cc37bf73807ba2d7203c75b64179d9697b120213fecdff896290a6e8fd818'      3d2h
+kommander   gatekeeper-3.23.0-proxy-mutations        oci://ghcr.io/mesosphere/charts/gatekeeper-proxy-mutations             True    stored artifact for digest 'v0.3.0@sha256:ce22761da92165c887ee817c0cba995ec0cced28067b552878f1e916071c80e6'      3d2h
+kommander   gateway-api-crds-1.11.2-chart            oci://ghcr.io/traefik/helm/traefik-crds                                True    stored artifact for digest '1.11.1@sha256:70f02040115878603b2200e30c85545d0cfc63a904bc826c0f276bfdeb350271'      3d2h
+kommander   kommander-0.19.0-chart                   oci://docker.io/mesosphere/kommander-chart                             True    stored artifact for digest 'v2.19.0@sha256:45a934b80e8a3c3a0541b7aa93146b612d7f5200db0ed271afb90590194b4258'     3d2h
+kommander   kommander-applications-v2-19-0           oci://ghcr.io/mesosphere/kommander-applications                        True    stored artifact for digest 'v2.19.0@sha256:ec2a35cc94a065fd23c35862c763a240e6ee7b497b2e89c71a2a237dfe99041e'     3d2h
+kommander   kommander-appmanagement-0.19.0-chart     oci://docker.io/mesosphere/kommander-appmanagement-chart               True    stored artifact for digest 'v2.19.0@sha256:c7cb99f1557d8f2e49c92d7bf5866fd5e3abd3408c855ca2e50d9d4546707b09'     3d2h
+kommander   kommander-ui-17.313.79-chart             oci://ghcr.io/mesosphere/charts/kommander-ui                           True    stored artifact for digest '17.313.79@sha256:fb62f0fff265b11acdfd787346c8d8db13a435df47cb9bf3affd6952a9c49b31'   3d2h
+kommander   kube-oidc-proxy-0.3.8-chart              oci://ghcr.io/mesosphere/charts/kube-oidc-proxy                        True    stored artifact for digest '0.3.4@sha256:89112ff2b328423f56491d3f01e0b6d6ef0d1aa325ffa225c955cf80c76ba495'       3d2h
+kommander   kubefed-0.12.1-chart                     oci://ghcr.io/mesosphere/charts/kubefed                                True    stored artifact for digest '0.12.1@sha256:ac1bc49ca490d80e698ae239bc8191c230e63e363d94dfbfcb6332f4b4c9fae9'      3d2h
+kommander   nkp-flux-2.18.3                          oci://ghcr.io/fluxcd-community/charts/flux2                            True    stored artifact for digest '2.18.3@sha256:7e7106c1722af9808ced4e638fa4a0850328a6f502a52787cd7079fe8a0702ab'      3d2h
+kommander   platform-version-v2-19-0                 oci://ghcr.io/mesosphere/kommander-applications/collection             True    stored artifact for digest 'v2.19.0@sha256:029d419f68ea4f2f5c66f25e30aa54af5d73ddab848fc60da3e10bdde9604af1'     3d2h
+kommander   release-metadata                         oci://ghcr.io/nutanix-cloud-native/nkp-release-specs/releases          True    stored artifact for digest 'latest@sha256:7c51a1fc4b0e78893502ef1d1d79e43ae8ed72a6d631f1f5e660765acb7e3b75'      3d2h
+kommander   reloader-2.2.14-chart                    oci://ghcr.io/mesosphere/charts/reloader                               True    stored artifact for digest '2.2.14@sha256:34edd0b5e4499d20d2fb854171f2bcedafcf7abd622fa2a5ed4b588937d39399'      3d2h
+kommander   traefik-39.0.7-chart                     oci://ghcr.io/traefik/helm/traefik                                     True    stored artifact for digest '39.0.7@sha256:e6b116da982492fc18d8d08959ee319d777c7e9aaae47791a174b59ae0f2e61c'      3d2h
+kommander   traefik-39.0.7-crds                      oci://ghcr.io/traefik/helm/traefik-crds                                True    stored artifact for digest '1.11.1@sha256:70f02040115878603b2200e30c85545d0cfc63a904bc826c0f276bfdeb350271'      3d2h
+kommander   traefik-forward-auth-mgmt-0.3.18-chart   oci://ghcr.io/mesosphere/charts/traefik-forward-auth                   True    stored artifact for digest '0.3.10@sha256:c0673cb2e0449a9e449c20bc198fa666a232c23258c6ffe5d8754fe459182c1b'      3d2h
+
+=== helmrepositories -A ===
+No resources found
+
+=== helmcharts -A ===
+NAMESPACE        NAME                                                   CHART                                                                         VERSION   SOURCE KIND     SOURCE NAME   AGE    READY   STATUS
+kommander-flux   kommander-cluster-observer-3995310324                  ./applications/kommander/charts/cluster-observer/cluster-observer-1.6.0.tgz   *         GitRepository   management    3d2h   True    pulled 'cluster-observer' chart with version '1.6.0'
+kommander-flux   kommander-default-workspace-karma-traefik-certs        ./charts/kommander-cert-federation/kommander-cert-federation-0.0.13.tgz       *         GitRepository   management    3d2h   True    pulled 'kommander-cert-federation' chart with version '0.0.13'
+kommander-flux   kommander-default-workspace-prometheus-traefik-certs   ./charts/kommander-cert-federation/kommander-cert-federation-0.0.13.tgz       *         GitRepository   management    3d2h   True    pulled 'kommander-cert-federation' chart with version '0.0.13'
+kommander-flux   kommander-karma-traefik-certs                          ./charts/kommander-cert-federation/kommander-cert-federation-0.0.13.tgz       *         GitRepository   management    3d2h   True    pulled 'kommander-cert-federation' chart with version '0.0.13'
+kommander-flux   kommander-kommander-operator                           ./common/kommander-operator/chart                                             *         GitRepository   management    3d2h   True    packaged 'kommander-operator-chart' chart with version '0.5.0'
+kommander-flux   kommander-prometheus-traefik-certs                     ./charts/kommander-cert-federation/kommander-cert-federation-0.0.13.tgz       *         GitRepository   management    3d2h   True    pulled 'kommander-cert-federation' chart with version '0.0.13'
+
+=== ocirepository details ===
+kommander	cert-manager-1.20.3-chart	oci://quay.io/jetstack/charts/cert-manager	generic
+kommander	cert-manager-1.20.3-crds	oci://ghcr.io/mesosphere/charts/cert-manager-crds	generic
+kommander	cluster-api-operator	oci://ghcr.io/mesosphere/charts/cluster-api-operator	generic
+kommander	cluster-api-stack-operator	oci://ghcr.io/nutanix-cloud-native/charts/cluster-api-stack-operator	generic
+kommander	dex-2.14.5-chart	oci://ghcr.io/mesosphere/charts/dex	generic
+kommander	dex-k8s-authenticator-1.4.9-chart	oci://ghcr.io/mesosphere/charts/dex-k8s-authenticator	generic
+kommander	external-secrets-2.7.0-chart	oci://ghcr.io/external-secrets/charts/external-secrets	generic
+kommander	gatekeeper-3.23.0-chart	oci://ghcr.io/mesosphere/charts/gatekeeper	generic
+kommander	gatekeeper-3.23.0-proxy-mutations	oci://ghcr.io/mesosphere/charts/gatekeeper-proxy-mutations	generic
+kommander	gateway-api-crds-1.11.2-chart	oci://ghcr.io/traefik/helm/traefik-crds	generic
+kommander	kommander-0.19.0-chart	oci://docker.io/mesosphere/kommander-chart	generic
+kommander	kommander-applications-v2-19-0	oci://ghcr.io/mesosphere/kommander-applications	generic
+kommander	kommander-appmanagement-0.19.0-chart	oci://docker.io/mesosphere/kommander-appmanagement-chart	generic
+kommander	kommander-ui-17.313.79-chart	oci://ghcr.io/mesosphere/charts/kommander-ui	generic
+kommander	kube-oidc-proxy-0.3.8-chart	oci://ghcr.io/mesosphere/charts/kube-oidc-proxy	generic
+kommander	kubefed-0.12.1-chart	oci://ghcr.io/mesosphere/charts/kubefed	generic
+kommander	nkp-flux-2.18.3	oci://ghcr.io/fluxcd-community/charts/flux2	generic
+kommander	platform-version-v2-19-0	oci://ghcr.io/mesosphere/kommander-applications/collection	generic
+kommander	release-metadata	oci://ghcr.io/nutanix-cloud-native/nkp-release-specs/releases	generic
+kommander	reloader-2.2.14-chart	oci://ghcr.io/mesosphere/charts/reloader	generic
+kommander	traefik-39.0.7-chart	oci://ghcr.io/traefik/helm/traefik	generic
+kommander	traefik-39.0.7-crds	oci://ghcr.io/traefik/helm/traefik-crds	generic
+kommander	traefik-forward-auth-mgmt-0.3.18-chart	oci://ghcr.io/mesosphere/charts/traefik-forward-auth	generic

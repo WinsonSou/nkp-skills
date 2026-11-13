@@ -1,0 +1,989 @@
+# kubernetes-core skill: read-only facts from the live NKP 2.19.0 management cluster (2026-11-03)
+# Commands: kubectl <cmd> --help, kubectl explain, kubectl get/describe, kubectl auth can-i. Scrubbed: IPs -> <ip>, node names -> <node>, cluster name -> <mgmt-cluster>.
+# Client kubectl v1.37.2 (bundle and bastion), server v1.36.2.
+
+## Server dry runs (AGENTS.md rule). Webhooks that match pods, networkpolicies, poddisruptionbudgets, deployments/scale:
+#   gatekeeper-mutating (mutation.gatekeeper.sh) sideEffects=None; gatekeeper-validating (validation.gatekeeper.sh) None; cert-manager-webhook None.
+#   Others match only CAPI/Azure/Kommander kinds. So all dry runs below are allowed.
+# 1 kubectl -n default run dnscheck --image=busybox:1 --restart=Never --dry-run=server ... -- nslookup kubernetes.default.svc.cluster.local
+# 2 kubectl apply --dry-run=server (NetworkPolicy default-deny-ingress in default, podSelector {}, policyTypes [Ingress])
+# 3 kubectl apply --dry-run=server (PodDisruptionBudget web, maxUnavailable 1)
+# 4 kubectl -n kube-system scale deploy/coredns --replicas=2 --dry-run=server (same replicas as now)
+
+## Flags per command (kubectl v1.37.2 --help, Options section)
+
+===== kubectl debug --help
+ --arguments-only=false --attach=false -c, --container='' --copy-to='' --custom='' --env=[] -f, --filename=[] --image='' --image-pull-policy='' --keep-annotations=false --keep-init-containers=true --keep-labels=false --keep-liveness=false --keep-readiness=false --keep-startup=false --profile='general' -q, --quiet=false --replace=false --same-node=false --set-image=[] --share-processes=true -i, --stdin=false --target='' -t, --tty=false 
+===== kubectl logs --help
+ --all-containers=false --all-pods=false -c, --container='' -f, --follow=false --ignore-errors=false --insecure-skip-tls-verify-backend=false --limit-bytes=0 --max-log-requests=5 --pod-running-timeout=20s --prefix=false -p, --previous=false -l, --selector='' --since=0s --since-time='' --tail=-1 --timestamps=false 
+===== kubectl events --help
+ -A, --all-namespaces=false --allow-missing-template-keys=true --chunk-size=500 --for='' --no-headers=false -o, --output='' --show-managed-fields=false --template='' --types=[] -w, --watch=false 
+===== kubectl auth can-i --help
+ -A, --all-namespaces=false --list=false --no-headers=false -q, --quiet=false --subresource='' 
+===== kubectl rollout status --help
+ -f, --filename=[] -k, --kustomize='' -R, --recursive=false --revision=0 -l, --selector='' --timeout=0s -w, --watch=true 
+===== kubectl rollout undo --help
+ --allow-missing-template-keys=true --dry-run='none' -f, --filename=[] -k, --kustomize='' -o, --output='' -R, --recursive=false -l, --selector='' --show-managed-fields=false --template='' --to-revision=0 
+===== kubectl rollout restart --help
+ --allow-missing-template-keys=true --field-manager='kubectl-rollout' -f, --filename=[] -k, --kustomize='' -o, --output='' -R, --recursive=false -l, --selector='' --show-managed-fields=false --template='' 
+===== kubectl rollout history --help
+ --allow-missing-template-keys=true -f, --filename=[] -k, --kustomize='' -o, --output='' -R, --recursive=false --revision=0 -l, --selector='' --show-managed-fields=false --template='' 
+===== kubectl top pod --help
+ -A, --all-namespaces=false --containers=false --field-selector='' --no-headers=false -l, --selector='' --show-swap=false --sort-by='' --sum=false --use-protocol-buffers=true 
+===== kubectl wait --help
+ --all=false -A, --all-namespaces=false --allow-missing-template-keys=true --field-selector='' -f, --filename=[] --for=[] --local=false -o, --output='' -R, --recursive=true -l, --selector='' --show-managed-fields=false --template='' --timeout=30s 
+===== kubectl explain --help
+ --api-version='' --max-depth=0 -o, --output='plaintext' -R, --recursive=false 
+===== kubectl get --help
+ -A, --all-namespaces=false --allow-missing-template-keys=true --chunk-size=500 --field-selector='' -f, --filename=[] --ignore-not-found=false -k, --kustomize='' -L, --label-columns=[] --no-headers=false -o, --output='' --output-watch-events=false --raw='' -R, --recursive=false -l, --selector='' --server-print=true --show-kind=false --show-labels=false --show-managed-fields=false --sort-by='' --subresource='' --template='' -w, --watch=false --watch-only=false 
+===== kubectl describe --help
+ -A, --all-namespaces=false --chunk-size=500 -f, --filename=[] -k, --kustomize='' -R, --recursive=false -l, --selector='' --show-events=true 
+===== kubectl cordon --help
+ --dry-run='none' -l, --selector='' 
+===== kubectl drain --help
+ --chunk-size=500 --delete-emptydir-data=false --disable-eviction=false --dry-run='none' --force=false --grace-period=-1 --ignore-daemonsets=false --pod-selector='' -l, --selector='' --skip-wait-for-delete-timeout=0 --timeout=0s 
+===== kubectl scale --help
+ --all=false --allow-missing-template-keys=true --current-replicas=-1 --dry-run='none' -f, --filename=[] -k, --kustomize='' -o, --output='' -R, --recursive=false --replicas=0 --resource-version='' -l, --selector='' --show-managed-fields=false --template='' --timeout=0s 
+===== kubectl port-forward --help
+ --address=[localhost] --pod-running-timeout=1m0s 
+===== kubectl exec --help
+ -c, --container='' -f, --filename=[] --pod-running-timeout=1m0s -q, --quiet=false -i, --stdin=false -t, --tty=false 
+===== kubectl run --help
+ --allow-missing-template-keys=true --annotations=[] --attach=false --cascade='background' --command=false --detach-keys='ctrl-p,ctrl-q' --dry-run='none' --env=[] --expose=false --field-manager='kubectl-run' --force=false --grace-period=-1 --image='' --image-pull-policy='' -k, --kustomize='' -l, --labels='' --leave-stdin-open=false -o, --output='' --override-type='merge' --overrides='' --pod-running-timeout=1m0s --port='' --privileged=false -q, --quiet=false -R, --recursive=false --restart='Always' --rm=false --save-config=false --show-managed-fields=false -i, --stdin=false --template='' --timeout=0s -t, --tty=false --wait=false 
+
+## Live checks 1
+== debug profile
+    --profile='general':
+	Options are "general", "baseline", "restricted", "netadmin" or "sysadmin". Defaults to "general"
+
+    -q, --quiet=false:
+== events types
+    --for='':
+	Filter events to only those pertaining to the specified resource.
+
+--
+    --types=[]:
+	Output only events of given types.
+
+== can-i list
+    --list=false:
+	If true, prints all allowed actions.
+
+== kube-dns svc
+NAME       TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)                  AGE     SELECTOR
+kube-dns   ClusterIP   <ip>   <none>        53/UDP,53/TCP,9153/TCP   4d17h   k8s-app=kube-dns
+== coredns
+NAME      READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS   IMAGES                                    SELECTOR
+coredns   2/2     2            2           4d17h   coredns      registry.k8s.io/coredns/coredns:v1.14.2   k8s-app=kube-dns
+      2 pod/coredns-<hash>
+== netpol
+      5 kommander-flux
+== ciliumnetpol
+ciliumclusterwidenetworkpolicies               ccnp                                cilium.io/v2                                                   false        CiliumClusterwideNetworkPolicy
+ciliumnetworkpolicies                          cnp,ciliumnp                        cilium.io/v2                                                   true         CiliumNetworkPolicy
+gatewayclasses                                 gc                                  gateway.networking.k8s.io/v1                                   false        GatewayClass
+gateways                                       gtw                                 gateway.networking.k8s.io/v1                                   true         Gateway
+grpcroutes                                                                         gateway.networking.k8s.io/v1                                   true         GRPCRoute
+httproutes                                                                         gateway.networking.k8s.io/v1                                   true         HTTPRoute
+referencegrants                                refgrant                            gateway.networking.k8s.io/v1beta1                              true         ReferenceGrant
+natgateways                                                                        network.azure.com/v1api20220701                                true         NatGateway
+ingressclasses                                                                     networking.k8s.io/v1                                           false        IngressClass
+ingresses                                      ing                                 networking.k8s.io/v1                                           true         Ingress
+networkpolicies                                netpol                              networking.k8s.io/v1                                           true         NetworkPolicy
+ingressroutes                                                                      traefik.io/v1alpha1                                            true         IngressRoute
+ingressroutetcps                                                                   traefik.io/v1alpha1                                            true         IngressRouteTCP
+ingressrouteudps                                                                   traefik.io/v1alpha1                                            true         IngressRouteUDP
+federatedingresses                             fing                                types.kubefed.io/v1beta1                                       true         FederatedIngress
+federatednetworkpolicies                       fnetpol                             types.kubefed.io/v1beta1                                       true         FederatedNetworkPolicy
+== pdb
+capz-system   azureserviceoperator-pdb                                  50%   N/A   1     4d17h
+kommander     cluster-autoscaler-<uuid>   N/A   1     1     4d17h
+kommander     gatekeeper-controller-manager                             1     N/A   1     4d17h
+== sc
+NAME                       PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+nutanix-volume (default)   csi.nutanix.com   Delete          WaitForFirstConsumer   true                   4d17h
+== priorityclass
+NAME                      VALUE        GLOBAL-DEFAULT   AGE     PREEMPTIONPOLICY
+dkp-critical-priority     100002000    false            4d17h   PreemptLowerPriority
+dkp-high-priority         100001000    false            4d17h   PreemptLowerPriority
+system-cluster-critical   2000000000   false            4d17h   PreemptLowerPriority
+system-node-critical      2000001000   false            4d17h   PreemptLowerPriority
+== node taints
+<none>   [map[effect:NoSchedule key:node-role.kubernetes.io/control-plane]]
+<none>   <none>
+<none>   <none>
+<none>   <none>
+<none>   <none>
+== metrics
+error: Metrics API not available
+Error from server (NotFound): apiservices.apiregistration.k8s.io "v1beta1.metrics.k8s.io" not found
+== limitrange quota
+NAMESPACE        NAME                                                         REQUEST                                                LIMIT   AGE
+cert-manager     resourcequota/cert-manager-critical-pods                     pods: 3/1G                                                     4d17h
+kommander-flux   resourcequota/critical-pods-kommander-flux                   pods: 7/1k                                                     4d17h
+kommander        resourcequota/kommander-critical-pods                        pods: 5/1G                                                     4d17h
+kommander        resourcequota/one-kommandercluster-per-kommander-workspace   count/kommanderclusters.kommander.mesosphere.io: 1/1           4d17h
+kommander        resourcequota/one-nkpcluster-per-kommander-workspace         count/nkpclusters.clusters.nkp.nutanix.com: 1/1                4d17h
+== resolv
+.:53 {
+    errors
+    health {
+       lameduck 5s
+    }
+    ready
+    kubernetes cluster.local in-addr.arpa ip6.arpa {
+       pods insecure
+       fallthrough in-addr.arpa ip6.arpa
+       ttl 30
+    }
+    prometheus :9153
+    forward . /etc/resolv.conf {
+       max_concurrent 1000
+    }
+    cache 30 {
+       disable success cluster.local
+       disable denial cluster.local
+    }
+    loop
+    reload
+    loadbalance
+}
+
+## Live checks 2 (explain samples, api-resources, events, can-i)
+KIND:       Pod
+VERSION:    v1
+
+FIELD: tolerations <[]Toleration>
+
+
+DESCRIPTION:
+    If specified, the pod's tolerations.
+    The pod this Toleration is attached to tolerates any taint that matches the
+    triple <key,value,effect> using the matching operator <operator>.
+    
+FIELDS:
+  effect	<string>
+  enum: NoExecute, NoSchedule, PreferNoSchedule
+    Effect indicates the taint effect to match. Empty means match all taint
+    effects. When specified, allowed values are NoSchedule, PreferNoSchedule and
+    NoExecute.
+    
+    Possible enum values:
+     - `"NoExecute"` Evict any already-running pods that do not tolerate the
+    taint. Currently enforced by NodeController.
+     - `"NoSchedule"` Do not allow new pods to schedule onto the node unless
+    they tolerate the taint, but allow all pods submitted to Kubelet without
+    going through the scheduler to start, and allow all already-running pods to
+    continue running. Enforced by the scheduler.
+     - `"PreferNoSchedule"` Like TaintEffectNoSchedule, but the scheduler tries
+    not to schedule new pods onto the node, rather than prohibiting new pods
+    from scheduling onto the node entirely. Enforced by the scheduler.
+
+  key	<string>
+=====
+GROUP:      apps
+KIND:       Deployment
+VERSION:    v1
+
+FIELD: strategy <DeploymentStrategy>
+
+
+DESCRIPTION:
+    The deployment strategy to use to replace existing pods with new ones.
+    DeploymentStrategy describes how to replace existing pods with new ones.
+    
+FIELDS:
+  rollingUpdate	<RollingUpdateDeployment>
+    maxSurge	<IntOrString>
+    maxUnavailable	<IntOrString>
+  type	<string>
+  enum: Recreate, RollingUpdate
+
+=====
+GROUP:      networking.k8s.io
+KIND:       NetworkPolicy
+VERSION:    v1
+
+FIELD: spec <NetworkPolicySpec>
+
+
+DESCRIPTION:
+    spec represents the specification of the desired behavior for this
+    NetworkPolicy.
+    NetworkPolicySpec provides the specification of a NetworkPolicy
+    
+FIELDS:
+  egress	<[]NetworkPolicyEgressRule>
+    ports	<[]NetworkPolicyPort>
+      endPort	<integer>
+      port	<IntOrString>
+      protocol	<string>
+      enum: SCTP, TCP, UDP
+    to	<[]NetworkPolicyPeer>
+      ipBlock	<IPBlock>
+        cidr	<string> -required-
+        except	<[]string>
+      namespaceSelector	<LabelSelector>
+        matchExpressions	<[]LabelSelectorRequirement>
+          key	<string> -required-
+          operator	<string> -required-
+          values	<[]string>
+        matchLabels	<map[string]string>
+      podSelector	<LabelSelector>
+        matchExpressions	<[]LabelSelectorRequirement>
+          key	<string> -required-
+          operator	<string> -required-
+          values	<[]string>
+        matchLabels	<map[string]string>
+  ingress	<[]NetworkPolicyIngressRule>
+    from	<[]NetworkPolicyPeer>
+      ipBlock	<IPBlock>
+        cidr	<string> -required-
+        except	<[]string>
+      namespaceSelector	<LabelSelector>
+        matchExpressions	<[]LabelSelectorRequirement>
+          key	<string> -required-
+          operator	<string> -required-
+          values	<[]string>
+        matchLabels	<map[string]string>
+      podSelector	<LabelSelector>
+        matchExpressions	<[]LabelSelectorRequirement>
+          key	<string> -required-
+          operator	<string> -required-
+          values	<[]string>
+        matchLabels	<map[string]string>
+    ports	<[]NetworkPolicyPort>
+      endPort	<integer>
+      port	<IntOrString>
+      protocol	<string>
+      enum: SCTP, TCP, UDP
+  podSelector	<LabelSelector>
+    matchExpressions	<[]LabelSelectorRequirement>
+      key	<string> -required-
+=====
+GROUP:      policy
+KIND:       PodDisruptionBudget
+VERSION:    v1
+
+FIELD: spec <PodDisruptionBudgetSpec>
+
+
+DESCRIPTION:
+    Specification of the desired behavior of the PodDisruptionBudget.
+    PodDisruptionBudgetSpec is a description of a PodDisruptionBudget.
+    
+FIELDS:
+  maxUnavailable	<IntOrString>
+    An eviction is allowed if at most "maxUnavailable" pods selected by
+    "selector" are unavailable after the eviction, i.e. even in absence of the
+    evicted pod. For example, one can prevent all voluntary evictions by
+    specifying 0. This is a mutually exclusive setting with "minAvailable".
+
+  minAvailable	<IntOrString>
+    An eviction is allowed if at least "minAvailable" pods selected by
+    "selector" will still be available after the eviction, i.e. even in the
+    absence of the evicted pod.  So for example you can prevent all voluntary
+    evictions by specifying "100%".
+
+  selector	<LabelSelector>
+    Label query over pods whose evictions are managed by the disruption budget.
+    A null selector will match no pods, while an empty ({}) selector will select
+    all pods within the namespace.
+
+  unhealthyPodEvictionPolicy	<string>
+  enum: AlwaysAllow, IfHealthyBudget
+    UnhealthyPodEvictionPolicy defines the criteria for when unhealthy pods
+    should be considered for eviction. Current implementation considers healthy
+    pods, as pods that have status.conditions item with
+    type="Ready",status="True".
+    
+    Valid policies are IfHealthyBudget and AlwaysAllow. If no policy is
+    specified, the default behavior will be used, which corresponds to the
+    IfHealthyBudget policy.
+    
+=====
+NAME                   SHORTNAMES   APIVERSION   NAMESPACED   KIND
+poddisruptionbudgets   pdb          policy/v1    true         PodDisruptionBudget
+configmaps                                     cm                                  v1                                                             true         ConfigMap
+endpoints                                      ep                                  v1                                                             true         Endpoints
+events                                         ev                                  v1                                                             true         Event
+limitranges                                    limits                              v1                                                             true         LimitRange
+persistentvolumeclaims                         pvc                                 v1                                                             true         PersistentVolumeClaim
+persistentvolumes                              pv                                  v1                                                             false        PersistentVolume
+pods                                           po                                  v1                                                             true         Pod
+resourcequotas                                 quota                               v1                                                             true         ResourceQuota
+serviceaccounts                                sa                                  v1                                                             true         ServiceAccount
+services                                       svc                                 v1                                                             true         Service
+daemonsets                                     ds                                  apps/v1                                                        true         DaemonSet
+deployments                                    deploy                              apps/v1                                                        true         Deployment
+replicasets                                    rs                                  apps/v1                                                        true         ReplicaSet
+statefulsets                                   sts                                 apps/v1                                                        true         StatefulSet
+horizontalpodautoscalers                       hpa                                 autoscaling/v2                                                 true         HorizontalPodAutoscaler
+cronjobs                                       cj                                  batch/v1                                                       true         CronJob
+jobs                                                                               batch/v1                                                       true         Job
+endpointslices                                                                     discovery.k8s.io/v1                                            true         EndpointSlice
+events                                         ev                                  events.k8s.io/v1                                               true         Event
+poddisruptionbudgets                           pdb                                 policy/v1                                                      true         PodDisruptionBudget
+clusterroles                                                                       rbac.authorization.k8s.io/v1                                   false        ClusterRole
+rolebindings                                                                       rbac.authorization.k8s.io/v1                                   true         RoleBinding
+roles                                                                              rbac.authorization.k8s.io/v1                                   true         Role
+=====
+No resources found
+=====
+No events found.
+=====
+{"kubernetes.io/metadata.name":"default"}
+=====
+Resources                                       Non-Resource URLs   Resource Names   Verbs
+*.*                                             []                  []               [*]
+                                                [*]                 []               [*]
+selfsubjectreviews.authentication.k8s.io        []                  []               [create]
+selfsubjectaccessreviews.authorization.k8s.io   []                  []               [create]
+=====
+admission-control-config-file\n    value: /etc/kubernetes/admission.yaml\n  - name: audit-log-compress\n    value: \"true\"\n  - name: audit-log-maxage\n    value: \"30\"\n  - name: audit-log-maxbackup\n    value: \"90\"\n  - name: audit-log-maxsize\n    value: \"100\"\n  - name: audit-log-path\n    value: /var/log/audit/kube-apiserver-audit.log\n  - name: audit-policy-file\n    value: /etc/kubernetes/audit-policy.yaml\n  - name: enable-admission-plugins\n    value: DenyServiceExternalIPs
+
+## Webhooks (sideEffects) and owner labels
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v1api20240301.jobs.app.azure.com	None	jobs
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v1api20250101.jobs.app.azure.com	None	jobs
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v1api20250601.deployments.cognitiveservices.azure.com	None	deployments
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v1api20240402preview.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v1api20240901.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v1api20250801.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+MutatingWebhookConfiguration	azureserviceoperator-mutating-webhook-configuration	default.v20251002preview.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+MutatingWebhookConfiguration	capi-mutating-webhook-configuration	default.machinedeployment.cluster.x-k8s.io	None	machinedeployments
+MutatingWebhookConfiguration	gatekeeper-mutating-webhook-configuration	mutation.gatekeeper.sh	None	*,pods/ephemeralcontainers,pods/exec,pods/log,pods/eviction,pods/portforward,pods/proxy,pods/attach,pods/binding,deployments/scale,replicasets/scale,statefulsets/scale,replicationcontrollers/scale,services/proxy,nodes/proxy,services/status
+MutatingWebhookConfiguration	kommander-appmanagement-defaulting	webhook.appmanagement.kommander.mesosphere.io	NoneOnDryRun	appdeployments
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v1api20240301.jobs.app.azure.com	None	jobs
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v1api20250101.jobs.app.azure.com	None	jobs
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v1api20250601.deployments.cognitiveservices.azure.com	None	deployments
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v1api20240402preview.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v1api20240901.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v1api20250801.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+ValidatingWebhookConfiguration	azureserviceoperator-validating-webhook-configuration	validate.v20251002preview.trustedaccessrolebindings.containerservice.azure.com	None	trustedaccessrolebindings
+ValidatingWebhookConfiguration	capi-validating-webhook-configuration	validation.machinedeployment.cluster.x-k8s.io	None	machinedeployments
+ValidatingWebhookConfiguration	cert-manager-webhook	webhook.cert-manager.io	None	*/*
+ValidatingWebhookConfiguration	gatekeeper-validating-webhook-configuration	validation.gatekeeper.sh	None	*,pods/ephemeralcontainers,pods/exec,pods/log,pods/eviction,pods/portforward,pods/proxy,pods/attach,pods/binding,pods/resize,deployments/scale,replicasets/scale,statefulsets/scale,replicationcontrollers/scale,services/proxy,nodes/proxy,services/status
+ValidatingWebhookConfiguration	kommander-appmanagement-validating	webhook.appmanagement.kommander.mesosphere.io	NoneOnDryRun	appdeployments
+ValidatingWebhookConfiguration	kommander-validating	webhook.federation.kommander.mesosphere.io	NoneOnDryRun	kommanderclusters,virtualgroups,federatedclusterroles,projects,workspaces,virtualgroupprojectrolebindings,virtualgroupkommanderclusterrolebinding,kommanderprojectroles,virtualgroupkommanderprojectrolebindings,projects,workspaces,projectroles,workspaceroles,kommanderprojectroles,kommanderworkspaceroles,virtualgroupkommanderprojectrolebindings,clusterroles,gitrepositories,gitopsrepositories,loggingstacks,configmaps
+=====
+Experimental: Check who you are and your attributes (groups, extra).
+
+        This command is helpful to get yourself aware of the current user attributes,
+=====
+cluster-autoscaler-<uuid>	{"app.kubernetes.io/instance":"ca-<uuid>","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"clusterapi-cluster-autoscaler","helm.sh/chart":"cluster-autoscaler-9.59.0"}	deployment.kubernetes.io/revision,meta.helm.sh/release-name,meta.helm.sh/release-namespace
+cluster-observer-3995310324	{"app.kubernetes.io/instance":"cluster-observer-3995310324","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"cluster-observer","app.kubernetes.io/version":"1.6.0","helm.sh/chart":"cluster-observer-1.6.0","helm.toolkit.fluxcd.io/name":"cluster-observer-3995310324","helm.toolkit.fluxcd.io/namespace":"kommander","kommander.d2iq.io/cluster-name":"<mgmt-cluster>"
+dex	{"app.kubernetes.io/component":"dex","app.kubernetes.io/instance":"dex","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"dex","app.kubernetes.io/version":"2.37.0","helm.sh/chart":"dex-2.14.2","helm.toolkit.fluxcd.io/name":"dex","helm.toolkit.fluxcd.io/namespace":"kommander"}	deployment.kubernetes.io/revision,meta.helm.sh/release-name,meta.helm.sh/release-namespace,secret.reloade
+=====
+[
+  {
+    "apiVersion": "apps/v1",
+    "blockOwnerDeletion": true,
+    "controller": true,
+    "kind": "Deployment",
+    "name": "cluster-autoscaler-<uuid>",
+    "uid": "<uid>"
+  }
+]
+
+## Live checks 4 (explain fields)
+    --as='':
+    --as-group=[]:
+    --context='':
+    --kubeconfig='':
+    --request-timeout='0':
+== job
+  activeDeadlineSeconds	<integer>
+  backoffLimit	<integer>
+  backoffLimitPerIndex	<integer>
+  completionMode	<string>
+  enum: Indexed, NonIndexed
+  completions	<integer>
+  managedBy	<string>
+  manualSelector	<boolean>
+  maxFailedIndexes	<integer>
+  parallelism	<integer>
+  podFailurePolicy	<PodFailurePolicy>
+  podReplacementPolicy	<string>
+  enum: Failed, TerminatingOrFailed
+  selector	<LabelSelector>
+  successPolicy	<SuccessPolicy>
+  suspend	<boolean>
+  template	<PodTemplateSpec> -required-
+  ttlSecondsAfterFinished	<integer>
+== sts
+  minReadySeconds	<integer>
+  ordinals	<StatefulSetOrdinals>
+  persistentVolumeClaimRetentionPolicy	<StatefulSetPersistentVolumeClaimRetentionPolicy>
+  podManagementPolicy	<string>
+  enum: OrderedReady, Parallel
+  replicas	<integer>
+  revisionHistoryLimit	<integer>
+  selector	<LabelSelector> -required-
+  serviceName	<string>
+  template	<PodTemplateSpec> -required-
+  updateStrategy	<StatefulSetUpdateStrategy>
+  volumeClaimTemplates	<[]PersistentVolumeClaim>
+  whenDeleted	<string>
+    WhenDeleted specifies what happens to PVCs created from StatefulSet
+    VolumeClaimTemplates when the StatefulSet is deleted. The default policy of
+    `Retain` causes PVCs to not be affected by StatefulSet deletion. The
+--
+  whenScaled	<string>
+    WhenScaled specifies what happens to PVCs created from StatefulSet
+    VolumeClaimTemplates when the StatefulSet is scaled down. The default policy
+    of `Retain` causes PVCs to not be affected by a scaledown. The `Delete`
+== svc type
+    Possible enum values:
+     - `"ClusterIP"` means a service will only be accessible inside the cluster,
+     - `"ExternalName"` means a service consists of only a reference to an
+     - `"LoadBalancer"` means a service will be exposed via an external load
+     - `"NodePort"` means a service will be exposed on one port of every node,
+== svc
+  allocateLoadBalancerNodePorts	<boolean>
+  clusterIP	<string>
+  clusterIPs	<[]string>
+  externalIPs	<[]string>
+  externalName	<string>
+  externalTrafficPolicy	<string>
+  enum: Cluster, Local
+  healthCheckNodePort	<integer>
+  internalTrafficPolicy	<string>
+  enum: Cluster, Local
+  ipFamilies	<[]string>
+  ipFamilyPolicy	<string>
+  enum: PreferDualStack, RequireDualStack, SingleStack
+  loadBalancerClass	<string>
+  loadBalancerIP	<string>
+  loadBalancerSourceRanges	<[]string>
+  ports	<[]ServicePort>
+  publishNotReadyAddresses	<boolean>
+  selector	<map[string]string>
+  sessionAffinity	<string>
+  enum: ClientIP, None
+  sessionAffinityConfig	<SessionAffinityConfig>
+  trafficDistribution	<string>
+  type	<string>
+  enum: ClusterIP, ExternalName, LoadBalancer, NodePort
+== pod spec
+  activeDeadlineSeconds	<integer>
+  affinity	<Affinity>
+  automountServiceAccountToken	<boolean>
+  containers	<[]Container> -required-
+  dnsConfig	<PodDNSConfig>
+  dnsPolicy	<string>
+  enum: ClusterFirst, ClusterFirstWithHostNet, Default, None
+  enableServiceLinks	<boolean>
+  ephemeralContainers	<[]EphemeralContainer>
+  hostAliases	<[]HostAlias>
+  hostIPC	<boolean>
+  hostNetwork	<boolean>
+  hostPID	<boolean>
+  hostUsers	<boolean>
+  hostname	<string>
+  hostnameOverride	<string>
+  imagePullSecrets	<[]LocalObjectReference>
+  initContainers	<[]Container>
+  nodeName	<string>
+  nodeSelector	<map[string]string>
+  os	<PodOS>
+  overhead	<map[string]Quantity>
+  preemptionPolicy	<string>
+  enum: Never, PreemptLowerPriority
+  priority	<integer>
+  priorityClassName	<string>
+  readinessGates	<[]PodReadinessGate>
+  resourceClaims	<[]PodResourceClaim>
+  resources	<ResourceRequirements>
+  restartPolicy	<string>
+  enum: Always, Never, OnFailure
+  runtimeClassName	<string>
+  schedulerName	<string>
+  schedulingGates	<[]PodSchedulingGate>
+  schedulingGroup	<PodSchedulingGroup>
+  securityContext	<PodSecurityContext>
+  serviceAccount	<string>
+  serviceAccountName	<string>
+  setHostnameAsFQDN	<boolean>
+  shareProcessNamespace	<boolean>
+  subdomain	<string>
+  terminationGracePeriodSeconds	<integer>
+  tolerations	<[]Toleration>
+  topologySpreadConstraints	<[]TopologySpreadConstraint>
+  volumes	<[]Volume>
+== container
+  args	<[]string>
+  command	<[]string>
+  env	<[]EnvVar>
+  envFrom	<[]EnvFromSource>
+  image	<string>
+  imagePullPolicy	<string>
+  enum: Always, IfNotPresent, Never
+  lifecycle	<Lifecycle>
+  livenessProbe	<Probe>
+  name	<string> -required-
+  ports	<[]ContainerPort>
+  readinessProbe	<Probe>
+  resizePolicy	<[]ContainerResizePolicy>
+  resources	<ResourceRequirements>
+  restartPolicy	<string>
+  restartPolicyRules	<[]ContainerRestartRule>
+  securityContext	<SecurityContext>
+  startupProbe	<Probe>
+  stdin	<boolean>
+  stdinOnce	<boolean>
+  terminationMessagePath	<string>
+  terminationMessagePolicy	<string>
+  enum: FallbackToLogsOnError, File
+  tty	<boolean>
+  volumeDevices	<[]VolumeDevice>
+  volumeMounts	<[]VolumeMount>
+  workingDir	<string>
+== tsc
+  labelSelector	<LabelSelector>
+  matchLabelKeys	<[]string>
+  maxSkew	<integer> -required-
+  minDomains	<integer>
+  nodeAffinityPolicy	<string>
+  enum: Honor, Ignore
+    Possible enum values:
+  nodeTaintsPolicy	<string>
+  enum: Honor, Ignore
+    Possible enum values:
+  topologyKey	<string> -required-
+  whenUnsatisfiable	<string> -required-
+  enum: DoNotSchedule, ScheduleAnyway
+    Possible enum values:
+== nodeaff
+KIND:       Pod
+VERSION:    v1
+
+FIELD: nodeAffinity <NodeAffinity>
+
+
+DESCRIPTION:
+    Describes node affinity scheduling rules for the pod.
+    Node affinity is a group of node affinity scheduling rules.
+    
+FIELDS:
+  preferredDuringSchedulingIgnoredDuringExecution	<[]PreferredSchedulingTerm>
+    preference	<NodeSelectorTerm> -required-
+      matchExpressions	<[]NodeSelectorRequirement>
+        key	<string> -required-
+        operator	<string> -required-
+        enum: DoesNotExist, Exists, Gt, In, ....
+        values	<[]string>
+      matchFields	<[]NodeSelectorRequirement>
+        key	<string> -required-
+        operator	<string> -required-
+        enum: DoesNotExist, Exists, Gt, In, ....
+        values	<[]string>
+    weight	<integer> -required-
+  requiredDuringSchedulingIgnoredDuringExecution	<NodeSelector>
+    nodeSelectorTerms	<[]NodeSelectorTerm> -required-
+      matchExpressions	<[]NodeSelectorRequirement>
+        key	<string> -required-
+        operator	<string> -required-
+        enum: DoesNotExist, Exists, Gt, In, ....
+== restartPolicy
+    Possible enum values:
+== cj
+  concurrencyPolicy	<string>
+  enum: Allow, Forbid, Replace
+    Possible enum values:
+  failedJobsHistoryLimit	<integer>
+  jobTemplate	<JobTemplateSpec> -required-
+  schedule	<string> -required-
+  startingDeadlineSeconds	<integer>
+  successfulJobsHistoryLimit	<integer>
+  suspend	<boolean>
+  timeZone	<string>
+== pvc
+  accessModes	<[]string>
+  dataSource	<TypedLocalObjectReference>
+  dataSourceRef	<TypedObjectReference>
+  resources	<VolumeResourceRequirements>
+  selector	<LabelSelector>
+  storageClassName	<string>
+  volumeAttributesClassName	<string>
+  volumeMode	<string>
+  enum: Block, Filesystem
+  volumeName	<string>
+KIND:       PersistentVolumeClaim
+VERSION:    v1
+
+FIELD: accessModes <[]string>
+
+
+DESCRIPTION:
+    accessModes contains the desired access modes the volume should have. More
+    info:
+    https://kubernetes.io/docs/concepts/storage/persistent-volumes#access-modes-1
+    
+
+== role
+  apiGroups	<[]string>
+  nonResourceURLs	<[]string>
+  resourceNames	<[]string>
+  resources	<[]string>
+  verbs	<[]string> -required-
+== ingress
+GROUP:      networking.k8s.io
+KIND:       Ingress
+VERSION:    v1
+
+FIELD: spec <IngressSpec>
+
+
+DESCRIPTION:
+    spec is the desired state of the Ingress. More info:
+    https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#spec-and-status
+    IngressSpec describes the Ingress the user wishes to exist.
+    
+FIELDS:
+  defaultBackend	<IngressBackend>
+    resource	<TypedLocalObjectReference>
+      apiGroup	<string>
+      kind	<string> -required-
+      name	<string> -required-
+    service	<IngressServiceBackend>
+      name	<string> -required-
+      port	<ServiceBackendPort>
+        name	<string>
+        number	<integer>
+  ingressClassName	<string>
+  rules	<[]IngressRule>
+    host	<string>
+    http	<HTTPIngressRuleValue>
+      paths	<[]HTTPIngressPath> -required-
+        backend	<IngressBackend> -required-
+          resource	<TypedLocalObjectReference>
+            apiGroup	<string>
+            kind	<string> -required-
+            name	<string> -required-
+          service	<IngressServiceBackend>
+            name	<string> -required-
+            port	<ServiceBackendPort>
+              name	<string>
+              number	<integer>
+        path	<string>
+        pathType	<string> -required-
+== dbg types
+  # Create an interactive debugging session in pod mypod and immediately attach to it.
+  kubectl debug mypod -it --image=busybox
+  # Create an interactive debugging session for the pod in the file pod.yaml and immediately attach to it.
+  # (requires the EphemeralContainers feature to be enabled in the cluster)
+  kubectl debug -f pod.yaml -it --image=busybox
+  # Create a debug container named debugger using a custom automated debugging image.
+  kubectl debug --image=myproj/debug-tools -c debugger mypod
+  # Create a copy of mypod adding a debug container and attach to it
+  kubectl debug mypod -it --image=busybox --copy-to=my-debugger
+  # Create a copy of mypod changing the command of mycontainer
+  kubectl debug mypod -it --copy-to=my-debugger --container=mycontainer -- sh
+  # Create a copy of mypod changing all container images to busybox
+  kubectl debug mypod --copy-to=my-debugger --set-image=*=busybox
+  # Create a copy of mypod adding a debug container and changing container images
+  kubectl debug mypod -it --copy-to=my-debugger --image=debian --set-image=app=app:debug,sidecar=sidecar:debug
+  # Create an interactive debugging session on a node and immediately attach to it.
+  # The container will run in the host namespaces and the host's filesystem will be mounted at /host
+  kubectl debug node/mynode -it --image=busybox
+== rollout
+ Valid resource types include:
+  *  deployments
+  *  daemonsets
+  *  statefulsets
+  # Restart deployments with the 'app=nginx' label
+== netpol policyTypes
+GROUP:      networking.k8s.io
+KIND:       NetworkPolicy
+VERSION:    v1
+
+FIELD: policyTypes <[]string>
+
+
+DESCRIPTION:
+    policyTypes is a list of rule types that the NetworkPolicy relates to. Valid
+    options are ["Ingress"], ["Egress"], or ["Ingress", "Egress"]. If this field
+    is not specified, it will default based on the existence of ingress or
+    egress rules; policies that contain an egress section are assumed to affect
+    egress, and all policies (whether or not they contain an ingress section)
+    are assumed to affect ingress. If you want to write an egress-only policy,
+    you must explicitly specify policyTypes [ "Egress" ]. Likewise, if you want
+    to write a policy that specifies that no egress is allowed, you must specify
+    a policyTypes value that include "Egress" (since such a policy would not
+    include an egress section and would otherwise default to just [ "Ingress"
+    ]). This field is beta-level in 1.8
+    
+
+
+## Live checks 5
+== events --for
+No events found in kube-system namespace.
+== get events field-selector
+No resources found in kube-system namespace.
+== can-i sa
+Resources                                       Non-Resource URLs                      Resource Names   Verbs
+selfsubjectreviews.authentication.k8s.io        []                                     []               [create]
+selfsubjectaccessreviews.authorization.k8s.io   []                                     []               [create]
+selfsubjectrulesreviews.authorization.k8s.io    []                                     []               [create]
+                                                [/.well-known/openid-configuration/]   []               [get]
+                                                [/.well-known/openid-configuration]    []               [get]
+                                                [/api/*]                               []               [get]
+                                                [/api]                                 []               [get]
+== can-i single
+no
+== describe node allocated
+Allocated resources:
+  (Total limits may be over 100 percent, i.e., overcommitted.)
+  Resource           Requests      Limits
+  --------           --------      ------
+  cpu                2095m (26%)   9100m (113%)
+  memory             3346Mi (10%)  10848Mi (34%)
+  ephemeral-storage  0 (0%)        0 (0%)
+  hugepages-1Gi      0 (0%)        0 (0%)
+  hugepages-2Mi      0 (0%)        0 (0%)
+Events:              <none>
+== node conditions
+<node>NAME                                 READY   PRESSURE
+<node>              True    Ready
+<node>   True    Ready
+<node>   True    Ready
+<node>   True    Ready
+<node>   True    Ready
+== allocatable
+CPU   MEM          PODS
+4     16176184Ki   110
+8     32666668Ki   110
+8     31901Mi      110
+8     32666584Ki   110
+8     32666616Ki   110
+== endpointslices kube-dns
+NAME             ADDRESSTYPE   PORTS        ENDPOINTS                    AGE
+kube-dns-k4fcg   IPv4          53,53,9153   <ip>,<ip>   4d17h
+== sts sample
+NAMESPACE             NAME               READY   AGE
+git-operator-system   git-operator-git   1/1     4d17h
+== debug image pull policy default / ephemeral
+DESCRIPTION:
+    List of ephemeral containers run in this pod. Ephemeral containers may be
+    run in an existing pod to perform user-initiated actions such as debugging.
+    This list cannot be specified when creating a pod, and it cannot be modified
+    by updating the pod spec. In order to add an ephemeral container to an
+    existing pod, use the pod's ephemeralcontainers subresource.
+== pod status reasons
+    123 Running
+      6 Succeeded
+== kubelet ver
+v1.36.2
+== wait help example
+  kubectl wait --for=condition=Ready pod/busybox1
+  kubectl wait --for=condition=Ready=false pod/busybox1
+  kubectl wait --for=jsonpath='{.status.phase}'=Running pod/busybox1
+  kubectl wait --for='jsonpath={.status.conditions[?(@.type=="Ready")].status}=True' pod/busybox1
+  kubectl wait --for=jsonpath='{.status.loadBalancer.ingress}' service/loadbalancer
+  kubectl wait --for=create secret/busybox1 --timeout=30s
+  kubectl wait --for=delete pod/busybox1 --timeout=60s
+  kubectl wait --for=condition=Ready --for=create pod/busybox1
+== rollout restart ex
+  kubectl rollout restart deployment -n test-namespace
+  kubectl rollout restart deployment/nginx
+  kubectl rollout restart daemonset/abc
+  kubectl rollout restart deployment --selector=app=nginx
+  kubectl rollout restart RESOURCE [options]
+== scale ex
+  kubectl scale --replicas=3 rs/foo
+  kubectl scale --replicas=3 -f foo.yaml
+  kubectl scale --current-replicas=2 --replicas=3 deployment/mysql
+== cp
+  # Requires that the 'tar' binary is present in your container
+  # image.  If 'tar' is not present, 'kubectl cp' will fail.
+  tar cf - /tmp/foo | kubectl exec -i -n <some-namespace> <some-pod> -- tar xf - -C /tmp/bar
+
+## Dry runs
+== dry run 1: debug pod
+busybox:1 Never
+== dry run 2: netpol
+networkpolicy.networking.k8s.io/default-deny-ingress created (server dry run)
+== dry run 3: pdb
+poddisruptionbudget.policy/web created (server dry run)
+== dry run 4: debug copy
+rc=0
+== dry run 5: rollout restart dry-run flag?
+0
+== scale dry-run server
+deployment.apps/coredns scaled (server dry run)
+
+## Cilium policy settings, NetworkPolicies, VAPs
+bpf-events-policy-verdict-enabled=true
+bpf-policy-map-max=16384
+bpf-policy-stats-map-max=65536
+enable-endpoint-lockdown-on-policy-overflow=false
+enable-k8s-networkpolicy=true
+enable-l7-proxy=true
+enable-policy=default
+enable-policy-secrets-sync=true
+hubble-network-policy-correlation-enabled=true
+policy-cidr-match-mode=
+policy-default-local-cluster=true
+policy-deny-response=none
+policy-secrets-namespace=cilium-secrets
+policy-secrets-only-from-secrets-namespace=true
+==
+NAME                                 POD-SELECTOR                  AGE
+allow-egress                         <none>                        4d17h
+allow-scraping                       <none>                        4d17h
+allow-source                         app=source-controller         4d17h
+allow-source-controller-oci-mirror   app=flux-oci-mirror           4d17h
+allow-webhooks                       app=notification-controller   4d17h
+==
+No resources found
+==
+NAME                      VALIDATIONS   PARAMKIND   AGE
+nkp-deletion-protection   6             <unset>     4d17h
+No resources found
+
+## Live checks 8 (create/patch/delete flags, whoami, Pending field selector)
+===== kubectl create job --help
+ --allow-missing-template-keys=true --dry-run='none' --field-manager='kubectl-create' --from='' --image='' -o, --output='' --save-config=false --show-managed-fields=false --template='' --validate='strict' 
+===== kubectl create rolebinding --help
+ --allow-missing-template-keys=true --clusterrole='' --dry-run='none' --field-manager='kubectl-create' --group=[] -o, --output='' --role='' --save-config=false --serviceaccount=[] --show-managed-fields=false --template='' --user=[] --validate='strict' 
+===== kubectl create role --help
+ --allow-missing-template-keys=true --dry-run='none' --field-manager='kubectl-create' -o, --output='' --resource=[] --resource-name=[] --save-config=false --show-managed-fields=false --template='' --validate='strict' --verb=[] 
+===== kubectl patch --help
+ --allow-missing-template-keys=true --dry-run='none' --field-manager='kubectl-patch' -f, --filename=[] -k, --kustomize='' --local=false -o, --output='' -p, --patch='' --patch-file='' -R, --recursive=false --show-managed-fields=false --subresource='' --template='' --type='strategic' 
+===== kubectl delete --help
+ --all=false -A, --all-namespaces=false --cascade='background' --dry-run='none' --field-selector='' -f, --filename=[] --force=false --grace-period=-1 --ignore-not-found=false -i, --interactive=false -k, --kustomize='' --now=false -o, --output='' --raw='' -R, --recursive=false -l, --selector='' --timeout=0s --wait=true 
+===== kubectl auth whoami --help
+ --allow-missing-template-keys=true -o, --output='' --show-managed-fields=false --template='' 
+===== kubectl set resources --help
+ --all=false --allow-missing-template-keys=true -c, --containers='*' --dry-run='none' --field-manager='kubectl-set' -f, --filename=[] -k, --kustomize='' --limits='' --local=false -o, --output='' -R, --recursive=false --requests='' -l, --selector='' --show-managed-fields=false --template='' 
+===== kubectl uncordon --help
+ --dry-run='none' -l, --selector='' 
+== examples create job
+  kubectl create job my-job --image=busybox
+  kubectl create job my-job --image=busybox -- date
+  kubectl create job test-job --from=cronjob/a-cronjob
+  kubectl create job NAME --image=image [--from=cronjob/name] -- [COMMAND] [args...] [options]
+== examples rolebinding
+  kubectl create rolebinding admin --clusterrole=admin --user=user1 --user=user2 --group=group1
+  kubectl create rolebinding admin-binding --role=admin --serviceaccount=monitoring:sa-dev
+  kubectl create rolebinding NAME --clusterrole=NAME|--role=NAME [--user=username] [--group=groupname] [--serviceaccount=namespace:serviceaccountname] [--dry-run=server|client|none] [options]
+== pending field selector
+No resources found
+== whoami
+<user>
+== get ns labels kube-system
+NAME          STATUS   AGE     LABELS
+kube-system   Active   4d17h   kubernetes.io/metadata.name=kube-system
+== event ttl
+
+## ValidatingAdmissionPolicy nkp-deletion-protection (objects with label nkp.nutanix.com/deletion-protection)
+matchConstraints.objectSelector: key nkp.nutanix.com/deletion-protection Exists; operations CREATE, UPDATE, DELETE on all resources. A DELETE passes only when the old state is 'revoked'. States seen in expressions: standard, strict, revoked.
+
+## Live checks 9 (create pdb, diff, set image flags; pdb create dry run)
+===== kubectl create poddisruptionbudget --help
+ --allow-missing-template-keys=true --dry-run='none' --field-manager='kubectl-create' --max-unavailable='' --min-available='' -o, --output='' --save-config=false --selector='' --show-managed-fields=false --template='' --validate='strict' 
+===== kubectl diff --help
+ --concurrency=1 --field-manager='kubectl-client-side-apply' -f, --filename=[] --force-conflicts=false -k, --kustomize='' --prune=false --prune-allowlist=[] -R, --recursive=false -l, --selector='' --server-side=false --show-managed-fields=false --show-secrets=false 
+===== kubectl set image --help
+ --all=false --allow-missing-template-keys=true --dry-run='none' --field-manager='kubectl-set' -f, --filename=[] -k, --kustomize='' --local=false -o, --output='' -R, --recursive=false -l, --selector='' --show-managed-fields=false --template='' 
+  kubectl create poddisruptionbudget my-pdb --selector=app=rails --min-available=1
+  kubectl create pdb my-pdb --selector=app=nginx --min-available=50%
+  kubectl create poddisruptionbudget NAME --selector=SELECTOR --min-available=N [--dry-run=server|client|none] [options]
+1
+== dryrun pdb create
+poddisruptionbudget.policy/web created (server dry run)
+== dryrun debug ephemeral
+
+## Dry runs 6-8 (webhooks for pods, statefulsets, pvcs: gatekeeper and cert-manager, sideEffects None)
+== dry run 6: restricted-safe test pod
+{"sc":{"runAsUser":65534,"runAsNonRoot":true,"seccompProfile":{"type":"RuntimeDefault"}},"c":{"image":"busybox:1","args":["nslookup","kubernetes.default.svc.cluster.local"],"securityContext":{"capabilities":{"drop":["ALL"]},"allowPrivilegeEscalation":false}},"rp":"Never"}
+== dry run 6b: same pod, PSA restricted check via namespace label dry run is not possible for one pod; check with warn on kube-system? skip
+== dry run 7: sts volumeClaimTemplates change
+The request is invalid: the server rejected our request due to an error in our request
+== dry run 8: pvc storageClassName change
+The PersistentVolumeClaim "git-operator-admin-volume" is invalid: spec: Forbidden: spec is immutable after creation except resources.requests and volumeAttributesClassName for bound claims
+@@ -10,7 +10,7 @@
+   }
+  },
+  "VolumeName": "pvc-<uuid>",
+- "StorageClassName": "nutanix-volume",
++ "StorageClassName": "other",
+  "VolumeMode": "Filesystem",
+  "DataSource": null,
+  "DataSourceRef": null,
+
+Forbidden: updates to statefulset spec for fields other than 'replicas', 'ordinals', 'template', 'updateStrategy', 'revisionHistoryLimit', 'persistentVolumeClaimRetentionPolicy' and 'minReadySeconds' are forbidden
+
+## Dry run 9: PDB merge patch (kommander/gatekeeper-controller-manager, --dry-run=server, not applied)
+{"maxUnavailable":1,"selector":{"matchLabels":{"app":"gatekeeper","chart":"gatekeeper","control-plane":"controller-manager","gatekeeper.sh/operation":"webhook","gatekeeper.sh/system":"yes","heritage":"Helm","release":"kommander-gatekeeper"}}}
+{"maxUnavailable":"50%","selector":{"matchLabels":{"app":"gatekeeper","chart":"gatekeeper","control-plane":"controller-manager","gatekeeper.sh/operation":"webhook","gatekeeper.sh/system":"yes","heritage":"Helm","release":"kommander-gatekeeper"}}}
+{"minAvailable":1,"selector":{"matchLabels":{"app":"gatekeeper","chart":"gatekeeper","control-plane":"controller-manager","gatekeeper.sh/operation":"webhook","gatekeeper.sh/system":"yes","heritage":"Helm","release":"kommander-gatekeeper"}}}
+
+## Dry run 10: rollout undo preview (cert-manager/cert-manager, --dry-run=server, not applied), rollout status, Deployment conditions
+== rollout history
+deployment.apps/cert-manager 
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+
+== rollout undo --to-revision=1 --dry-run=server (not applied)
+quay.io/jetstack/cert-manager-controller:v1.20.3
+Warning: spec.template.spec.affinity.nodeAffinity.preferredDuringSchedulingIgnoredDuringExecution[0].preference.matchExpressions[1].key: node-role.kubernetes.io/master is use "node-role.kubernetes.io/control-plane" instead
+== rollout status timeout
+deployment "cert-manager" successfully rolled out
+== deploy conditions
+Available=True MinimumReplicasAvailable
+Progressing=True NewReplicaSetAvailable
+== progressDeadline
+600 {"rollingUpdate":{"maxSurge":"25%","maxUnavailable":"25%"},"type":"RollingUpdate"}
+
+## Dry runs 11-12: NetworkPolicy examples of networking.md N3 and the DNS test pod of N2 (default ns, --dry-run=server, not applied). The real run (--rm -i) was not done: the lab is read-only.
+== dry run 11: three NetworkPolicies (default ns)
+networkpolicy.networking.k8s.io/default-deny-ingress created (server dry run)
+networkpolicy.networking.k8s.io/allow-frontend created (server dry run)
+networkpolicy.networking.k8s.io/allow-dns-egress created (server dry run)
+== dry run 12: DNS test pod overrides
+[{"name":"c","image":"busybox:1","args":["nslookup","kubernetes.default.svc.cluster.local"]}]
+== run flags rm/quiet
+    --pod-running-timeout=1m0s:
+    --rm=false:
+
+## Live checks 14 (explain on CRDs, diff exit codes, whoami groups of the admin kubeconfig)
+0
+1219
+GROUP:      apiextensions.k8s.io
+KIND:       CustomResourceDefinition
+VERSION:    v1
+GROUP:      helm.toolkit.fluxcd.io
+KIND:       HelmRelease
+VERSION:    v2
+ Exit status: 0 No differences were found. 1 Differences were found. >1 Kubectl or diff failed with an error.
+
+ Note: KUBECTL_EXTERNAL_DIFF, if used, is expected to follow that convention.
+["system:masters","system:authenticated"]
+
+## Live checks 15 (ValidatingAdmissionPolicy nkp-deletion-protection variables, binding actions)
+labelKey: 'nkp.nutanix.com/deletion-protection'
+oldState: oldObject != null && has(oldObject.metadata.labels) && variables.labelKey in oldObject.metadata.labels ? string(oldObject.metadata.labels[variables.labelKey]) : ''
+newState: object != null && has(object.metadata.labels) && variables.labelKey in object.metadata.labels ? string(object.metadata.labels[variables.labelKey]) : ''
+knownStates: ['standard', 'revoked', 'strict']
+isSystemIdentity: request.userInfo.username.startsWith('system:')
+failurePolicy=Fail
+["Deny","Audit"]
+
+## Batch 4 fix pass (core), 2026-11-03 — read-only (get, --help)
+===== kubectl api-resources --help (the --api-group flag)
+  kubectl api-resources --api-group=rbac.authorization.k8s.io
+    --api-group='':
+	Limit to resources in the specified API group.
+===== kubectl get validatingadmissionpolicy nkp-deletion-protection (validations: expression || messageExpression | reason)
+labels: kustomize.toolkit.fluxcd.io/name=cluster, kustomize.toolkit.fluxcd.io/namespace=kommander
+matchConstraints: objectSelector nkp.nutanix.com/deletion-protection Exists; namespaceSelector {}; apiGroups/apiVersions/resources '*'; CREATE, UPDATE, DELETE; matchPolicy Equivalent
+failurePolicy: Fail; binding nkp-deletion-protection validationActions [Deny Audit]; auditAnnotation state = '<op>: <old> -> <new>'
+1 request.operation != 'DELETE' || oldState == 'revoked' | 'Deletion denied: resource is protected by <labelKey>=<old>. An authorized user must set the label to revoked before deleting.' | Forbidden
+2 request.operation == 'DELETE' || newState == oldState || newState == '' || newState in knownStates | 'Update denied: unsupported value ... Supported values are standard, revoked and strict.' | Invalid
+3 request.operation != 'UPDATE' || oldState != 'strict' || newState == 'strict' | '...=strict is immutable and cannot be modified or removed.' | Forbidden
+4 request.operation != 'UPDATE' || oldState != 'standard' || newState != '' | '...=standard cannot be removed. Set the label to revoked instead. If this object is applied by Flux, re-apply the label with --field-manager=nkp-deletion-protection.' | Forbidden
+5 request.operation != 'UPDATE' || oldState == '' || oldState in knownStates || newState in [oldState, 'standard', 'strict'] | '...=<old> is unsupported and can only be changed to standard or strict.' | Forbidden
+6 request.operation != 'UPDATE' || oldState != 'standard' || newState != 'revoked' || !isSystemIdentity | '<user> is a system identity and system identities cannot revoke ...=standard. Protection must be revoked manually by a user with update permission.' | Forbidden
+Objects with the label: the batch 4 review checked 360 listable resource types on 2.19.0 and found 0.

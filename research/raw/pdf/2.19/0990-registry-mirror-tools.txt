@@ -1,0 +1,145 @@
+
+--- page 990 ---
+Upon successful completion, the command’s output displays details about the deployment in JSON format.
+If validation fails, the output will say which components fail and a list of the nodes that failed validation will
+return.
+The full command usage and flags include:
+nkp check cluster fips [flags]
+Flags:
+  -h, --help                         Help for fips
+      --kubeconfig string            Path to the kubeconfig file for the fips cluster.
+ If unspecified, default discovery rules apply.
+  -n, --namespace string             If present, the namespace scope for this CLI
+ request. (default "default")
+      --output-configmap string      ConfigMap to store result of the fips check.
+ (default "check-cluster-fips-output") (DEPRECATED: This flag will be removed in a
+ future release.)
+      --signature-configmap string   ConfigMap with fips signature data to verify.
+      --signature-file string        File containing fips signature data.
+      --timeout duration             The length of time to wait before giving up. Zero
+ means wait forever (e.g. 1s, 2m, 3h). (default 10m0s)
+FIPS 140 Mode Performance Impact
+Describes the performance impact of operating your cluster in FIPS 140 mode.
+The Go language cryptographic module, Goboring, relies on CGO’s foreign function interface to call C-
+language functions exposed by the cryptographic module. Each call into the C library starts with a base
+overhead of 200ns.
+One benchmark finds that the time to encrypt a single AES-128 block increased from 13ns to
+209ns over the internal Golang implementation. The preferred mode of Nutanix’s FIPS module is
+TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384.
+The aggregate impact on a stable control plane seems to be an increase of around 10% CPU utilization
+over default operation. Workloads that do not directly interact with the control plane are not affected.
+For more information, see https://github.com/golang/go/issues/21525.
+Registry Mirror Tools
+Using an external solution for storing and sharing container images.
+Kubernetes does not natively provide a registry for hosting the container images you will use to run the
+applications you want to deploy on Kubernetes. Instead, Kubernetes requires you to use an external
+solution to store and share container images. There are a variety of Kubernetes-compatible registry options
+that are compatible with Nutanix Kubernetes Platform (NKP).
+How Does it Work?
+The first time you request an image from your local registry mirror, it pulls the image from the public registry
+(such as Docker) and stores it locally before handing it back to you. On subsequent requests, the local
+registry mirror can serve the image from its own storage.
+Air-gapped vs. Non-air-gapped Environments
+In a non-air-gapped environment, you can access the Internet. You retrieve artifacts from specialized
+repositories dedicated to them, such as Docker images contained in DockerHub and Helm Charts that
+come from a dedicated Helm Chart repository. You can also create your local repository to hold the
+downloaded container images needed or any custom images you’ve created with the Nutanix Image
+Builder on page 55 tool.
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 990
+
+--- page 991 ---
+In an air-gapped environment, you need a local repository to store Helm charts, Docker images, and other
+artifacts. Private registries provide security and privacy in enterprise container image storage, whether
+hosted remotely or on-premises locally in an air-gapped environment. Nutanix Kubernetes Platform (NKP)
+in an air-gapped environment requires a local container registry of trusted images to enable production-
+level Kubernetes cluster management. However, a local registry is also an option in a non-air-gapped
+environment for speed and security.
+If you want to use images from this local registry to deploy applications inside your Kubernetes cluster,
+you’ll need to set up a secret for a private registry. The secret contains your login data, which Kubernetes
+needs to connect to your private repository.
+Local Registry Tools Compatible with NKP
+There are a variety of Kubernetes-compatible registry options that are compatible with Nutanix Kubernetes
+Platform (NKP). Kubernetes requires you to use an external solution to store and share container images.
+Tools such as JFrog Artifactory, Amazon AWS Elastic Container Registry (ECR), Harbor, and Nexus are
+designed to manage and store multiple software artifacts efficiently. These platforms support various
+formats and allow developers to organize, version, and retrieve artifacts from a single local repository,
+streamlining the software development and deployment process.
+AWS ECR
+AWS ECR (Elastic Container Registry) is supported as your air-gapped image registry or a non-air-gapped
+registry mirror. Nutanix Kubernetes Platform (NKP) added support for using AWS ECR as a default registry
+when uploading image bundles in AWS.
+Prerequisites
+•
+Ensure that you have followed the steps to create proper permissions.
+•
+Ensure that you have the required AWS Prerequisites on page 820
+Upload the Air-gapped Image Bundle to the Local ECR Registry:
+A cluster administrator uses NKP CLI commands to upload the image bundle to ECR with parameters:
+nkp push bundle --bundle <bundle> --to-registry=<ecr-registry-address>/<ecr-registry-
+name>
+Parameter Definitions:
+•
+--bundle <bundle> the group of images. The example below is for the NKP air-gapped environment
+bundle
+•
+--to-registry=<ecr-registry-address>/<ecr-registry-name> to provide registry location for
+push
+An example command:
+nkp push bundle --bundle container-images/konvoy-image-bundle-nkp-version.tar --to-
+registry=333000009999.
+dkr.ecr.us-west-2.amazonaws.com/can-test
+Note:  You can also set an environment variable with your registry address for ECR:
+export REGISTRY_URL=<ecr-registry-URI>
+•
+REGISTRY_URI: the address of an existing local registry accessible in the VPC that the new cluster
+nodes will be configured to use a mirror registry when pulling images.
+•
+The environment where you are running the NKP push command must be authenticated with AWS to
+load your images into ECR.
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 991
+
+--- page 992 ---
+Air-gapped Environment Information regarding your AWS ECR Account
+The cluster administrator uses existing NKP CLI commands to create the cluster and refer to their internal
+ECR for image repository. The administrator does not need to provide static ECR registry credentials. See
+Use a Registry Mirror and Create an EKS Cluster from the CLI for more details.
+JFrog Artifactory
+JFrog Artifactory can function as a container registry and an automated management tool for binaries and
+artifacts of all types. If you use JFrog Artifactory or JFrog Container Registry, you must update to a new
+software version. Use a build newer than version 7.11; older versions are not compatible.
+For more information, see https://jfrog.com/artifactory/.
+Nexus Registry
+Nexus Repository is a package registry for your Docker images and Helm Chart repositories and supports
+Proxy, Hosted, and Group repositories. It can be used as a single registry for all your Kubernetes
+deployments.
+For more information, see https://www.sonatype.com/products/sonatype-nexus-repository.
+Harbor Registry
+Install Harbor (https://goharbor.io/docs/2.0.0/install-config/download-installer/)and configure any HTTP
+access require and the system level parameters in the harbor.yml file. Then, run the installer script. If you
+upgrade from a previous version of Harbor, you update the configuration file and migrate your data to fit the
+database schema of the later version. For information about upgrading, see https://goharbor.io/docs/2.0.0/
+administration/upgrade/. A version than Harbor Registry v2.1.1-5f52168e will support OCI images.
+While seeding, you may see error messages such as the following:
+2023/09/12 20:01:18 retrying without mount: POST https://harbor-registry.daclusta/
+v2/harbor-registry/mesosphere/kube-proxy/blobs/uploads/?from=mesosphere%2Fkube-
+proxy&mount=sha256%3A9fd5070b83085808ed850ff84acc98a116e839cd5dcfefa12f2906b7d9c6e50d&origin=REDACT
+ UNAUTHORIZED: project not found, name: mesosphere: project not found, name: mesosphere
+This indicates that the image was not successfully pushed to your Harbor docker registry but is a false
+positive error message. This will only affect the version of the Nutanix Kubernetes Platform (NKP)
+binary newer than NKP 2.14.0. This does not affect any other Local Registry solution, such as Nexus or
+Artifactory. You can safely ignore these error messages.
+Bastion Host
+When creating an air-gapped cluster, the bastion Virtual Machine (VM) hosts the installation of the Nutanix
+Kubernetes Platform (NKP) Konvoy bundles, images, and the Docker or other local registry are needed
+to create and operate your cluster. In a given environment, the bastion VM must have access to the
+infrastructure provider’s Application Programming Interface (API).
+If you have not set up a Bastion Host yet, refer to that section of the documentation.
+Related Information
+If you need to configure a private registry with a registry mirror, see Use a Registry Mirror.
+Using a Registry Mirror
+Registry mirrors are local copies of images from a public registry that follows (or mirrors) the file structure
+of a public registry. You can push container images to a local registry from downloaded images or images
+you create with the Nutanix Image Builder on page 55. If your environment allows Internet access, the
+mirror registry consults its upstream registries when an image is not found locally. This kind of registry
+contains no images other than the ones requested.
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 992

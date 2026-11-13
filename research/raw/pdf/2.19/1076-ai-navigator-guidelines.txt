@@ -1,0 +1,78 @@
+
+--- page 1076 ---
+2. Click the AI Navigator icon in the lower-right corner of the dashboard.
+Figure 23: AI Navigator Icon in the NKP Dashboard
+3. Review and accept the user agreement to use AI Navigator.
+AI Navigator uses AI models trained on Nutanix product documentation and the Nutanix Support
+knowledge base to provide real-time, interactive assistance for a wide range of queries. A Pro or
+Ultimate license with DKP 2.6.0 or later is required.
+When you open AI Navigator for the first time, the user agreement appears. Click Yes, I agree to
+accept and continue. If you click No, not now, the AI Navigator window closes and you cannot use AI
+Navigator.
+AI Navigator responses include cluster live data automatically, because NKP enables the NKP MCP
+Server by default starting in NKP 2.19.
+Note:  AI Navigator maintains your query history for the duration of your browser session, even if you
+close the AI Navigator window.
+AI Navigator Guidelines
+General usage guidelines for AI Navigator. As with all AI engines, you must NOT enter sensitive
+information, including:
+•
+Full names, addresses, or other personally identifying information (PII)
+Nutanix Kubernetes Platform | AI Navigator | 1076
+
+--- page 1077 ---
+•
+Technical secrets:
+•
+Actual server names
+•
+Real IP addresses
+•
+Private keys
+•
+Access tokens
+•
+Any other technical details that might be useful to bad actors
+•
+Government ID numbers
+•
+Corporate, financial, or investment information
+•
+Company Confidential information
+•
+Company credentials, including actual usernames, or passwords
+•
+Secured or classified information
+Note:  Your organization might have specific rules about the prompts that you enter. Refer to your
+organization's guidelines for additional information.
+For more information about creating effective prompts, see AI Navigator Query Guidelines on page 1077.
+AI Navigator Query Guidelines
+Apply prompt engineering techniques to improve AI Navigator query results. AI Navigator uses a model
+trained on NKP and Kubernetes content for accurate responses.
+Prompt engineering is the practice of crafting precise queries to retrieve accurate responses from a
+chatbot. Several techniques that improve results with large language model chatbots also apply to AI
+Navigator.
+When you create a prompt, the chatbot breaks your entry into discrete parts to search its model. The more
+precise your prompt, the more relevant the response.
+Fine-tuning adjusts the parameters and data that a chatbot model searches to improve response accuracy.
+NKP fine-tunes the AI Navigator model with NKP documentation, Kubernetes documentation, and the NKP
+Support Knowledge Base to keep answers focused and relevant.
+What Goes in a Prompt
+You can include straight text, inline code snippets such as kubectl commands, and code block snippets,
+within a limit of 4,096 characters.
+AI Navigator maintains your query history for the duration of your browser session, whether you close the
+AI Navigator panel or keep it open..
+•
+Plain text: Use standard text to describe your question or provide context for AI Navigator.
+•
+Inline commands or code snippets: Use single backtick marks to include a word, phrase, or
+command. For example: What are the parameters I can use with the `nkp create cluster`
+command?
+•
+Code blocks: Use a triple backtick to open a code block for entry, as in many chat and collaboration
+applications. For example:
+Where do I need to use this code:
+```
+nkp create cluster aws \
+    --http-proxy=x.x.x.1
+Nutanix Kubernetes Platform | AI Navigator | 1077

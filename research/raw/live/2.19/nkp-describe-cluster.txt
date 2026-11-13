@@ -1,0 +1,16 @@
+NAME                                                                               READY  SEVERITY  REASON  SINCE  MESSAGE
+Cluster/<mgmt-cluster>                                                                                              
+├─ClusterInfrastructure - NutanixCluster/<mgmt-cluster>-cmt2n                                                       
+├─ControlPlane - KubeadmControlPlane/<mgmt-cluster>-6lfwl                                                           
+│ └─Machine/<mgmt-cluster>-6lfwl-8mwqp                                                True   Ready     3d2h         
+│   └─MachineInfrastructure - NutanixMachine/<mgmt-cluster>-6lfwl-8mwqp                                             
+└─Workers                                                                                                        
+  └─MachineDeployment/<mgmt-cluster>-md-0-x7d5z                                                                     
+    ├─Machine/<mgmt-cluster>-md-0-x7d5z-vwnsq-clg84                                   True   Ready     3d2h         
+    │ └─MachineInfrastructure - NutanixMachine/<mgmt-cluster>-md-0-x7d5z-vwnsq-clg84                                
+    ├─Machine/<mgmt-cluster>-md-0-x7d5z-vwnsq-gvhdb                                   True   Ready     3d2h         
+    │ └─MachineInfrastructure - NutanixMachine/<mgmt-cluster>-md-0-x7d5z-vwnsq-gvhdb                                
+    ├─Machine/<mgmt-cluster>-md-0-x7d5z-vwnsq-kjnld                                   True   Ready     3d2h         
+    │ └─MachineInfrastructure - NutanixMachine/<mgmt-cluster>-md-0-x7d5z-vwnsq-kjnld                                
+    └─Machine/<mgmt-cluster>-md-0-x7d5z-vwnsq-wq5dn                                   True   Ready     3d2h         
+      └─MachineInfrastructure - NutanixMachine/<mgmt-cluster>-md-0-x7d5z-vwnsq-wq5dn                                

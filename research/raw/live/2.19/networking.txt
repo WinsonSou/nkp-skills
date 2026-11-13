@@ -1,0 +1,91 @@
+=== kube-system daemonsets ===
+NAME           DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR            AGE
+cilium         5         5         5       5            5           kubernetes.io/os=linux   3d2h
+cilium-envoy   5         5         5       5            5           kubernetes.io/os=linux   3d2h
+multus         5         5         5       5            5           <none>                   3d2h
+
+=== kube-proxy present? ===
+Error from server (NotFound): daemonsets.apps "kube-proxy" not found
+No resources found in kube-system namespace.
+
+=== cilium-config keys/values (selected) ===
+bpf-lb-mode = dsr
+bpf-lb-mode-annotation = false
+default-lb-service-ipam = lbipam
+enable-health-check-loadbalancer-ip = false
+enable-hubble = true
+enable-ipv4 = true
+enable-ipv4-big-tcp = false
+enable-ipv4-masquerade = true
+enable-ipv6 = false
+enable-ipv6-big-tcp = false
+enable-ipv6-masquerade = true
+enable-l7-proxy = true
+enable-lb-ipam = true
+enable-policy = default
+enable-policy-secrets-sync = true
+hubble-disable-tls = false
+hubble-listen-address = :4244
+hubble-network-policy-correlation-enabled = true
+hubble-socket-path = /var/run/cilium/hubble.sock
+hubble-tls-cert-file = /var/lib/cilium/tls/hubble/server.crt
+hubble-tls-client-ca-files = /var/lib/cilium/tls/hubble/client-ca.crt
+hubble-tls-key-file = /var/lib/cilium/tls/hubble/server.key
+identity-allocation-mode = crd
+ipam = kubernetes
+ipam-cilium-node-update-rate = 15s
+kube-proxy-replacement = true
+kube-proxy-replacement-healthz-bind-address = 
+routing-mode = tunnel
+tunnel-protocol = geneve
+
+=== all cilium-config keys ===
+agent-not-ready-taint-key, auto-direct-node-routes, bpf-distributed-lru, bpf-events-drop-enabled, bpf-events-policy-verdict-enabled, bpf-events-trace-enabled, bpf-lb-acceleration, bpf-lb-algorithm-annotation, bpf-lb-dsr-dispatch, bpf-lb-external-clusterip, bpf-lb-map-max, bpf-lb-mode, bpf-lb-mode-annotation, bpf-lb-sock, bpf-lb-sock-hostns-only, bpf-lb-source-range-all-types, bpf-map-dynamic-size-ratio, bpf-policy-map-max, bpf-policy-stats-map-max, bpf-root, cgroup-root, cilium-endpoint-gc-interval, cluster-id, cluster-name, clustermesh-cache-ttl, clustermesh-enable-endpoint-sync, clustermesh-enable-mcs-api, clustermesh-mcs-api-install-crds, cni-exclusive, cni-log-file, custom-cni-conf, datapath-mode, debug, debug-verbose, default-lb-service-ipam, direct-routing-skip-unreachable, dnsproxy-enable-transparent-mode, dnsproxy-socket-linger-timeout, egress-gateway-reconciliation-trigger-interval, enable-auto-protect-node-port-range, enable-bpf-clock-probe, enable-drift-checker, enable-dynamic-config, enable-endpoint-health-checking, enable-endpoint-lockdown-on-policy-overflow, enable-health-check-loadbalancer-ip, enable-health-check-nodeport, enable-health-checking, enable-hubble, enable-ipv4, enable-ipv4-big-tcp, enable-ipv4-masquerade, enable-ipv6, enable-ipv6-big-tcp, enable-ipv6-masquerade, enable-k8s-networkpolicy, enable-l2-neigh-discovery, enable-l7-proxy, enable-lb-ipam, enable-masquerade-to-route-source, enable-metrics, enable-no-service-endpoints-routable, enable-node-selector-labels, enable-non-default-deny-policies, enable-policy, enable-policy-secrets-sync, enable-sctp, enable-service-topology, enable-source-ip-verification, enable-tcx, enable-vtep, enable-well-known-identities, enable-xt-socket-fallback, envoy-access-log-buffer-size, envoy-base-id, envoy-keep-cap-netbindservice, external-envoy-proxy, health-check-icmp-failure-threshold, http-retry-count, http-stream-idle-timeout, hubble-disable-tls, hubble-listen-address, hubble-network-policy-correlation-enabled, hubble-socket-path, hubble-tls-cert-file, hubble-tls-client-ca-files, hubble-tls-key-file, identity-allocation-mode, identity-gc-interval, identity-heartbeat-timeout, identity-management-mode, install-no-conntrack-iptables-rules, ipam, ipam-cilium-node-update-rate, iptables-random-fully, k8s-require-ipv4-pod-cidr, k8s-require-ipv6-pod-cidr, kube-proxy-replacement, kube-proxy-replacement-healthz-bind-address, max-connected-clusters, mesh-auth-enabled, mesh-auth-gc-interval, mesh-auth-queue-size, mesh-auth-rotated-identities-queue-size, metrics-sampling-interval, monitor-aggregation, monitor-aggregation-flags, monitor-aggregation-interval, nat-map-stats-entries, nat-map-stats-interval, node-port-bind-protection, nodeport-addresses, nodes-gc-interval, operator-api-serve-addr, operator-prometheus-serve-addr, packetization-layer-pmtud-mode, policy-cidr-match-mode, policy-default-local-cluster, policy-deny-response, policy-secrets-namespace, policy-secrets-only-from-secrets-namespace, preallocate-bpf-maps, procfs, proxy-cluster-max-connections, proxy-cluster-max-requests, proxy-connect-timeout, proxy-idle-timeout-seconds, proxy-initial-fetch-timeout, proxy-max-active-downstream-connections, proxy-max-concurrent-retries, proxy-max-connection-duration-seconds, proxy-max-requests-per-connection, proxy-use-original-source-address, proxy-xff-num-trusted-hops-egress, proxy-xff-num-trusted-hops-ingress, remove-cilium-node-taints, routing-mode, service-no-backend-response, set-cilium-is-up-condition, set-cilium-node-taints, synchronize-k8s-nodes, tofqdns-dns-reject-response-code, tofqdns-enable-dns-compression, tofqdns-endpoint-max-ip-per-hostname, tofqdns-idle-connection-grace-period, tofqdns-max-deferred-connection-deletes, tofqdns-preallocate-identities, tofqdns-proxy-response-max-delay, tunnel-protocol, tunnel-source-port-range, unmanaged-pod-watcher-interval, vtep-cidr, vtep-endpoint, vtep-mac, vtep-mask, write-cni-conf-when-ready
+
+=== metallb IPAddressPools / L2Advertisement / BGPAdvertisement (names only) ===
+NAME                               AUTO ASSIGN   AVOID BUGGY IPS   ADDRESSES
+ipaddresspool.metallb.io/metallb   true          false             ["<ip>-<ip>"]
+
+NAME                                 IPADDRESSPOOLS   IPADDRESSPOOL SELECTORS   INTERFACES
+l2advertisement.metallb.io/metallb   ["metallb"]                                
+
+=== ingressclasses ===
+NAME                          CONTROLLER                      PARAMETERS   AGE
+kommander-traefik (default)   traefik.io/ingress-controller   <none>       3d2h
+
+=== gatewayclasses ===
+NAME      CONTROLLER                      ACCEPTED   AGE
+traefik   traefik.io/gateway-controller   Unknown    3d2h
+
+=== LoadBalancer services (names/types only) ===
+kommander	kommander-traefik	LoadBalancer	ports=8085/TCP,5000/TCP,80/TCP,443/TCP	lbIPs=1
+
+=== kube-vip ===
+No resources found in kube-system namespace.
+kube-vip-<mgmt-cluster>-6lfwl-8mwqp                   1/1     Running     0              3d2h
+
+=== kube-vip config / pod spec (image+args) ===
+{
+  "name": "kube-vip-<mgmt-cluster>-6lfwl-8mwqp",
+  "node": "<mgmt-cluster>-6lfwl-8mwqp",
+  "image": [
+    "ghcr.io/kube-vip/kube-vip:v1.1.1"
+  ],
+  "command": [
+    null
+  ],
+  "args": [
+    [
+      "manager"
+    ]
+  ]
+}
+
+=== multus networks / net-attach-defs ===
+No resources found
+
+=== service CIDR / pods (from kubeadm config cm) ===
+kubernetesVersion: v1.36.2
+  dnsDomain: cluster.local
+  podSubnet: 192.168.0.0/16
+  serviceSubnet: 10.96.0.0/12

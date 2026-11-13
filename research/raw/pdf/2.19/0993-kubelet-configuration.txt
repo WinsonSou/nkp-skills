@@ -1,0 +1,96 @@
+
+--- page 993 ---
+Kubelet Configuration
+Customize supported kubelet settings for control plane and worker nodes in NKP 2.18.0 and later.
+You can customize kubelet configuration through Cluster API Runtime Extensions (CAREN).
+Important:
+•
+Only documented kubelet settings are supported. Modifications outside this documented
+guidance are not supported.
+•
+Modifying kubelet configuration can trigger a rolling update of affected machines because
+these changes are rendered into KubeadmConfig and trigger a node template change.
+Kubelet configuration is applied independently to control plane and worker nodes. There is no cluster-level
+default. All fields are optional. If you do not set a field, the kubelet default applies.
+For more information on the upstream options, see the Kubernetes KubeletConfiguration reference.
+Configuration Locations
+•
+Control plane nodes: clusterConfig.controlPlane.kubeletConfiguration
+•
+Worker nodes: workerConfig.kubeletConfiguration
+Supported Options
+Use the following categorized tables to identify supported kubelet fields and their behavior.
+The following table lists pod limit fields:
+Table 82: Pod Limit Fields
+Field
+Description
+maxPods
+Maximum number of pods per node (50–256).
+podPidsLimit
+Maximum number of PIDs per pod (1024–16384).
+The following table lists resource reservation fields:
+Table 83: Resource Reservation Fields
+Field
+Description
+systemReserved
+Resources reserved for operating system daemons
+(cpu, memory, ephemeral-storage, pid).
+kubeReserved
+Resources reserved for Kubernetes components.
+enforceNodeAllocatable
+Controls which reservations are enforced through
+cgroups (pods, system-reserved, kube-reserved,
+system-reserved-compressible, kube-
+reserved-compressible).
+The following table lists eviction fields:
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 993
+
+--- page 994 ---
+Table 84: Eviction Fields
+Field
+Description
+evictionHard
+Hard eviction thresholds for immediate pod eviction.
+evictionSoft
+Soft eviction thresholds for delayed eviction.
+evictionSoftGracePeriod
+Grace periods for soft eviction signals.
+The following table lists resource management fields:
+Table 85: Resource Management Fields
+Field
+Description
+topologyManagerPolicy
+NUMA-aware resource alignment policy (none,
+best-effort, restricted, single-numa-node).
+cpuManagerPolicy
+Controls cpuset assignment (none, static).
+memoryManagerPolicy
+Controls memory management (None, Static).
+The following table lists security and kernel fields:
+Table 86: Security and Kernel Fields
+Field
+Description
+protectKernelDefaults
+Causes kubelet to fail if kernel flags differ from
+expected values.
+seccompDefault
+Applies the runtime default seccomp profile to pods
+that do not explicitly set a seccomp profile.
+The following table lists logging and garbage collection fields:
+Table 87: Logging and Garbage Collection Fields
+Field
+Description
+containerLogMaxSize
+Maximum size of a container log file before rotation.
+containerLogMaxFiles
+Maximum number of rotated log files per container.
+imageGCHighThresholdPercent
+Disk usage percentage above which image
+garbage collection always runs.
+imageGCLowThresholdPercent
+Disk usage percentage below which image garbage
+collection never runs.
+maxParallelImagePulls
+Maximum number of concurrent image pulls.
+The following table lists node shutdown fields:
+Nutanix Kubernetes Platform | Additional Konvoy Configurations | 994

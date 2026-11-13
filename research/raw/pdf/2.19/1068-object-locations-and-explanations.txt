@@ -1,0 +1,159 @@
+
+--- page 1068 ---
+•
+Cluster names
+For the compatible components and application versions, see NKP Release Notes on the Nutanix Support
+Portal.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: kube-prometheus-stack
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: kube-prometheus-stack-46.8.0
+    kind: ClusterApp
+  clusterSelector:
+    matchExpressions:
+    - key: kommander.d2iq.io/cluster-name
+      operator: In
+      values:
+      - attached-cluster1
+      - attached-cluster3-new
+EOF
+To verify the Current Configuration of your Application, see Verifying Applications on page 1063.
+Object Locations and Explanations
+Troubleshoot using Kommander component resource locations.
+Objects are created and interact in many steps with coordination between various components and
+applications. What deploys the Platform Applications, where are the charts stored, what is the mechanism
+that deploys them, and how are settings customized.
+After installing the Konvoy components of NKP using the NKP CLI, install the Kommander component. For
+more information, see NKP Concepts and Terms on page 20.
+Kommander
+Kommander uses many individual applications to manage resources. The following explains the
+process(es) that deploy them.
+Table 92: Kommander Objects and the Resources they Manage
+Kommander Object
+Managed Resource
+kommander-applications repository
+Flux
+Deploys Flux from a set of Kubernetes manifest files.
+Helm Repositories
+Applies the Helm Repository resources from this repository.
+ChartMuseum
+(Air-gapped Only) ChartMuseum stores the Helm Charts for Air-
+gapped installations. In non-air-gapped installations, the charts
+are fetched from upstream repositories, and ChartMuseum is not
+installed.
+Gatekeeper
+Deploys Gatekeeper by applying the HelmRelease directly to the
+cluster. AppDeployment adopts the HelmRelease.
+kommander-appmanagement
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1068
+
+--- page 1069 ---
+Kommander Object
+Managed Resource
+AppManagement
+Deploys kommander-appmanagement via applying the HelmRelease
+directly to the cluster.
+Core AppDeployments
+Creates AppDeployments for the core components: Flux,
+kommander-appmanagement , and ChartMuseum. These
+components were previously deployed, but this creates the
+AppDeployments, which will eventually manage the Applications.
+apps-kommander
+Bootstrap Repository
+Creates the apps-kommander Kubstomization, which deploys
+apps into the kommander Namespace on the Management
+Cluster. Commits manifests and directories to the Management git
+repository to set up the Management Cluster and the repository
+structure.
+kommander-ca
+Root CA
+Creates Cert-manager custom resources: kommander-ca
+clusterIssuer, kommander-ca Certificate, and a self-signed
+ClusterIssuer. Then, waits for the kommander-ca certificate to be
+created and accessible.
+kommander
+Ingress Certificate
+Chart values are used to create the self-attached
+KommanderCluster with custom domain/custom certificate settings.
+It also creates ACME resources(ClusterIssuer) as defined in the
+installer configuration.
+kommander-vars
+Flux Configuration
+Creates the management GitRepository object and commits it to
+Git as well as encrypts and commits the Gitea credentials to Git.
+Flux populates the kommander-vars ConfigMap with substitution
+variables.
+Catalog Repository Loader
+Creates and commits the GitRepository objects to the management
+Git repository that are defined in the installer config(catalog). These
+default catalo Git repositories are then managed by a controller
+(DefaultCatalogGitRepository) which does things like: Propagate the
+GitRepository objects to workspaces and projects based on labels.
+Related information
+https://github.com/mesosphere/kommander-applications/tree/main/common/helm-repositories
+Kommander Resource Locations
+Installation happens in many steps, with coordination between various components and applications.
+This section describes the process and locations for multiple repositories. After installing the Konvoy
+components of NKP using the NKP CLI, install the Kommander component, by completing the following
+tasks.
+Kommander Installation Part I:
+1.
+Base - Deploys base resources required, including Kommander and kommander flux namespaces.
+2.
+Flux - Deploys Flux from a set of Kubernetes manifest files in the kommander-applications
+repository (deployments, etc).
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1069
+
+--- page 1070 ---
+3.
+Root CA - Creates Cert-manager custom resources: kommander-ca clusterIssuer, kommander-ca
+Certificate, and a self-signed ClusterIssuer. Then, it waits for the kommander-ca Certificate to be
+created and accessible.
+4.
+ChartMuseum - Installs via the Helm library. The ChartMuseum Helm Release is created but will
+reconcile when the Git repository is created and populated. This is because ChartMuseum is being
+stored in the GitRepository. The installer will also set the helmRepositoryURL in the internal installer
+configuration to be used during the Helm repository installation in the next step.
+5.
+Helm Repositories - Applies the Helm Repository resources from the kommander-applications
+repository https://github.com/mesosphere/kommander-applications/tree/main/common/helm-
+repositories. If the helmRepositoryURL were set in the previous step, it would be applied via a
+substitution variable when the Helm Repository objects are applied. EX: “${helmMirrorURL:=https://
+kubernetes.github.io/dashboardx`}”
+6.
+Ingress Certificate - Sets kommander chart values to create the self-attached KommanderCluster with
+custom domain/custom certificate settings. It also creates ACME resources (ClusterIssuer) as defined
+in the installer configuration.
+7.
+Bootstrap Repository - Commits manifests and directories to the Management git repository to
+set up the Management Cluster and the repository structure. It also creates the apps-kommander
+kustomization, which deploys apps into the kommander namespace on the Management Cluster.
+8.
+Age - Create an Age Encryption section for SOPs encryption and add the Age recipient(public) key to
+git.
+9.
+Flux Configuration - Populates the kommander-vars ConfigMap with substitution variables as well
+as creates the management GitRepository object and commits it to Git
+10. Gatekeeper Deploys Gatekeeper by applying the HelmRelease directly to the cluster. AppDeployment
+adopts the HelmRelease.
+11. AppManagement  - Deploys kommander-appmanagement via applying the HelmRelease directly to the
+cluster.
+12. Core AppDeployments - Creates AppDeployments for the core components: Flux, kommander-
+appmanagement and ChartMuseum. These components were previously deployed, but this creates the
+AppDeployments, which will eventually manage the Applications.
+13. Optional AppDeployments - Creates all the AppDeployments for the applications defined in the
+installer configuration.
+14. Catalog Repository Loader - Creates and commits the GitRepository objects to the management
+Git repository defined in the installer config (catalog). These default catalog Git repositories are then
+managed by a controller (DefaultCatalogGitRepository), which propagates the GitRepository objects
+to workspaces and projects based on labels.
+Note:  The NKP Release Notes on the Nutanix Support Portal contains the current version information for
+Applications.
+Kommander Installation Part II:
+This part of the installation deals with Kommander the Controller and Helm Charts.
+Nutanix Kubernetes Platform | Troubleshooting Guide | 1070

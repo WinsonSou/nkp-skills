@@ -1,0 +1,425 @@
+# nkp --help for the day-2 lifecycle commands (read-only, NKP 2.19.0 CLI on the lab bastion). Collected 2026-11-02.
+
+########## nkp scale nodepool --help ##########
+Scale a nodepool of a given cluster to the number of replicas
+
+Usage:
+  nkp scale nodepool name [flags]
+
+Aliases:
+  nodepool, nodepools
+
+Flags:
+  -c, --cluster-name name         Name used to prefix the cluster and all the created resources.
+  -h, --help                      Help for nodepool
+      --kubeconfig string         Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string          If present, the namespace scope for this CLI request. (default "default")
+      --nodes-to-delete strings   A list of node names to mark for deletion when scaling down a node pool. If left empty, the nodes to delete will be selected at random. (default [])
+      --replicas int32            The new desired number of replicas.
+      --use-context string        Use a specific context in a kubeconfig file.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp create nodepool nutanix --help ##########
+Create a nodepool in Nutanix.
+
+NAME must
+  - have no more than 63 characters
+  - consist of lower case alphanumeric characters, '-', or '.'
+  - must start and end with an alphanumeric character
+
+Usage:
+  nkp create nodepool nutanix NAME [flags]
+
+Flags:
+  -c, --cluster-name name               Name used to prefix the cluster and all the created resources.
+      --cores-per-vcpu int32            The number of cores per vCPU(equivalent to CPU cores) to use in a worker machine (default 1)
+      --disk-size int32                 The size of the primary disk (in GiB) of a worker machine (default 80)
+      --dry-run                         Only print the objects that would be created, without creating them.
+      --gpu-count int32                 Number of GPUs per VM in the nodepool. (default 1)
+      --gpu-name string                 Name of the GPU resource. Can be either vGPU profile or name of passthrough GPU. On Prism Central 7.6 or later, it's recommended to use --gpu-profile-name instead.
+      --gpu-profile-name string         Name of the AHV GPU profile to assign to each VM in the nodepool. Only supported on Prism Central 7.6 or later. Cannot be used together with --gpu-name.
+  -h, --help                            Help for nutanix
+      --kubeconfig string               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-version string       Kubernetes version (default "1.36.2")
+      --memory int32                    The size of memory (in GiB) of a worker machine (default 32)
+  -n, --namespace string                If present, the namespace scope for this CLI request. (default "kommander")
+  -o, --output string                   Output format. One of: (json, yaml, name).
+      --output-directory string         Used with --output=json|yaml. The directory where to output resources to files. The directory must already exist.
+      --pc-categories strings           Names of Prism Central categories to associate with worker resources (VMs, VGs, etc). Example: key1=value1,key1=value2,key2=value2 (default [])
+      --pc-project string               Name of Prism Central project to associate with worker resources (VMs, VGs, etc).
+      --prism-element-cluster string    Name of the Prism Element cluster to use to create a worker machine
+      --replicas int32                  Number of replicas (default 1)
+      --show-managed-fields             If true, keep the managedFields when printing objects in JSON or YAML format.
+      --skip-preflight-checks strings   Skip preflight checks. Use "all" to skip all checks, a comma-separated list of names to skip specific checks, or "" to run all checks, even if checks were previously skipped. (default [])
+      --subnets strings                 Names of Prism Central subnets to use for worker machines. Example: subnet1,subnet2,subnet3 (default [])
+      --timeout duration                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string              Use a specific context in a kubeconfig file.
+      --vcpus int32                     The number of vCPUs(equivalent to CPU sockets) to use in a worker machine (default 8)
+  -v, --verbose int                     Output verbosity
+      --vm-image string                 Name of OS image to use for worker machines.
+      --vm-profile string               Name of the VM profile to use for worker machine. Cannot be used with machine configuration flags: --cores-per-vcpu, --vcpus, --memory, --gpu-name, --gpu-profile-name, --gpu-count.
+      --wait                            If true, wait for operations to complete before returning.
+
+########## nkp create nodepool metal --help ##########
+Create a node pool in an existing cluster.
+
+Usage:
+  nkp create nodepool metal [nodepool-name] [flags]
+
+Flags:
+  -c, --cluster-name name                Name used to prefix the cluster and all the created resources.
+      --dry-run                          Only print the objects that would be created, without creating them.
+  -h, --help                             Help for metal
+      --host-selector stringToString     Host selector is a map of key-value pairs that are used to select hosts. Example: --host-selector metal.nutanix.io/inventory=test-inventory,metal.nutanix.io/gpu=test-gpu. Multiple selectors can be specified by repeating the flag. (default [])
+      --hosts strings                    Explicit list of host names to claim. Sets the replica count to the number of hosts provided. Mutually exclusive with --host-selector. (default [])
+      --kubeconfig string                Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --kubernetes-image-uri image-uri   Machine OS image URI uploaded to an OCI-compliant registry. The expected format is oci://<registry-url>/<registry-path>/<image-name>:<image-tag>. When unset, will be derived based on the Kubernetes versions using the registry mirror when one is configured.
+      --labels stringToString            Labels to set on the node pool machines (key=value). Example: --labels node-restriction.kubernetes.io/role=gpu-worker. (default [])
+  -n, --namespace string                 If present, the namespace scope for this CLI request. (default "kommander-default-workspace")
+  -o, --output string                    Output format. One of: (json, yaml, kyaml, name).
+      --replicas int32                   Number of workers. (default 1)
+      --show-managed-fields              If true, keep the managedFields when printing objects in JSON or YAML format.
+      --skip-preflight-checks strings    Skip preflight checks. Use "all" to skip all checks, a comma-separated list of names to skip specific checks, or "" to run all checks, even if checks were previously skipped. (default [])
+      --taints stringArray               Taints to set on the node pool machines. Format: key[=value]:effect. Valid effects: NoSchedule, PreferNoSchedule, NoExecute. Example: --taints dedicated=gpu:NoSchedule. (default [])
+      --timeout duration                 The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 1h0m0s)
+  -v, --verbose int                      Output verbosity
+      --wait                             If true, wait for operations to complete before returning. (default true)
+
+########## nkp delete nodepool --help ##########
+Delete a nodepool for a given cluster
+
+Usage:
+  nkp delete nodepool name [flags]
+
+Aliases:
+  nodepool, nodepools
+
+Flags:
+  -c, --cluster-name name    Name used to prefix the cluster and all the created resources.
+      --dry-run              Only print the objects that would be created, without creating them.
+  -h, --help                 Help for nodepool
+      --kubeconfig string    Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string     If present, the namespace scope for this CLI request. (default "default")
+      --use-context string   Use a specific context in a kubeconfig file.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp delete cluster --help ##########
+Delete a Kubernetes cluster
+
+Usage:
+  nkp delete cluster [flags]
+
+Flags:
+      --aws-service-endpoints string                      Custom AWS service endpoints in a semi-colon separated format: ${SigningRegion1}:${ServiceID1}=${URL},${ServiceID2}=${URL};${SigningRegion2}...
+      --bootstrap-cluster-image string                    Container image used to create the bootstrap cluster. Can be an image name or path to a file, e.g., ./nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar. If not provided, the default image will be used (default "docker.io/mesosphere/konvoy-bootstrap:v2.19.0")
+      --capi-additional-sync-machine-annotations string   Comma-separated list of regex patterns for additional machine annotations that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+      --capi-additional-sync-machine-labels string        Comma-separated list of regex patterns for additional machine labels that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+  -c, --cluster-name name                                 Name used to prefix the cluster and all the created resources.
+      --delete-kubernetes-resources                       Delete Kubernetes resources on the cluster before deleting that cluster (Services with type LoadBalancer) (default true)
+  -h, --help                                              Help for cluster
+      --http-proxy string                                 HTTP proxy for CAPI controllers
+      --https-proxy string                                HTTPS proxy for CAPI controllers
+      --kubeconfig string                                 Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string                                  If present, the namespace scope for this CLI request. (default "kommander")
+      --no-proxy strings                                  No Proxy list for CAPI controllers (default [])
+      --self-managed                                      When set to true, the required prerequisites and resources are moved from the self managed cluster before deleting. When set to false, the resources are assumed installed in a management cluster. (default false)
+      --timeout duration                                  The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 15m0s)
+      --wait                                              If true, wait for operations to complete before returning. This flag is ignored and will always be 'true' if used with the --self-managed flag. (default true)
+      --with-aws-bootstrap-credentials                    Set true to use AWS bootstrap credentials from your environment. When false, the instance profile of the EC2 instance where the CAPA controller is scheduled on will be used instead.
+      --with-gcp-bootstrap-credentials                    Set true to use GCP bootstrap credentials from your environment. When false, the service account of the VM instance where the CAPG controller is scheduled on will be used instead.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp get nodepools --help ##########
+Get nodepools for a given cluster
+
+Usage:
+  nkp get nodepools [flags]
+
+Aliases:
+  nodepools, nodepool
+
+Flags:
+  -c, --cluster-name name    Name used to prefix the cluster and all the created resources.
+  -h, --help                 Help for nodepools
+      --kubeconfig string    Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string     If present, the namespace scope for this CLI request. (default "default")
+      --use-context string   Use a specific context in a kubeconfig file.
+  -v, --verbose int          Output verbosity
+
+########## nkp get clusters --help ##########
+Get clusters from specified Workspace
+
+Usage:
+  nkp get clusters [CLUSTER_NAME] [flags]
+
+Aliases:
+  clusters, cluster
+
+Flags:
+  -A, --all-namespaces           If present, list the requested object(s) across all namespaces.
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for clusters
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+  -o, --output string            Output format. One of: table|yaml
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+  -w, --workspace string         Name of the workspace to show clusters from
+
+########## nkp update --help ##########
+Update one of [bootstrap (cluster), cluster, controlplane, nodepool]
+
+Usage:
+  nkp update [command]
+
+Available Commands:
+  bootstrap    Update bootstrap cluster
+  cluster      Update cluster resources
+  controlplane Update a Kubernetes cluster control plane, one of [aks, aws, azure, gcp, nutanix, preprovisioned, vsphere]
+  nodepool     Upate a Kubernetes cluster node pool, one of [aws, azure, gcp, preprovisioned, vsphere]
+
+Flags:
+  -h, --help          Help for update
+  -v, --verbose int   Output verbosity
+
+Use "nkp update [command] --help" for more information about a command.
+
+########## nkp update cluster --help ##########
+Update cluster resources
+
+Usage:
+  nkp update cluster [command]
+
+Available Commands:
+  nutanix-registry-credentials Set or rotate Nutanix DockerHub credentials on cluster(s).
+
+Flags:
+  -h, --help   Help for cluster
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp update cluster [command] --help" for more information about a command.
+
+########## nkp update controlplane --help ##########
+Update a Kubernetes cluster control plane, one of [aks, aws, azure, gcp, nutanix, preprovisioned, vsphere]
+
+Usage:
+  nkp update controlplane [command]
+
+Available Commands:
+  aks            Update a Kubernetes cluster control plane in AKS
+  aws            Update a Kubernetes cluster control plane in AWS
+  azure          Update a Kubernetes cluster control plane in Azure
+  gcp            Update a Kubernetes cluster control plane in GCP
+  nutanix        Update a Kubernetes cluster control plane in Nutanix
+  preprovisioned Update a Kubernetes cluster control plane in Preprovisioned
+  vsphere        Update a Kubernetes cluster control plane in vSphere
+
+Flags:
+  -h, --help   Help for controlplane
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp update controlplane [command] --help" for more information about a command.
+
+########## nkp update controlplane nutanix --help ##########
+Update a Kubernetes cluster control plane in Nutanix
+
+Usage:
+  nkp update controlplane nutanix [flags]
+
+Flags:
+  -c, --cluster-name name                               Name used to prefix the cluster and all the created resources.
+      --control-plane-renew-certificates-before int32   Enables automated control-plane certificates renewal. Provide the number of days between 7 and 360 when to trigger the certificate renewal. The renewal process will trigger new control-plane Machines to be created. A value of 0 disables the feature. (default 180)
+  -h, --help                                            Help for nutanix
+      --kubeconfig string                               Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string                                If present, the namespace scope for this CLI request. (default "default")
+      --timeout duration                                The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 30m0s)
+      --use-context string                              Use a specific context in a kubeconfig file.
+      --wait                                            If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp update nodepool nutanix --help ##########
+Upate a Kubernetes cluster node pool, one of [aws, azure, gcp, preprovisioned, vsphere]
+
+Usage:
+  nkp update nodepool [command]
+
+Available Commands:
+  aws            Update a Konvoy cluster node pool in AWS
+  azure          Update a Konvoy cluster node pool in Azure
+  gcp            Update a Konvoy cluster node pool in GCP
+  preprovisioned Update a Konvoy cluster node pool in Preprovisioned
+  vsphere        Update a Konvoy cluster node pool in vSphere
+
+Flags:
+  -h, --help   Help for nodepool
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp update nodepool [command] --help" for more information about a command.
+
+########## nkp rotate --help ##########
+commands to rotate credentials
+
+Usage:
+  nkp rotate [command]
+
+Available Commands:
+  dashboard-credentials rotate the dashboard credentials
+
+Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for rotate
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+Use "nkp rotate [command] --help" for more information about a command.
+
+########## nkp create bootstrap-token --help ##########
+Create a bootstrap token for the NKP host agent
+
+Usage:
+  nkp create bootstrap-token [flags]
+
+Flags:
+  -h, --help                Help for bootstrap-token
+      --kubeconfig string   Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -v, --verbose int         Output verbosity
+
+########## nkp delete capi-components --help ##########
+Delete the CAPI components from the cluster
+
+Usage:
+  nkp delete capi-components [flags]
+
+Flags:
+  -h, --help                Help for capi-components
+      --kubeconfig string   Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --timeout duration    The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 5m0s)
+      --wait                If true, wait for operations to complete before returning. (default true)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp cluster --help ##########
+Get cluster information
+
+Usage:
+  nkp cluster [command]
+
+Available Commands:
+  type        Retrieve cluster type
+
+Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for cluster
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+Use "nkp cluster [command] --help" for more information about a command.
+
+########## nkp update cluster nutanix-registry-credentials --help ##########
+Set or rotate the Nutanix DockerHub credentials used to pull NKP images.
+
+This command updates the Nutanix DockerHub credentials Secret
+(<cluster-name>-dockerhub-nutanix-credentials).
+
+Use --cluster-name to target a single cluster, --all to target every cluster in
+the selected namespace, or --all-namespaces to set the credentials on the
+management cluster and every workload cluster in the fleet.
+
+Usage:
+  nkp update cluster nutanix-registry-credentials [flags]
+
+Flags:
+      --all                                Set the credentials on every cluster in the selected namespace.
+      --all-namespaces                     Set the credentials on the management cluster and every workload cluster in the fleet.
+  -c, --cluster-name name                  Name used to prefix the cluster and all the created resources.
+  -h, --help                               Help for nutanix-registry-credentials
+      --kubeconfig string                  Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+  -n, --namespace string                   If present, the namespace scope for this CLI request. (default "default")
+      --nutanix-registry-password string   Personal access token (PAT) for the Nutanix DockerHub organization, used to pull NKP images.
+      --nutanix-registry-username string   Username for the Nutanix DockerHub organization, used to pull NKP images.
+      --use-context string                 Use a specific context in a kubeconfig file.
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp detach cluster --help ##########
+Detach a cluster
+
+Usage:
+  nkp detach cluster CLUSTER_NAME [flags]
+
+Flags:
+  -h, --help               Help for cluster
+      --timeout duration   The length of time to wait before giving up on a detach, defaults to wait forever (default 0s)
+      --wait               If true, wait for resources to be gone before returning. This waits for finalizers. (default true)
+  -w, --workspace string   Name of the workspace of the attached cluster
+
+Global Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+########## nkp move capi-resources --help ##########
+Move controllers and objects from one cluster to the other
+
+Usage:
+  nkp move capi-resources [flags]
+
+Flags:
+      --from-context string       Context to be used within the from-cluster's kubeconfig file. If empty, current context will be used.
+      --from-kubeconfig file      Path to the kubeconfig for pivot's source cluster. If unspecified, default discovery rules apply.
+  -h, --help                      Help for capi-resources
+  -n, --namespace string          If present, the namespace scope for this CLI request. (default "default")
+      --nkp-namespace string      Namespace on the from-cluster containing NKPCluster resources to move. (default "kommander")
+      --to-context string         Context to be used within the to-cluster's kubeconfig file. If empty, current context will be used.
+      --to-kubeconfig file        Path to the kubeconfig for pivot's destination cluster
+      --to-namespace string       Resources are moved to this namespace in the to-cluster. By default, the same as the from-cluster namespace.
+      --to-nkp-namespace string   Namespace on the to-cluster to move NKPCluster resources into. (default "kommander")
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp create bootstrap --help ##########
+Create bootstrap cluster
+
+Usage:
+  nkp create bootstrap [flags]
+
+Flags:
+      --aws-service-endpoints string                      Custom AWS service endpoints in a semi-colon separated format: ${SigningRegion1}:${ServiceID1}=${URL},${ServiceID2}=${URL};${SigningRegion2}...
+      --bootstrap-cluster-image string                    Container image used to create the bootstrap cluster. Can be an image name or path to a file, e.g., ./nkp-v2.19.0/konvoy-bootstrap-image-v2.19.0.tar. If not provided, the default image will be used (default "docker.io/mesosphere/konvoy-bootstrap:v2.19.0")
+      --bundle files                                      A comma separated list of bundle artifacts that will be pushed to an in-cluster registry. Supports glob pattern to match multiple artifacts (e.g. ./bundles/*.tar). Following artifacts must be provided: konvoy-image-bundle-v2.19.0.tar, kommander-image-bundle-v2.19.0.tar (default [])
+      --capi-additional-sync-machine-annotations string   Comma-separated list of regex patterns for additional machine annotations that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+      --capi-additional-sync-machine-labels string        Comma-separated list of regex patterns for additional machine labels that should be synced to Nodes. Use this with create commands that perform a fresh CAPI components installation (for example: create bootstrap, create capi-components, or create cluster --self-managed). These are added to the default patterns: ^nvidia\.com/.*,^(.*\.)?nutanix\.com/.*,^amd\.com/.*
+  -h, --help                                              Help for bootstrap
+      --http-proxy string                                 HTTP proxy for CAPI controllers
+      --https-proxy string                                HTTPS proxy for CAPI controllers
+      --kubeconfig string                                 Path to the kubeconfig for the management cluster. If unspecified, default discovery rules apply.
+      --no-proxy strings                                  No Proxy list for CAPI controllers (default [])
+      --timeout duration                                  The length of time to wait before giving up. Zero means wait forever (e.g. 300s, 30m, 3h). (default 20m0s)
+  -v, --verbose int                                       Output verbosity
+      --wait                                              If true, wait for operations to complete before returning. (default true)
+      --with-aws-bootstrap-credentials                    Set true to use AWS bootstrap credentials from your environment. When false, the instance profile of the EC2 instance where the CAPA controller is scheduled on will be used instead.
+      --with-gcp-bootstrap-credentials                    Set true to use GCP bootstrap credentials from your environment. When false, the service account of the VM instance where the CAPG controller is scheduled on will be used instead.
+

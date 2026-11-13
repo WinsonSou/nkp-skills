@@ -1,0 +1,10 @@
+NAME                                 STATUS   ROLES           AGE    VERSION   INTERNAL-IP    EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION              CONTAINER-RUNTIME
+<mgmt-cluster>-6lfwl-8mwqp              Ready    control-plane   3d2h   v1.36.2   <ip>    <none>        Ubuntu 24.04.5 LTS   6.8.0-124-generic (amd64)   containerd://2.3.1-d2iq.1
+<mgmt-cluster>-md-0-x7d5z-vwnsq-clg84   Ready    <none>          3d2h   v1.36.2   <ip>    <none>        Ubuntu 24.04.5 LTS   6.8.0-124-generic (amd64)   containerd://2.3.1-d2iq.1
+<mgmt-cluster>-md-0-x7d5z-vwnsq-gvhdb   Ready    <none>          3d2h   v1.36.2   <ip>    <none>        Ubuntu 24.04.5 LTS   6.8.0-124-generic (amd64)   containerd://2.3.1-d2iq.1
+<mgmt-cluster>-md-0-x7d5z-vwnsq-kjnld   Ready    <none>          3d2h   v1.36.2   <ip>   <none>        Ubuntu 24.04.5 LTS   6.8.0-124-generic (amd64)   containerd://2.3.1-d2iq.1
+<mgmt-cluster>-md-0-x7d5z-vwnsq-wq5dn   Ready    <none>          3d2h   v1.36.2   <ip>   <none>        Ubuntu 24.04.5 LTS   6.8.0-124-generic (amd64)   containerd://2.3.1-d2iq.1
+=== VERSION ===
+Client Version: v1.37.2
+Kustomize Version: v5.8.1
+Server Version: v1.36.2

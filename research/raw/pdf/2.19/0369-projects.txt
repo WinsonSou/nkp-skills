@@ -1,0 +1,1850 @@
+
+--- page 369 ---
+Projects
+Multi-cluster Configuration Management
+Projects support the management of configMaps, continuous deployments, secrets, services, quotas, and
+role-based access control and multi-tenant logging by leveraging federated resources. When a Project is
+created, NKP creates a federated namespace that is propagated to the Kubernetes clusters associated
+with this Project.
+Federation in this context means that a common configuration is pushed out from a central location (NKP)
+to all Kubernetes clusters, or a pre-defined subset group, under NKP management. This pre-defined
+subset group of Kubernetes clusters is called a Project.
+Projects enable teams to deploy their configurations and services to clusters in a consistent way. Projects
+enable central IT or a business unit to share their Kubernetes clusters among several teams.
+Kommander allows a user to use labels to select, manually or dynamically, the Kubernetes clusters
+associated with a Project.
+Project Namespaces
+A Project Namespace is a Kommander-specific concept. Project Namespaces isolate configurations across
+clusters and are created on all clusters matching the project labels. When creating a new project, you can
+customize the name of the Kubernetes namespace that is created.
+Creating a Project Using the UI
+About this task
+When you create a Project, you must specify a Project Name, a Namespace Name (optional) and a way to
+allow Kommander to determine which Kubernetes clusters will be part of this project.
+As mentioned previously, a Project Namespace corresponds to a Kubernetes Federated Namespace. By
+default, the name of the namespace is auto-generated based on the project name (first 57 characters) plus
+5 unique alphanumeric characters. You can specify a namespace name, but you must ensure it does not
+conflict with any existing namespace on the target Kubernetes clusters, that will be a part of the Project.
+To determine which Kubernetes clusters will be part of this project, you can either select manually existing
+clusters or define labels that Kommander will use to dynamically add clusters. The latter is recommended
+because it will allow you to deploy additional Kubernetes clusters later and to have them automatically
+associated with Projects based on their labels.
+To create a Project, you can either use the NKP UI or create a Project object on the Kubernetes cluster
+where Kommander is running (using kubectl or the Kubernetes API). The latter allows you to configure
+Kommander resources in a declarative way. It is available for all kinds of Kommander resources.
+To create a project using the NKP UI:
+Procedure
+1. Enter the following fields:
+•
+Project Name
+•
+ID / Namespace
+•
+Description
+2. In the Clusters field, add one or more active clusters.
+3. Click Create.
+Nutanix Kubernetes Platform | Cluster Operations Management | 369
+
+--- page 370 ---
+Creating a Project Using the CLI
+About this task
+The following sample is a YAML Kubernetes object for creating a Kommander Project. This example does
+not work verbatim because it depends on a workspace name that has been previously created and does
+not exist by default in your cluster.
+Procedure
+Use this as an example format and fill in the workspace name and namespace name appropriately along
+with the proper labels.
+apiVersion: workspaces.kommander.mesosphere.io/v1alpha1
+kind: Project
+metadata:
+  name: My-Project-Name
+  namespace: my-project-k8s-namespace-name
+spec:
+  workspaceRef:
+    name: myworkspacename
+  namespaceName: myworkspacename-di3tx
+  placement:
+    clusterSelector:
+      matchLabels:
+        cluster: prod
+The following procedures are supported for projects:
+•
+Project Applications on page 370
+•
+Project Deployments on page 387
+•
+Project Role Bindings on page 397
+•
+Project Roles on page 399
+•
+Project ConfigMaps on page 401
+•
+Project Secrets on page 402
+•
+Project Quotas and Limit Ranges on page 402
+•
+Project Network Policies on page 403
+Project Applications
+This section documents the applications and application types that you can utilize with NKP.
+Application types are:
+•
+Workspace Catalog Applications on page 327 that are either pre-packaged applications from the
+Nutanix Application Catalog or custom applications that you maintain for your teams or organization.
+•
+NKP Applications on page 271 are applications that are provided by Nutanix and added to the
+Catalog.
+•
+Custom Applications on page 354 are applications integrated into Kommander.
+•
+Platform Applications on page 294
+When deploying and upgrading applications, platform applications come as a bundle; they are tested as
+a single unit and you must deploy or upgrade them in a single process, for each workspace. This means
+Nutanix Kubernetes Platform | Cluster Operations Management | 370
+
+--- page 371 ---
+all clusters in a workspace have the same set and versions of platform applications deployed. Whereas
+catalog applications are individual, so you can deploy and upgrade them individually, for each project.
+Project Platform Applications
+How project Platform applications work
+The following table describes the list of applications that can be deployed to attached clusters within a
+project.
+Review the Project Platform Application Configuration Requirements on page 375 to ensure that the
+attached clusters in the project have sufficient resources.
+From within a project, you can enable applications to deploy. Verify that an application has successfully
+deployed through the CLI.
+Platform Applications
+Table 40: Platform Applications
+Name
+APP ID
+Deployed by default
+project-grafana-logging-11.3.3
+project-grafana-logging
+False
+project-grafana-loki-v3-3.6.7
+project-grafana-loki
+False
+project-logging-1.1.0
+project-logging
+False
+Enabling the Platform Application Using the UI
+About this task
+Follow these steps to:
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select your target workspace.
+3. From the left navigation menu, select Projects.
+4. From the list of project, select your project.
+5. To browse the available applications, select the Applications tab.
+6. Select the triple dot vertical from the bottom-right corner of the desired application tile, and then select
+Enable.
+7. If you want to override the default configuration values, copy your customized values into the text editor
+under Configure Application or upload your YAML file that contains the values.
+someField: someValue
+Nutanix Kubernetes Platform | Cluster Operations Management | 371
+
+--- page 372 ---
+8. Confirm the details are correct, and then click Enable.
+To use the CLI to enable or disable applications, see Deploying Platform Applications Using CLI on
+page 297
+Warning:  There may be dependencies between the applications, which are listed in Project Platform
+Application Dependencies on page 374. Review them carefully prior to customizing to ensure that
+the applications are deployed successfully.
+Platform Applications Upgrade Using the CLI
+Platform Applications within a Project are automatically upgraded when the Workspace that a Project
+belongs to is upgraded.
+Deploying Project Platform Applications Using the CLI
+Deploy applications to attached clusters in a project using the CLI.
+About this task
+This topic describes how to use the CLI to deploy an application to attached clusters within a project.
+For a list of all applications and those that are enabled by default, see Project Platform Applications on
+page 371.
+Before you begin
+Ensure that you have:
+•
+A running cluster with Kommander installed.
+•
+An existing Kubernetes cluster attached to Kommander.
+•
+Set the WORKSPACE_NAME environment variable to the name of the workspace where the cluster is
+attached.
+export WORKSPACE_NAME=<workspace_name>
+•
+Set the WORKSPACE_NAMESPACE environment variable to the namespace of the above workspace.
+export WORKSPACE_NAMESPACE=$(kubectl get namespace --
+selector='workspaces.kommander.mesosphere.io/workspace-name=${WORKSPACE_NAME}' -o
+ jsonpath='{.items[0].metadata.name}')
+•
+Set the PROJECT_NAME environment variable to the name of the project in which the cluster is included:
+export PROJECT_NAME=<project_name>
+•
+Set the PROJECT_NAMESPACE environment variable to the name of the above project's namespace:
+export PROJECT_NAMESPACE=$(kubectl get project ${PROJECT_NAMESPACE} -n
+ ${WORKSPACE_NAMESPACE} -o jsonpath='{.status.namespaceRef.name}')
+Procedure
+1. Deploy one of the supported applications to your existing attached cluster with an AppDeployment
+resource. Provide the appRef and application version to specify which App is deployed.
+nkp create appdeployment project-grafana-logging --app project-grafana-logging-11.3.3
+ --workspace ${WORKSPACE_NAME} --project ${PROJECT_NAME}
+Nutanix Kubernetes Platform | Cluster Operations Management | 372
+
+--- page 373 ---
+2. Create the resource in the project you just created, which instructs Kommander to deploy the
+AppDeployment to the KommanderClusters in the same project.
+Note:
+•
+The appRef.name must match the app name from the list of available catalog applications.
+•
+Observe that the nkp create command must be run with both the --workspace and --
+project flags for project platform applications.
+Deploying the Project Platform Application With Custom Configuration Using the CLI
+About this task
+To perform custom configuration using the CLI:
+Procedure
+1. Create the AppDeployment and provide the name of a ConfigMap, which provides custom configuration
+on top of the default configuration.
+nkp create appdeployment project-grafana-logging --app project-grafana-logging-11.3.3
+ --config-overrides project-grafana-logging-overrides --workspace ${WORKSPACE_NAME}
+ --project ${PROJECT_NAMESPACE}
+2. Create the ConfigMap with the name provided in the step above, with the custom configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${PROJECT_NAMESPACE}
+  name: project-grafana-logging-overrides
+data:
+  values.yaml: |
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+        - name: Loki
+          type: loki
+          url: "http://project-grafana-loki-loki-distributed-gateway"
+          access: proxy
+          isDefault: false
+EOF
+Kommander waits for the ConfigMap to be present before deploying the AppDeployment to the
+managed or attached clusters.
+Verify the Project Platform Applications
+After completing the previous steps, your applications are enabled.
+Procedure
+1. Export the project_namespace with this command.
+export PROJECT_NAMESPACE=<project_namespace>
+Nutanix Kubernetes Platform | Cluster Operations Management | 373
+
+--- page 374 ---
+2. Connect to the attached cluster and check the HelmReleases to verify the deployment.
+kubectl get helmreleases -n ${PROJECT_NAMESPACE}
+NAMESPACE               NAME                        READY   STATUS                   
+          AGE
+project-test-vjsfq      project-grafana-logging     True    Release reconciliation
+ succeeded   7m3s
+Note:  Some of the supported applications have dependencies on other applications. See Project
+Platform Application Dependencies on page 374 for that table.
+Project Platform Application Dependencies
+Dependencies between project platform applications.
+There are many dependencies between the applications that are deployed to a project’s attached clusters.
+It is important to note these dependencies when customizing the platform applications to ensure that
+your services are properly deployed to the clusters. For more information on how to customize platform
+applications, see Project Platform Applications on page 371.
+Application Dependencies
+When deploying or troubleshooting applications, it helps to understand how applications interact and may
+require other applications as dependencies.
+If an application’s dependency does not successfully deploy, the application requiring that dependency
+does not successfully deploy.
+The following sections detail information about the platform applications.
+Logging
+Collects logs over time from Kubernetes pods deployed in the project namespace. Also provides the ability
+to visualize and query the aggregated logs.
+•
+project-logging: Defines resources for the Logging Operator which uses them to direct the project’s logs
+to its respective Grafana Loki application. For more information, see https://grafana.com/oss/grafana/.
+•
+project-grafana-loki: A horizontally-scalable, highly-available, multi-tenant log aggregation system
+inspired by Prometheus. For more information, see https://grafana.com/oss/loki/.
+•
+project-grafana-logging: Logging dashboard used to view logs aggregated to Grafana Loki. For more
+information, see https://grafana.com/oss/grafana/.
+Warning:  The project logging applications depend on the Enabling Logging Applications Using the UI
+on page 557 being deployed.
+Table 41: Project Platform Application Dependencies
+Application
+Required Dependencies
+project-logging
+logging-operator (workspace)
+project-grafana-loki
+project-logging, grafana-loki (workspace), logging-
+operator (workspace)
+project-grafana-logging
+project-grafana-loki
+Nutanix Kubernetes Platform | Cluster Operations Management | 374
+
+--- page 375 ---
+Project Platform Application Configuration Requirements
+Project Platform Application Descriptions and Resource Requirements
+Platform applications require more resources than solely deploying or attaching clusters into a project.
+Your cluster must have sufficient resources when deploying or attaching to ensure that the applications are
+installed successfully.
+The following table describes all the platform applications that are available to the clusters in a project,
+minimum resource and persistent storage requirements, and whether they are enabled by default.
+Table 42: Project Platform Application Configuration Requirements
+Name
+Minimum
+Resources
+Suggested
+Minimum
+Persistent Storage
+Required
+Deployed by
+Default
+Default
+PriorityClass
+project-grafana-
+logging
+cpu: 200m
+memory: 100Mi
+No
+NKP Critical
+(100002000)
+project-grafana-loki
+# of PVs: 3
+PV sizes: 10Gi x 3
+(total: 30Gi)
+No
+NKP Critical
+(100002000)
+project-logging
+No
+NKP Critical
+(100002000)
+Project Catalog Applications
+Catalog applications are any third-party or open source applications that appear in the Catalog. These
+can be NKP applications provided by Nutanix for use in your environment or that can be used but are not
+supported by Nutanix.
+Upgrading Project Catalog Applications Using the UI
+Before upgrading your catalog applications, verify the current and supported versions of the application.
+Also, keep in mind the distinction between Platform applications and Catalog applications. Platform
+applications are deployed and upgraded as a set for each cluster or workspace. Catalog applications are
+deployed separately, so that you can deploy and upgrade them individually for each project.
+About this task
+Catalog applications must be upgraded to the latest version BEFORE upgrading the Konvoy component for
+Managed clusters or Kubernetes version for attached clusters.
+To upgrade an application from the NKP UI:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. From the side menu bar, select Projects.
+3. Select your target project.
+4. Select Applications from the project menu bar.
+Nutanix Kubernetes Platform | Cluster Operations Management | 375
+
+--- page 376 ---
+5. Select the three dot button from the bottom-right corner of the desired application tile, and then click
+Edit.
+6. Select the Version dropdown list, and select a new version. This dropdown list will only be available if
+there is a newer version to upgrade to.
+7. Click Save.
+Upgrading Project Catalog Applications Using the CLI
+About this task
+To upgrade project catalog applications:
+Procedure
+1. To see what app(s) and app versions are available to upgrade, run the following command:
+Note:  The APP ID column displays the available apps and the versions available to upgrade.
+kubectl get apps -n ${PROJECT_NAMESPACE}
+2. Run the following command to upgrade an application from the NKP CLI.
+nkp upgrade catalogapp <appdeployment-name> --workspace=my-workspace --project=my-
+project --to-version=<version.number>
+Note:  Platform applications cannot be upgraded on a one-off basis, and must be upgraded in a single
+process for each workspace. If you attempt to upgrade a platform application with these commands, you
+receive an error and the application is not upgraded.
+Project-level NKP Applications
+NKP applications are catalog applications provided by Nutanix for use in your environment.
+Some NKP workspace catalog applications will provision CustomResourceDefinitions, which allow you
+to deploy Custom Resources to a Project. See your NKP workspace catalog application’s documentation
+for instructions.
+Usage of Custom Resources with Workspace Catalog Applications
+Some workspace catalog applications provision one or more CustomResourceDefinition (CRD) objects
+as part of their deployment process.
+The CRDs allow you to deploy and manage the corresponding custom resources within your environment.
+For more information on how to configure and use the custom resources effectively, see the documentation
+specific to your workspace catalog application.
+Custom Project Applications
+Custom applications are third-party applications you have added to the Kommander Catalog.
+Custom applications are any third-party applications that are not provided in the NKP Application Catalog.
+Custom applications can leverage applications from the NKP Catalog or be fully-customized. There is
+no expectation of support by Nutanix for a Custom application. Custom applications can be deployed on
+Konvoy clusters or on any Nutanix supported 3rd party Kubernetes distribution.
+Nutanix Kubernetes Platform | Cluster Operations Management | 376
+
+--- page 377 ---
+•
+Git Repository Structure on page 355
+•
+Creating a Catalog Collection or an Application on page 357
+•
+Application Metadata on page 358
+•
+Enabling a Custom Application From the Project Catalog Using the UI on page 384 and Enabling a
+Custom Application From the Project Catalog Using the CLI on page 385
+Git Repository Structure
+Structure the Git repository so Kommander can process the applications you define.
+Git Repository Directory Structure
+The following command generates a new Git repository for catalog applications:
+mkdir -p /new/directory/for/catalog
+        cd /new/directory/for/catalog
+        nkp generate catalog-repository
+The following command generates a directory for an application version:
+nkp generate catalog-repository --apps <app-name>=<app-version>
+Use a separate command for each version of an application.
+These commands generate the following directory structure:
+...
+        ### applications
+        #   ### <app-name>
+        #       ### <app-version1>
+        #           ### helmrelease
+        #           #   ### cm.yaml             // ConfigMap specifying default
+ configuration overrides for HelmRelease
+        #           #   ### helmrelease.yaml    // OCIRepository and HelmRelease
+        #           #   ### kustomization.yaml  // Kubernetes Kustomization file
+        #           ### helmrelease.yaml        // FluxCD Kustomization file for the
+ HelmRelease
+        #           ### kustomization.yaml      // Kubernetes Kustomization file
+        #           ### metadata.yaml           // Application details
+        #       ### <app-version2>
+        #           ### helmrelease
+        #           #   ### cm.yaml
+        #           #   ### helmrelease.yaml
+        #           #   ### kustomization.yaml
+        #           ### helmrelease.yaml
+        #           ### kustomization.yaml
+        #           ### metadata.yaml
+        ...
+Remember the following guidelines:
+•
+Define applications in the applications/ directory.
+•
+You can define multiple versions of an application, under different directories nested under the
+applications/<app name>/ directory.
+•
+Populate the HelmRelease and OCIRepository details in the versioned directory applications/
+<app name>/<app version>/helmrelease in the helmrelease.yaml file. For more information, see
+HelmRelease, OCIRepository in the Flux documentation, and The Kustomization File in the SIG CLI
+documentation.
+Nutanix Kubernetes Platform | Cluster Operations Management | 377
+
+--- page 378 ---
+•
+Define the default values ConfigMap for HelmReleases in the applications/<app name>/<app
+version>/helmrelease/cm.yaml file accompanied by a kustomization.yaml Kubernetes
+Kustomization file pointing to the ConfigMap file.
+•
+Define the metadata.yaml of each application under the applications/<app name>/<app version>
+directory. For more information, see Application Metadata on page 358.
+•
+You can generate a new application version directory that includes the required layout and files with the
+following command:
+nkp generate catalog-repository --apps=<app-name>=<app-version>
+For an example of how to structure catalog Git repositories, see Overview of the Application Structure on
+page 353.
+OCI Repositories
+You must include the OCIRepository that is referenced in each HelmRelease's Chart spec.
+Each applications/<app name>/<app version>/helmrelease/helmrelease.yaml file must include
+YAML definition of the OCIRepository along with the HelmRelease definition.
+For more information, see OCI Repository in the Flux documentation.
+Substitution Variables
+Use the following substitution variables in HelmRelease, ConfigMap, and other manifests in the application
+version directory. These variables are available for workspace and project deployments. Flux replaces
+each variable when it applies the Kustomization. For more information, see Variable substitution in the Flux
+documentation.
+Table 43: Catalog Substitution Variables
+Variable
+Description
+${releaseName}
+Specifies the AppDeployment name.
+${releaseNamespace}
+Specifies the namespace where the application is deployed.
+${workspaceName}
+Specifies the workspace name.
+${workspaceNamespace}
+Specifies the workspace namespace.
+${appName}
+Specifies the catalog application name.
+${appVersion}
+Specifies the catalog application version.
+${projectName}*
+Specifies the project name.
+${projectNamespace}*
+Specifies the project namespace.
+${clusterName}
+Specifies the target cluster name.
+${clusterType}
+Specifies the infrastructure cluster type of the target cluster, such
+as NutanixCluster.
+${clusterUUID}
+Specifies the unique identifier of the kube-system namespace on
+the target cluster.
+Use ${releaseName} as a prefix or suffix in resource names so that you can deploy multiple instances of
+the same application. If you create resources without ${releaseName} in the name field, name conflicts
+can occur in the same namespace.
+Nutanix Kubernetes Platform | Cluster Operations Management | 378
+
+--- page 379 ---
+Note:  * NKP populates these variables only when you deploy the application in a project. Cluster labels are
+not available as substitution variables.
+Creating a Catalog Collection or an Application
+Use CLI to create a Flux OCIRepository resource in your workspace or project that acts as a source for
+your catalog applications.
+About this task
+Create an OCIRepository in the workspace or project namespace.
+Procedure
+1. To build an OCI artifact from your catalog git repository run the following command. This generates a .tar
+file locally.
+nkp create catalog-bundle --collection-tag <tag>
+Above command will bundle up all versions of all applications in the current directory.
+Note:
+•
+To include only selected applications use --apps flag.
+•
+To include the container images use --airgapped flag. This is required for air-gapped
+environments.
+2. Push the OCI artifact to a registry that is accessible to the cluster. The registry used must be OCI
+Compliant.
+nkp push bundle --bundle <path-to-file-generated-above.tar> --to-registry <your-
+registry-url>
+3. You can either create a catalog collection (group of applications) or just one application in your NKP
+Cluster. Note that creating a catalog in the Kommander workspace will automatically propagate it to
+all other workspaces/projects/. If you prefer to limit the scope of catalog to a single workspace
+or project, use the --workspace or --project flags accordingly. Run either one of the following
+commands:
+•
+Create a Catalog Collection
+nkp create catalog-collection --url oci://<registry-url>/<repo-name>/collection --
+workspace <workspace-or-project-namespace> --tag <tag>
+•
+Create a Catalog Application
+nkp create catalog-collection --url oci://<registry-url>/<repo-name>/<app-name> --
+workspace <workspace-or-project-namespace> --tag <app-version>
+4. Optionally, ensure the status of the OCIRepository signals a ready state.
+kubectl get ocirepository -n <workspace-or-project-namespace>${WORKSPACE_NAMESPACE}
+ <name-printed-in-above-create-command>
+The repository commit also displays the ready state.
+NAME                    URL                                       READY   STATUS     
+                                                                                     
+     AGE
+Nutanix Kubernetes Platform | Cluster Operations Management | 379
+
+--- page 380 ---
+example-repo      https://github.com/example-org/example-repo     True stored
+ artifact for digest
+ '2.16@sha256:c7cbee436dc81ac09c7b985696ba798c4d55f6964634c0f1e89e282e632aaaf3'     
+   1m
+Troubleshooting an OCIRepository
+Logs used for troubleshooting issues with creating OCIRepository sources.
+Procedure
+Review the following logs:
+kubectl -n kommander-flux logs -l app=source-controller
+[...]
+kubectl -n kommander-flux logs -l app=kustomize-controller
+[...]
+kubectl -n kommander-flux logs -l app=helm-controller
+[...]
+For more information, see:
+•
+Flux: https://fluxcd.io/
+•
+Flux documentation: https://fluxcd.io/docs
+Application Metadata
+You can define how custom applications display in the NKP UI by defining a metadata.yaml file for each
+version of an application in the git repository. You must define this file at applications/<app name>/<app
+version>/metadata.yaml for it to process correctly.
+You can define the following fields:
+Table 44: Application Metadata Schema
+Field
+Default
+Description
+displayName
+App ID
+Display name of the application for the UI.
+allowMultipleInstances
+true
+Whether multiple instances of the application can
+be installed.
+category
+[general]
+One or more categories for this application.
+Categories are used to group applications in the UI.
+description
+“”
+Short description, must be a sentence or two,
+displayed in the UI on the application card.
+dependencies
+List of applications that must be installed in order
+for the application to function properly. The UI will
+not block the installation of the application if the
+dependencies are not installed
+requiredDependencies
+List of applications that are required to be installed
+in order for the application to be enabled in the UI.
+k8sVersionSupport
+A string indicating the compatible Kubernetes
+version or range. For example, from 1.29 to 1.32).
+icon
+Base64 encoded icon SVG file used for application
+logos in the UI.
+Nutanix Kubernetes Platform | Cluster Operations Management | 380
+
+--- page 381 ---
+Field
+Default
+Description
+nkpVersionSupport
+A string indicating the compatible NKP version or
+range.
+overview
+Markdown overview used on the application detail
+page in the UI.
+supportLink
+A link to the support page
+scope
+[project]
+List of scopes, can be set only to project or
+workspace currently.
+upgradesFrom
+A string indicating the version or range of versions
+that the application can be upgraded from.
+licensing
+[Pro, Ultimate]
+Cluster must have one of these licenses applied in
+order for the application to be installable.
+certifications
+List of certifications that the application has.
+type
+custom
+Type of application
+The following JSON Schema must be adhered to in the metadata.yaml file for it to be processed
+accurately. To validate metadata.yaml against the schema, run the following command:
+nkp validate catalog-repository --repo-dir=/path/to/catalog-repository
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "catalog.nkp.nutanix.com/v1/application-metadata",
+  "properties": {
+    "schema": {
+      "type": "string",
+      "description": "Identifies the schema used."
+    },
+    "displayName": {
+      "type": "string",
+      "description": "Display name of the application for the UI.\nFalls back to App ID
+ if not given."
+    },
+    "allowMultipleInstances": {
+      "type": "boolean",
+      "description": "Whether multiple instances of the application can be installed.
+ Defaults to true.",
+      "default": true
+    },
+    "category": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "1 or more categories for this application. Categories are used to
+ group applications in the UI.\nDefaults to [general].",
+      "default": [
+        "general"
+      ]
+    },
+    "description": {
+      "type": "string",
+      "description": "Short description, should be a sentence or two, displayed in the
+ UI on the application card."
+    },
+    "dependencies": {
+Nutanix Kubernetes Platform | Cluster Operations Management | 381
+
+--- page 382 ---
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "List of applications that should be installed in order for the
+ application to function properly.\nThe UI will not block the installation of the
+ application if the dependencies are not installed."
+    },
+    "requiredDependencies": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "description": "List of applications that are required to be installed in order
+ for the application to be enabled in the UI."
+    },
+    "k8sVersionSupport": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)(\\.(0|[1-9]\\d*)){0,2}$|^((>=?|<=?)\\s*(v)?(0|[1-9]\
+\d*)(\\.(0|[1-9]\\d*)){0,2})(\\s*(>=?|<=?)\\s*(v)?(0|[1-9]\\d*))?(\\.(0|[1-9]\\d*))
+{0,2}?$",
+      "description": "A string indicating the compatible Kubernetes version or range."
+    },
+    "icon": {
+      "type": "string",
+      "description": "Base64 encoded icon SVG file used for application logos in the
+ UI."
+    },
+    "nkpVersionSupport": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)(\\.(0|[1-9]\\d*)){0,2}$|^((>=?|<=?)\\s*(v)?(0|[1-9]\
+\d*)(\\.(0|[1-9]\\d*)){0,2})(\\s*(>=?|<=?)\\s*(v)?(0|[1-9]\\d*))?(\\.(0|[1-9]\\d*))
+{0,2}?$",
+      "description": "A string indicating the compatible NKP version or range."
+    },
+    "overview": {
+      "type": "string",
+      "description": "Markdown overview used on the application detail page in the UI."
+    },
+    "supportLink": {
+      "type": "string",
+      "pattern": "^https?:\\/\\/([a-zA-Z0-9\\.-]+)\\.([a-zA-Z]{2,6})(:[0-9]{1,5})?(\\/
+[^\\s]*)?$",
+      "description": "A link to the support page."
+    },
+    "scope": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "project",
+          "workspace"
+        ]
+      },
+      "type": "array",
+      "description": "List of scopes, can be set only to project and/or workspace.
+ Defaults to project.",
+      "default": [
+        "project"
+      ]
+    },
+    "upgradesFrom": {
+      "type": "string",
+Nutanix Kubernetes Platform | Cluster Operations Management | 382
+
+--- page 383 ---
+      "pattern": "^(0|[1-9]\\d*)(\\.(0|[1-9]\\d*)){0,2}$|^((>=?|<=?)\\s*(v)?(0|[1-9]\
+\d*)(\\.(0|[1-9]\\d*)){0,2})(\\s*(>=?|<=?)\\s*(v)?(0|[1-9]\\d*))?(\\.(0|[1-9]\\d*))
+{0,2}?$",
+      "description": "A string indicating the version or range of versions that the
+ application can be upgraded from."
+    },
+    "licensing": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "Starter",
+          "Pro",
+          "Ultimate"
+        ]
+      },
+      "type": "array",
+      "description": "Cluster must have one of these licenses applied in order for the
+ application to be installable.\nDefaults to [Pro, Ultimate].",
+      "default": [
+        "Pro",
+        "Ultimate"
+      ]
+    },
+    "certifications": {
+      "items": {
+        "type": "string",
+        "enum": [
+          "airgapped",
+          "qualified",
+          "nutanix-supported"
+        ]
+      },
+      "type": "array",
+      "description": "List of certifications that the application has."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "internal",
+        "nkp-core-platform",
+        "nkp-catalog",
+        "preferred-partner",
+        "custom"
+      ],
+      "description": "Type of application.",
+      "default": "custom"
+    }
+  },
+  "additionalProperties": false,
+  "type": "object",
+  "required": [
+    "schema"
+  ],
+  "description": "Metadata for an application."
+}
+None of these fields are required for the application to display in the UI.
+Here is an example metadata.yaml file.
+schema: "catalog.nkp.nutanix.com/v1/application-metadata"
+displayName: Prometheus Monitoring Stack
+Nutanix Kubernetes Platform | Cluster Operations Management | 383
+
+--- page 384 ---
+description: Stack of applications that collect metrics and provides visualization and
+ alerting capabilities. Includes Prometheus, Prometheus Alertmanager and Grafana.
+category:
+  - monitoring
+overview: >
+  # Overview
+  A stack of applications that collects metrics and provides visualization and alerting
+ capabilities. Includes Prometheus, Prometheus Alertmanager and Grafana.
+  ## Dashboards
+  By deploying the Prometheus Monitoring Stack, the following platform applications and
+ their respective dashboards are deployed. After deployment to clusters in a workspace,
+ the dashboards are available to access from a respective cluster's detail page.
+  ### Prometheus
+  A software application for event monitoring and alerting. It records real-time
+ metrics in a time series database built using a HTTP pull model, with flexible and
+ real-time alerting.
+  - [Prometheus Documentation - Overview](https://prometheus.io/docs/introduction/
+overview/)
+  ### Prometheus Alertmanager
+  A Prometheus component that enables you to configure and manage alerts sent by the
+ Prometheus server and to route them to notification, paging, and automation systems.
+  - [Prometheus Alertmanager Documentation - Overview](https://prometheus.io/docs/
+alerting/latest/alertmanager/)
+  ### Grafana
+  A monitoring dashboard from Grafana that can be used to visualize metrics collected
+ by Prometheus.
+  - [Grafana Documentation](https://grafana.com/docs/)
+icon:
+ PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMDAgMzAwIiBzdHlsZT0iZW5hYm
+Enabling a Custom Application From the Project Catalog Using the UI
+Enable a Custom Application from the Project Catalog. After creating a GitRepository, you can either use
+the NKP UI or the CLI to enable your custom applications.
+About this task
+Note:  From within a project, you can enable applications to deploy. Verify that an application has
+successfully deployed through the CLI.
+Procedure
+1. From the top menu bar, select your target workspace.
+2. From the side menu bar, select Projects.
+3. Select your target project from the list.
+4. Select Applications from the sidebar menu to browse the available applications from your configured
+repositories.
+Nutanix Kubernetes Platform | Cluster Operations Management | 384
+
+--- page 385 ---
+5. Select the three dot button from the bottom-right corner of the desired application tile, and then select
+Enable.
+6. If available, select a version from the dropdown list. This dropdown list will only be visible if there is
+more than one version.
+7. (Optional) If you want to override the default configuration values, copy your customized values into the
+text editor under Configure Application or upload your YAML file that contains the values.
+someField: someValue
+8. Confirm the details are correct, and then click Enable.
+For all applications, you must provide a display name and an ID which is automatically generated
+based on what you enter for the display name, unless or until you edit the ID directly. The ID must be
+compliant with Kubernetes DNS subdomain name validation rules. For more information, see https://
+kubernetes.io/docs/concepts/overview/working-with-objects/names/#dns-subdomain-names.
+Alternately, you can use the CLI to enable your catalog applications. For more information, see
+Deployment of Catalog Applications in Workspaces on page 348.
+Enabling a Custom Application From the Project Catalog Using the CLI
+Enable a Custom Application from the Project Catalog. After creating a GitRepository, you can either use
+the NKP UI or the CLI to enable your custom applications.
+About this task
+Note:  From within a project, you can enable applications to deploy. Verify that an application has
+successfully deployed through the CLI.
+Procedure
+1. Set the PROJECT_NAMESPACE environment variable to the name of the above project's namespace.
+export PROJECT_NAMESPACE=<project_namespace>
+2. Get the list of available applications to enable using the following command.
+kubectl get apps -n ${PROJECT_NAMESPACE}
+3. Enable one of the supported applications from the list with an AppDeployment resource.
+4. Within the AppDeployment resource. Provide the appRef and application version to specify which App is
+deployed.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: my-custom-app
+  namespace: ${PROJECT_NAMESPACE}
+spec:
+  appRef:
+    name: custom-app-0.0.1
+    kind: App
+EOF
+Note:  The appRef.name must match the app name from the list of available catalog applications.
+Nutanix Kubernetes Platform | Cluster Operations Management | 385
+
+--- page 386 ---
+Enabling a Custom Application Configuration With Custom Configuration Using the CLI
+About this task
+Follow these steps:
+Procedure
+1. Provide the name of a ConfigMap in the AppDeployment, which provides custom configuration on top of
+the default configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: my-custom-app
+  namespace: ${PROJECT_NAMESPACE}
+spec:
+  appRef:
+    name: custom-app-0.0.1
+    kind: App
+  configOverrides:
+    name: my-custom-app-overrides
+EOF
+2. Create the ConfigMap with the name provided in the step above, with the custom configuration.
+cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${PROJECT_NAMESPACE}
+  name: my-custom-app-overrides
+data:
+  values.yaml: |
+    someField: someValue
+EOF
+Kommander waits for the ConfigMap to be present before deploying the AppDeployment to the attached
+clusters in the Project.
+Project: Verify the Custom Applications
+After completing the previous steps, your applications are enabled.
+Procedure
+Connect to the attached cluster and check the HelmReleases to verify the deployment.
+kubectl get helmreleases -n ${PROJECT_NAMESPACE}
+The output looks similar to this:
+NAMESPACE               NAME            READY   STATUS                             AGE
+project-test-vjsfq      my-custom-app   True    Release reconciliation succeeded   7m3s
+Custom Applications Upgrade
+You must maintain your custom applications manually.
+Nutanix Kubernetes Platform | Cluster Operations Management | 386
+
+--- page 387 ---
+When upgrading NKP, ensure you validate for compatibility issues any custom applications you run against
+the current version of Kubernetes. We recommend upgrading to the latest compatible application versions
+as soon as possible.
+Project AppDeployments
+An AppDeployment is a Custom Resource created by NKP with the purpose of deploying applications
+(platform, NKP catalog and custom applications).
+For more information about these Custom Resources and how to customize them, see Printing and
+Reviewing the Current State of an AppDeployment Resource on page 273 section of this guide.
+Project Deployments
+Use Project Deployments to manage GitOps based Continuous Deployments.
+You can configure Kommander Projects with GitOps-based Continuous Deployments for federation of
+your Applications to associated clusters of the project. This is backed by Flux, which enables software and
+applications to be continuously deployed (CD) using GitOps processes. GitOps enables the application
+to be deployed as per a manifest that is stored in a Git repository. This ensures that the application
+deployment can be automated, audited, and declaratively deployed to the infrastructure.
+GitOps
+GitOps is a modern software deployment strategy. The configuration that describes how your application is
+deployed to a cluster are stored in a Git repository. The configuration is continuously synchronized from the
+Git repository to the cluster, ensuring that the specified state of the cluster always matches what is defined
+in the “GitOps” Git repository.
+The benefits of using a GitOps deployment strategy are:
+•
+Familiar, collaborative change and review process. Engineers are intimately familiar with Git-based
+workflows: branches, pull requests, code reviews, etc. GitOps leverages this experience to control the
+deployment of software and updates to catch issues early.
+•
+Clear change log and audit trail. The Git commit log serves as an audit trail to answer the question:
+“who changed what, and when?” Having such information available, you can contact the right people
+when fixing or prioritizing a production incident to determine the why and correctly resolve the issue as
+quickly as possible. Additionally, Kommander’s CD component (Flux CD) maintains a separate audit
+trail in the form of Kubernetes Events, as changes to a Git repository don’t include exactly when those
+changes were deployed.
+•
+Avoid configuration drift. The scope of manual changes made by operators expands over time. It soon
+becomes difficult to know which cluster configuration is critical and which is left over from temporary
+workarounds or live debugging. Over time, changing a project configuration or replicating a deployment
+to a new environment becomes a daunting task. GitOps supports simple, reproducible deployment to
+multiple different clusters by having a single source of truth for cluster and application configuration.
+That said, there are some cases when live debugging is necessary in order to resolve an incident in the
+minimum amount of time. In such cases, pull-request-based workflow adds precious time to resolution for
+critical production outages. Kommander’s CD strategy supports this scenario by letting you disable the
+auto sync feature. After auto sync is disabled, Flux will stop synchronizing the cluster state from the GitOps
+git repository. This lets you use kubectl, helm, or whichever tool you need to resolve the issue.
+Security
+Security measures and best practices to ensure the secure and efficient operation of FluxCD in multi-
+tenant environments on workload clusters.
+This section details the security measures implemented within Project Deployments to ensure secure
+multi-tenant deployments on workload clusters. These measures are designed to minimize the risk of
+unauthorized access and maintain the integrity of individual tenant environments.
+Nutanix Kubernetes Platform | Cluster Operations Management | 387
+
+--- page 388 ---
+Automated Service Account Generation and Namespace Restriction
+When a cluster administrator uses the NKP Project CD feature to manage Git repositories, a dedicated
+service account is automatically generated. This service account with the same name as the Project
+name is configured with limited RBAC permissions, restricting its access solely to the namespace where
+the resources are provisioned. This service account is applied on the root Kustomization pointing to
+the GitRepository and all the generated Kustomization and HelmRelease resources. This prevents
+tenants from accessing or modifying resources outside their designated namespace, ensuring isolation and
+avoiding potential conflicts.
+Benefits of Namespace Restriction
+•
+Enhanced Security: By limiting the service account's permissions to a specific namespace, we prevent
+unauthorized access to cluster-scoped resources, such as ClusterRoleBindings and ClusterRoles.
+This mitigates privilege escalation risk and ensures tenants can only manage resources within their
+environment.
+•
+Simplified Management: The automated generation of the service account with pre-configured,
+namespace-specific permissions simplifies the deployment process for cluster administrators. They do
+not need to manually create and configure service accounts for each tenant, reducing the administrative
+overhead.
+•
+Improved Isolation: Namespace restriction ensures tenants operate in isolated environments,
+preventing deployment interference and minimizing potential security breaches' impact. If a security
+issue arises within one tenant's namespace, it is contained within that namespace and does not affect
+other tenants.
+Best Practices for Multi-tenant Deployments
+In addition to the automated security measures, we recommend the following best practices for secure
+multi-tenant deployments:
+•
+Regularly Review RBAC Permissions: Periodically review the RBAC permissions assigned to the
+automatically generated service accounts to ensure that they align with the tenant's requirements and
+security policies.
+•
+Implement Network Policies: Use network policies to control traffic flow between namespaces and
+further enhance the isolation between tenants.
+•
+Monitor Resource Usage: Monitor resource usage within each namespace to identify potential
+anomalies and prevent resource starvation.
+•
+Gatekeeper Constraints: To enforce rules at the resource level, custom gatekeeper constraints must
+be implemented. This allows for fine-grained control over resource creation and modification, further
+enhancing security and compliance.
+Continuous Delivery with GitOps
+NKP enables software and applications to be continuously delivered (CD) using GitOps processes.
+GitOps enables you to deploy an application according to a manifest that is stored in a Git repository. This
+ensures that the application deployment can be automated, audited, and declaratively deployed to the
+infrastructure.
+This section contains step-by-step tutorials for performing some common deployment-related tasks using
+NKP. All tutorials begin with a Prerequisites section that contains links to any steps that need to be taken
+first. This means you can visit any tutorial to get started.
+•
+Secrets Stored in GitOps Repository Using SealedSecrets on page 389
+•
+Deploying a Sample Application from NKP GitOps on page 391
+Nutanix Kubernetes Platform | Cluster Operations Management | 388
+
+--- page 389 ---
+Secrets Stored in GitOps Repository Using SealedSecrets
+Securely managing secrets in a GitOps workflow using SealedSecrets
+For security reasons, Kubernetes secrets are usually the only resource that cannot be managed with a
+GitOps workflow. Instead of managing secrets outside of GitOps and having to use a third-party tool like
+Vault, SealedSecrets provides a way to keep all the advantages of using a GitOps workflow while avoiding
+exposing secrets. SealedSecrets is composed of two main components:
+•
+A CLI (Kubeseal) to encrypt secrets.
+•
+A cluster-side controller to decrypt the sealed secrets into regular Kubernetes secrets. Only this
+controller can decrypt sealed secrets, not even the original author.
+•
+This tutorial describes how to install these two components, configure the controller, and add or remove
+sealed secrets.
+For instructions on the latest release, see the release page. For full documentation on SealedSecrets, see
+the GitHub repository.
+Installing Kubeseal CLI to Encrypt Your Secrets
+Procedure
+Based on your OS, perform the following steps:
+•
+On MacOS:
+brew install kubeseal
+•
+On Linux:
+wget https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.18.1/
+kubeseal-0.18.1-linux-amd64.tar.gz -O kubeseal
+sudo install -m 755 kubeseal /usr/local/bin/kubeseal
+Installing the SealedSecrets Controller on Your Cluster
+This controller will be able to decrypt SealedSecrets and create Kubernetes secrets.
+Procedure
+1. Create the controller.
+kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/
+v0.18.1/controller.yaml
+2. Fetch the certificate that you will use to encrypt your secrets into sealed secrets.
+kubeseal --fetch-cert > mycert.pem
+3. Commit mycert.pem to your git repo.
+Adding a Secret
+Secrets can be securely added to Git using sealed secrets.
+Nutanix Kubernetes Platform | Cluster Operations Management | 389
+
+--- page 390 ---
+Procedure
+1. Export the project namespace that you are using for your GitOps repository.
+export PROJECT_NAMESPACE=<your-project-with-gitops>
+2. Create a Kubernetes secret and pipe it into kubeseal using the certificate mycert.pem that you fetched
+from the controller in the setup.
+echo '---' >> secrets.yaml
+kubectl create secret -n ${PROJECT_NAMESPACE} generic mysecret --dry-run=client -o
+ yaml --from-literal=my-secret=value | \
+    kubeseal --format yaml --cert mycert.pem >> secrets.yaml
+3. Go to the end of secrets.yaml where you just added your new sealed secret. Remove any
+“creationTimestamp” fields from the YAML.
+4. Apply the secrets.yaml file to your namespace. If you do not have permission, commit your changes
+to the repository and let FluxCD apply the changes for you.
+kubectl apply -f secrets.yaml
+5. The sealed secret controller will then decrypt the sealed secret and generate a Kubernetes secret from
+it. Your secret got successfully created by running:
+kubectl get secret mysecret -n ${PROJECT_NAMESPACE} -o yaml
+6. If your sealed secret got created successfully but did not generate the matching secret, look at the logs
+of the controller.
+kubectl logs -l=name=sealed-secrets-controller -n kube-system
+7. Commit secrets.yaml to your repository if you have not already done so in step 3.
+Removing a Secret
+Procedure
+1. Following the same example from above in “Adding a secret”, now remove the manifest for mysecret in
+secrets.yaml and commit those changes to the repository.
+2. Delete the SealedSecret in the cluster:
+kubectl delete SealedSecret -n ${PROJECT_NAMESPACE} mysecret
+3. Delete the secret itself.
+kubectl delete secret -n ${PROJECT_NAMESPACE} mysecret
+Rotating the Controller’s Sealing Key
+For added security, it is a good practice to rotate the key the controller uses to decrypt sealed secrets. By
+default, the controller generates a new key every 30 days.
+Nutanix Kubernetes Platform | Cluster Operations Management | 390
+
+--- page 391 ---
+Procedure
+1. When this happens, you need to update the certificate you use to create sealed secrets by fetching the
+latest one.
+kubeseal --fetch-cert > mycert.pem
+Note:  Do not forget to commit it back to the repository.
+In a disaster case, let’s say your cluster gets destroyed, you would lose all your sealing keys, so you
+would not be able to recreate all the secrets from the sealed secrets in your GitOps repository. For this
+reason, you might want to back up the sealing keys.
+2. To do this every time a new sealing key is generated, run.
+kubectl get secret -n kube-system -l sealedsecrets.bitnami.com/sealed-secrets-key -o
+ yaml > sealing-key
+Then store sealing-key with the others in a safe location such as OneLogin Notes or Vault. To restore
+from a backup after a disaster, recreate all of the sealing keys with kubectl apply -f sealing-key1
+sealing-key2 ... before starting the controller. If the controller was already started, restart it:
+kubectl delete pod -n
+      kube-system -l name=sealed-secrets-controller
+To disable sealing key rotation For example, configure the controller’s command in the pod template
+with --key-renew-period=0. See the following YAML file.
+Pod Template:
+  Labels:           name=sealed-secrets-controller
+  Service Account:  sealed-secrets-controller
+  Containers:
+   sealed-secrets-controller:
+    Image:      docker.io/bitnami/sealed-secrets-controller:v0.18.1
+    Port:       8080/TCP
+    Host Port:  0/TCP
+    Command:    controller
+      --key-renew-period=0
+If required, edit the controller’s manifest with:
+kubectl edit deployment.apps/sealed-secrets-controller -n kube-system
+Deploying a Sample Application from NKP GitOps
+Use this procedure to deploy a sample podinfo application from NKP Ultimate GitOps.
+Before you begin
+•
+Install NKP: For more information, see Installing NKP on page 46
+•
+Github account and personal access token. For more information, see Managing your personal access
+tokens
+•
+Add cluster to Kommander: For more information, see Attaching an Existing Kubernetes Cluster on
+page 426
+•
+Setup Workspace and Projects: For more information, see Workspaces on page 317.
+Note:  This procedure was run on an AWS cluster with NKP installed.
+Follow these steps:
+Nutanix Kubernetes Platform | Cluster Operations Management | 391
+
+--- page 392 ---
+Procedure
+1.
+Ensure you are on the Default Workspace (or other workspace you have access to) so that you can
+create a project.
+2.
+Create a project, as described in Projects on page 369. In the working example, we name the
+project pod-info. When you create a namespace, Kommander appends five alphanumeric characters.
+You can opt to select a target cluster for this project from one of the available attached clusters, and
+then this (pod-info-xxxxx) is the namespace used for deployments under the project.
+3.
+[Optional] Create a secret in order to pull from the repository, for private repositories.
+a. Select the Secrets tab and set up your secret according to the Continuous Deployment on
+page 393 documentation.
+b. Add a key and value pair for the GitHub personal access token and then select Create.
+4.
+Verify that the secret podinfo-secret is created on the project namespace in the managed or
+attached cluster.
+kubectl get secrets -n pod-info-xt2sz --kubeconfig=${CLUSTER_NAME}.conf
+NAME                         TYPE                                  DATA   AGE
+default-token-k685t          kubernetes.io/service-account-token   3      94m
+pod-info-xt2sz-token-p9k5z   kubernetes.io/service-account-token   3      94m
+podinfo-secret               Opaque                                1      1s
+tls-root-ca                  Opaque                                1      93m
+5.
+Select your project and then select the CD tab.
+6.
+In the Create GitOps Source dialog box, enter the following fields :
+1. Enter the ID(name). For example, podinfo-source.
+Note:  Ensure that the name is unique within the project. You cannot modify the name once it is
+saved.
+2. Enter the Repository URL. For example, https://github.com/stefanprodan/podinfo
+3. Select the Git Ref Type as Branch from the drop down list. Also, provide the Branch Name as
+master.
+Note:  If you do not enter a value, the Git reference uses the default branch for the repository.
+4. The Path value must contain where the manifests are located. In this example, we use ./kustomize
+as the Path value.
+5. Enter the Primary Git Secret (which is podinfo-secret) to access the private repositories that you
+created in the previous step. This can be disregarded for public repositories.
+7.
+Click Save.
+8.
+Do the following.
+a. Verify the status of gitrepository creation with this command (on the attached or managed
+cluster), and if READY is marked as True.
+kubectl get gitrepository -A --kubeconfig=${CLUSTER_NAME}.conf
+NAMESPACE        NAME           URL                                              
+          AGE    READY   STATUS
+kommander-flux   management     https://git-operator-git.git-operator-system.svc/
+repositories/kommander/kommander.svc/kommander/kommander.git   134m   True   
+ stored artifact for revision 'main/4fbee486076778c85e14f3196e49b8766e50e6ce'
+Nutanix Kubernetes Platform | Cluster Operations Management | 392
+
+--- page 393 ---
+pod-info-xt2sz   podinfo-source https://github.com/stefanprodan/podinfo
+                    116m   True    stored artifact for revision 'master/
+b3b00fe35424a45d373bf4c7214178bc36fd7872'
+9.
+Verify the Kustomization with this command below (on the attached or managed cluster), and if
+READY is marked as True.
+kubectl get kustomizations -n pod-info-xt2sz --kubeconfig=${CLUSTER_NAME}.conf
+NAME                 AGE    READY    STATUS
+originalpodinfo       10m    True     Applied revision: master/
+b3b00fe35424a45d373bf4c7214178bc36fd7872
+podinfo-source        113m   True     Applied revision: master/
+b3b00fe35424a45d373bf4c7214178bc36fd7872
+project               116m   True     Applied revision:
+ main/4fbee486076778c85e14f3196e49b8766e50e6ce
+project-tls-root-ca   117m   True     Applied revision:
+ main/4fbee486076778c85e14f3196e49b8766e50e6ce
+Note the
+port
+so that you can use to verify if the app is deployed correctly (on the attached or managed cluster).
+kubectl get deployments,services -n pod-info-xt2sz --kubeconfig=
+${CLUSTER_NAME}.conf
+NAME                      READY    UP-TO-DATE    AVAILABLE    AGE
+deployment.apps/podinfo   2/2      2             2            118m
+NAME              TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)             AGE
+service/podinfo   ClusterIP   10.99.239.120   <none>        9898/TCP,9999/TCP  
+ 118m
+10. Port forward the podinfo service (port 9898) to verify (on the attached or managed cluster):
+kubectl port-forward svc/podinfo -n pod-info-xt2sz 9898:9898 --kubeconfig=
+${CLUSTER_NAME}.conf
+Forwarding from 127.0.0.1:9898 -> 9898
+Forwarding from [::1]:9898 -> 9898
+Handling connection for 9898
+Handling connection for 9898
+Handling connection for 9898
+11. Open a browser and type in localhost:9898. A successful deployment of the podinfo app gives you
+this page.
+Continuous Deployment
+After installing Kommander and configuring your project and its clusters, navigate to the Continuous
+Deployment (CD) tab under your Project.
+Here you create a GitOps source which is a source code management (SCM) repository hosting the
+application definition. Nutanix recommends that you create a secret first then create a GitOps source
+accessed by the secret.
+Setting Up a Secret for Accessing GitOps
+You can create a secret that Kommander uses to deploy the contents of your GitOps repository.
+Nutanix Kubernetes Platform | Cluster Operations Management | 393
+
+--- page 394 ---
+About this task
+Kommander secrets (for CD) can be configured to support any of the following three authentication
+methods:
+•
+HTTPS Authentication (described above)
+•
+HTTPS self-signed certificates
+•
+SSH Authentication
+The following table describes the fields required for each authentication method.
+Procedure
+Table 45: Secret in GitOps
+HTTP Auth
+HTTPS Auth (Self-signed)
+SSH Auth
+username
+username
+identity
+password
+password
+identity.pub
+caFile
+known_hosts
+If you are using a GitHub personal access token, you must have a key:value pair of username.
+1. If you are using GitOps by using a GitHub repository as your source, you can create your secret with
+a personal access token. Then, in the NKP UI, in your project, create a Secret, with a key:value pair of
+password: <your-token-created-on-github>. If you are using a GitHub personal access token, you
+must have a key:value pair of username: <your-github-username>.
+2. If you are using a secret with your GitHub username and your password, you will need one secret
+created in the NKP UI, with key:value pairs of username: <your-github-username> and password:
+<your-github-password>.
+Note:  If you have multi-factor authentication turned on in your GitHub account, this will not work.
+Note:  Using a token without a username is valid for GitHub, but other providers (such as GitLab) require
+both username and tokens.
+Warning:  If you are using a public GitHub repository, you do not need to use a secret.
+Creating the GitOps Source
+After the secret is created, you can view it in the Secrets tab. Configure the GitOps source accessed by
+the secret.
+About this task
+Note:  If using an SSH secret, the SCM repository URL needs to be an SSH address. It does not support
+SCP syntax. The URL format is ssh://user@host:port/org/repository.
+It takes a few moments for the GitOps Source to be reconciled and the manifests from the SCM repository
+at the given path to be federated to attached clusters. After the sync is complete, manifests from GitOps
+source are created in attached clusters.
+After a GitOps Source is created, there are various commands that can be executed from the CLI to check
+the various stages of syncing the manifests.
+Nutanix Kubernetes Platform | Cluster Operations Management | 394
+
+--- page 395 ---
+Procedure
+On the management cluster, check your GitopsRepository to ensure that the CD manifests have been
+created successfully.
+kubectl describe gitopsrepositories.dispatch.d2iq.io -n<PROJECT_NAMESPACE> gitopsdemo
+Name:         gitopsdemo
+Namespace:    <PROJECT_NAMESPACE>
+...
+Events:
+  Type    Reason               Age    From                        Message
+  ----    ------               ----   ----                        -------
+  Normal  ManifestSyncSuccess  1m7s  GitopsRepositoryController  manifests synced to
+ bootstrap repo
+...
+On the attached cluster, check for your Kustomization and GitRepository resources. The status field
+reflects the syncing of manifests.
+kubectl get kustomizations.kustomize.toolkit.fluxcd.io -n<PROJECT_NAMESPACE>
+ <GITOPS_SOURCE_NAME> -oyaml
+...
+status:
+  conditions:
+  - reason: ReconciliationSucceeded
+    status: "True"
+    type: Ready
+    ...
+...
+Similarly, with GitRepository resource.
+kubectl get gitrepository.source.toolkit.fluxcd.io -n<PROJECT_NAMESPACE>
+ <GITOPS_SOURCE_NAME> -oyaml
+...
+status:
+  conditions:
+  - reason: GitOperationSucceed
+    status: "True"
+    type: Ready
+    ...
+...
+If there are errors creating the manifests, those events are populated in the status field of the
+GitopsRepository resource on the management cluster, the GitRepository and Kustomization
+resources on the attached cluster(s), or both.
+Editing the GitOps Source
+About this task
+To edit the GitOPs Source from within the UI::
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Projects from the sidebar menu.
+3. Select your project from the list.
+4. Select the Continuous Deployment (CD) tab.
+Nutanix Kubernetes Platform | Cluster Operations Management | 395
+
+--- page 396 ---
+5. Select the GitOps Sources button.
+From here, you can edit the ID (name), Repository URL, Git Ref Type , Branch Name, Type, Path, and
+Primary Git Secret.
+Suspending the GitOps Source
+There may be times when you need to suspend the auto-sync between the GitOps repository and the
+associated clusters. This live debugging may be necessary to resolve an incident in the minimum amount
+of time without the overhead of pull request based workflows.
+About this task
+To Suspend the GitOps Source from the NKP UI:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Projects from the sidebar menu.
+3. Select your project from the list.
+4. Select the Continuous Deployment (CD) tab.
+5. Select the three dot button to the right of the desired GitOps Source.
+6. Suspend to manually suspend the GitOps reconciliation.
+This lets you use kubectl, helm, or another tool to resolve the issue. After the issue is resolved select
+Resume to sync the updated contents of the GitOps source to the associated clusters.
+Similar to Suspend/Resume, you can use the Delete action to remove the GitOps source. Removing
+the GitOps source results in removal of all the manifests applied from the GitOps source.
+You can have more than one GitOps Source in your Project to deploy manifests from various sources.
+Kommander deployments are backed by FluxCD. For Flux docs for advanced configuration and more
+examples, see Source Controller at https://fluxcd.io/docs/components/source/ and Kustomize controller
+at https://fluxcd.io/docs/components/kustomize/.
+Project Deployments Troubleshooting
+•
+View the events and logs for deployments/kommander-cm in Kommander namespace, if there are any
+unexpected errors.
+•
+Enabling the Kommander repository controller for your project namespace causes a number of
+related Flux controller components to deploy into the namespace. These are necessary for the proper
+operation of the repository controller and should not be removed. For more information, see https://
+toolkit.fluxcd.io/components/.
+•
+Ensure your GitOps repository does not contain any manifests that are cluster-scoped - for example,
+Namespace, ClusterRole, ClusterRoleBinding, etc. All of the manifests must be namespace-scoped.
+•
+Ensure your GitOps repository does not contain any HelmRelease and Kustomization resources that
+are targeting a different namespace than the project namespace.
+Viewing Helm Releases
+In addition to viewing the current GitOps Sources, you can also view the currently deployed Helm
+Releases.
+Nutanix Kubernetes Platform | Cluster Operations Management | 396
+
+--- page 397 ---
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Projects from the sidebar menu.
+3. Select your project from the list.
+4. Select the Continuous Deployment (CD) tab.
+5. Click Helm Releases .
+All of the current Helm Release charts are displayed with their Chart Version and the names of the
+clusters.
+Note:  If an error occurs with the Helm Releases charts deployment, an “Install Failed” error status
+appears in the Kommander Host  field .
+Select the error status to open a screen that details specific issues related to the error.
+Project Role Bindings
+Project role bindings assign a specific project role to a specific group of users, providing controlled access
+to the project resources. You can configure these bindings either using the Nutanix Kubernetes® Platform
+(NKP) UI or CLI.
+Before creating a binding, you create a Kommander group that includes one or more identity provider
+users or groups. Using the NKP UI, you can create a group and assign the appropriate project role. Using
+the NKP CLI, you can configure bindings directly and, for a specific instance, bind a project role to a
+WorkspaceRole.
+Configuring Project Role Bindings Using the UI
+Before you can create a Project Role Binding, ensure you have created a Group. A Kommander Group can
+contain one or several Identity Provider users or groups.
+About this task
+You can assign a role to this Kommander Group:
+Procedure
+1. From the Projects page, select your project.
+2. Select the Role Bindings tab, then select Add Roles next to the group you want.
+3. Select the Role you want from the dropdown list, and then click Save.
+Configuring Project Role Bindings Using the CLI
+Procedure
+A Project role binding can also be created using kubectl.
+cat << EOF | kubectl create -f -
+apiVersion: workspaces.kommander.mesosphere.io/v1alpha1
+kind: VirtualGroupProjectRoleBinding
+metadata:
+  generateName: projectpolicy-
+  namespace: ${projectns}
+spec:
+  projectRoleRef:
+    name: ${projectrole}
+Nutanix Kubernetes Platform | Cluster Operations Management | 397
+
+--- page 398 ---
+  virtualGroupRef:
+    name: ${virtualgroup}
+EOF
+Configure Project Role Bindings to Bind to WorkspaceRoles Using the CLI
+You can also create a Project role binding to bind to a WorkspaceRole in certain instances.
+Procedure
+1. To list the WorkspaceRoles that you can bind to a Project, run the following command.
+kubectl get workspaceroles -n ${workspacens} -o=jsonpath="{.items[?
+(@.metadata.annotations.workspace\.kommander\.d2iq\.io\/project-default-workspace-
+role-for==\"${projectns}\")].metadata.name}"
+You can bind to any of the above WorkspaceRoles by setting spec.workspaceRoleRef in the project
+role binding.
+cat << EOF | kubectl create -f -
+apiVersion: workspaces.kommander.mesosphere.io/v1alpha1
+kind: VirtualGroupProjectRoleBinding
+metadata:
+  generateName: projectpolicy-
+  namespace: ${projectns}
+spec:
+  workspaceRoleRef:
+    name: ${workspacerole}
+  virtualGroupRef:
+    name: ${virtualgroup}
+EOF
+Note that you must specify either workspaceRoleRef or projectRoleRef to be validated by the
+admission webhook. Specifying both values is not valid and will cause an error.
+Ensure the projectns, workspacens, projectrole (or workspacerole) and the virtualgroup
+variables are set before executing the command.
+2. Then, if you run the following command on a Kubernetes cluster associated with the Project, you’ll see
+a Kubernetes RoleBinding Object, in the corresponding namespace.
+kubectl -n ${projectns} get rolebinding projectpolicy-gtct4-rdkwq -o yaml
+Sample output:
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  creationTimestamp: "2020-06-04T16:19:27Z"
+  labels:
+    kubefed.io/managed: "true"
+  name: projectpolicy-gtct4-rdkwq
+  namespace: project1-5ljs9-lhvjl
+  resourceVersion: "125392"
+  selfLink: /apis/rbac.authorization.k8s.io/v1/namespaces/project1-5ljs9-lhvjl/
+rolebindings/projectpolicy-gtct4-rdkwq
+  uid: 2938398d-437b-4f3a-9cb9-c92e50139196
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: admin-dbfpj-l6s9g
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: user1@d2iq.lab
+Nutanix Kubernetes Platform | Cluster Operations Management | 398
+
+--- page 399 ---
+Role Binding with VirtualGroup
+In NKP, VirtualGroup is a list of subjects that can be assigned to several different kinds of roles,
+including:
+•
+ClusterRole for cluster-scoped objects
+•
+WorkspaceRole for workspace-scoped objects
+•
+ProjectRole for project-scoped objects
+In order to define which VirtualGroup(s) is assigned to one of these roles, administrators
+can create corresponding role bindings such as VirtualGroupClusterRoleBinding,
+VirtualGroupWorkspaceRoleBinding, and VirtualGroupProjectRoleBinding.
+Note that for WorkspaceRole and ProjectRole, the referenced VirtualGroup and corresponding role
+and role binding objects need to be in the same namespace. If they are not in the same namespace,
+the role will not bind to the VirtualGroup since it is assumed that the rules set in the role apply
+to objects that live in that namespace. Whereas for ClusterRole which is cluster-scoped, the
+VirtualGroupClusterRoleBinding is also cluster-scoped, even though it references a namespace-
+scoped VirtualGroup.
+Project Roles
+Project Roles are used to define permissions at the namespace level. Project roles define access control
+within Nutanix Kubernetes® Platform (NKP) by assigning permissions at the namespace level. You can
+create project roles either using the NKP UI or CLI.
+These roles determine the actions you can perform within a specific project. Use project roles to implement
+role-based access management in distributed environments.
+Configuring the Project Role Using the UI
+You can create a Project Role with several Rules.
+About this task
+Create a project role with one or more rules.
+Procedure
+Create a Project Role with a single rule.
+In this example, the Project Role corresponds to an admin role:
+Nutanix Kubernetes Platform | Cluster Operations Management | 399
+
+--- page 400 ---
+Figure 6: Adding a Project Role using the UI
+Configuring the Project Role Using the CLI
+About this task
+In the example below, a Project Role is created with a single Rule. This Project Role corresponds to an
+admin role.
+Procedure
+1. The same Project Role can also be created using kubectl:
+cat << EOF | kubectl create -f -
+apiVersion: workspaces.kommander.mesosphere.io/v1alpha1
+kind: ProjectRole
+metadata:
+  annotations:
+    kommander.mesosphere.io/display-name: Admin
+  generateName: admin-
+Nutanix Kubernetes Platform | Cluster Operations Management | 400
+
+--- page 401 ---
+  namespace: ${projectns}
+spec:
+  rules:
+  - apiGroups:
+    - '*'
+    resources:
+    - '*'
+    verbs:
+    - '*'
+EOF
+Note:  Ensure the projectns variable is set before executing the command.
+2. You can set it using the following command (for a Kommander Project called project1, and after
+setting the workspacens as explained in the previous section).
+projectns=$(kubectl -n ${workspacens} get projects.workspaces.kommander.mesosphere.io
+ -o jsonpath='{.items[?
+(@.metadata.generateName=="project1-")].status.namespaceRef.name}')
+3. Then, if you run the following command on a Kubernetes cluster associated with the Project, you see a
+Kubernetes Role object in the corresponding namespace.
+kubectl -n ${projectns} get role admin-dbfpj-l6s9g -o yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: "2020-06-04T11:54:26Z"
+  labels:
+    kubefed.io/managed: "true"
+  name: admin-dbfpj-l6s9g
+  namespace: project1-5ljs9-lhvjl
+  resourceVersion: "29218"
+  selfLink: /apis/rbac.authorization.k8s.io/v1/namespaces/project1-5ljs9-lhvjl/roles/
+admin-dbfpj-l6s9g
+  uid: f05b998c-4649-4e73-bbfe-c12bc4c86a3c
+rules:
+- apiGroups:
+  - '*'
+  resourceNames:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+Project ConfigMaps
+Use ConfigMaps to automate ConfigMaps creation on your clusters
+Project ConfigMaps can be created to make sure Kubernetes ConfigMaps are automatically created on all
+Kubernetes clusters associated with the Project, in the corresponding namespace.
+As reference, a ConfigMap is a key-value pair to store some type of non-confidential data like “name=bob”
+or “state=CA”. For a full reference to the concept, consult the Kubernetes documentation on the topic of
+ConfigMaps. For more information, see https://kubernetes.io/docs/concepts/configuration/configmap/.
+Configuring Project ConfigMaps Using the UI
+About this task
+The below Project ConfigMap form can be navigated to by:
+Nutanix Kubernetes Platform | Cluster Operations Management | 401
+
+--- page 402 ---
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Projects from the sidebar menu.
+3. Select your project from the list.
+4. Select the ConfigMaps tab to browse the deployed ConfigMaps.
+5. Click + Create ConfigMap .
+6. Enter an ID, Description and Data for the ConfigMap, and click Create.
+Project Secrets
+Create project secrets to ensure consistent secret management across all Kubernetes clusters linked
+within a project. You can create project secrets either using the Nutanix Kubernetes® Platform (NKP) UI or
+CLI.
+When you create a project secret, NKP automatically provisions the corresponding Kubernetes secret in
+each associated cluster and namespace. The project secrets simplify credential distribution, configuration
+consistency, and reduce manual effort in multi-cluster environments.
+Configuring the Project Secrets Using the UI
+About this task
+Context for the current task
+Procedure
+1. Select the workspace your project was created in from the workspace selection dropdown in the header.
+2. In the sidebar menu, select Projects.
+3. Select the project you want to configure from the table.
+4. Select the Secrets tab, and then click Create Secret .
+5. Complete the form and click Create.
+Project Quotas and Limit Ranges
+Project Quotas and Limit Ranges can be set up to limit the number of resources the Project team uses and
+are applied to all project clusters.
+You can create Project Quotas and Limit Ranges Using the UI. For more details, see Creating Project
+Quotas and Limit Ranges Using the UI on page 402.
+Creating Project Quotas and Limit Ranges Using the UI
+About this task
+Project Quotas and Limit Ranges can be set up to limit the number of resources the Project team uses.
+Quotas and Limit Ranges are applied to all project clusters.
+Procedure
+1. Select the workspace your project was created in from the workspace selection dropdown in the header.
+2. In the sidebar menu, select Projects.
+Nutanix Kubernetes Platform | Cluster Operations Management | 402
+
+--- page 403 ---
+3. Select the project you want to configure from the table.
+4. Select the Quotas & Limit Ranges tab, and then select Edit.
+Kommander provides a set of default resources for which you can set Quotas. You can also define
+Quotas for custom resources. We recommend that you set Quotas for CPU and Memory. By using
+Limit Ranges, you can restrict the resource consumption of individual Pods, Containers, and Persistent
+Volume Claims in the project namespace. You can also constrain memory and CPU resources
+consumed by Pods and Containers, and storage resources consumed by Persistent Volume Claims.
+5. To add a custom quota, scroll to the bottom of the form and select Add Quota.
+6. When you are finished, click Save.
+Project Network Policies
+Use Network Policies to control inbound and outbound traffic between pods and namespaces in a
+Kubernetes cluster by defining bidirectional ingress and egress rules, enforced by CNI plugins such as
+Calico and Cilium.
+Cluster networking is a critical and central part of Kubernetes that can also be quite challenging. All
+network communication within and between clusters depends on the presence of a Container Network
+Interface (CNI) plugin.
+By default, and to enable fluid communications within and between clusters, all traffic is authorized
+between nodes and pods. Most production environments require some kind of traffic flow control at the IP
+address or port level. An application-centric approach to this uses Network Policies. Pods are isolated by
+having a Network Policy that selects them, and the configuration of the policy limits the kind of traffic they
+can receive or send. Network policies do not conflict because they are additive. Pods selected by more
+than one policy are subject to the union of the policies’ ingress and egress rules.
+A Network Policy’s rules define ingress and egress for network communications between pods and across
+namespaces. Successful traffic control using network policies is bi-directional. You have to configure both
+the egress policy on the source pod and the ingress policy on the destination pod to enable the traffic. If
+either end denies the traffic, it will not flow between the pods.
+Since the Kubernetes default is to allow all traffic, it is a common practice to create a default “deny all
+traffic” rule, and then specifically open up some combination of the pods, ports, and applications as
+needed.
+Network Plugins
+Network plugins meet Kubernetes networking requirements and provide features for administrators, such
+as enforcing network policies. Common network plugins include Cilium for Nutanix and Amazon EKS
+environments, and Calico for all other environments.
+Since pods are short-lived, the cluster needs a way to configure the network dynamically as pods are
+created and destroyed. Plugins provision and manage IP addresses to interfaces and let administrators
+manage IPs and their assignments to containers, in addition to connections to more than one host, when
+needed.
+Network Policies
+You can create network policies in three main parts:
+•
+General information
+•
+Ingress rules
+•
+Egress rules
+Nutanix Kubernetes Platform | Cluster Operations Management | 403
+
+--- page 404 ---
+General Information section
+The fields in this part of the form allow you to create a name and description for this policy. Creating a
+detailed Description helps to keep policy functions understandable for additional use and maintenance.
+This section also contains the Pod Selector fields for selecting pods using either Labels or Expressions.
+Labels added to pod declarations are a common means of identifying individual pods, or creating groups
+of pods, in a Kubernetes cluster. Expressions are similar to Labels, but allow you to define parameters
+that identify a range of pods.
+The Policy Types selections help to define the type of Network Policy you are creating:
+•
+Default - automatically includes ingress, and egress is set only if the network policy defines egress
+rules.
+•
+Ingress - this policy applies to ingress traffic for the selected pods, to namespaces using the options
+you define below, or both.
+•
+Egress - this policy applies to egress traffic for the selected pods, to namespaces using the options you
+define below, or both.
+If the Default policy type is too rigid or does not offer what you need, you can select the Ingress or Egress
+type, or both, and explicitly define the policy with the options that follow. For example, if you do not want
+this policy to apply to ingress traffic, you only select Egress, and then define the policy.
+To deny all ingress traffic, select the Ingress option here and then leave the ingress rules empty.
+To deny all egress traffic, select the Egress option here and then leave the egress rules empty.
+Ingress rules section
+Ingress rules use a combination of Port/ Protocol and Source to define the incoming traffic allowed to
+some or all of the pods in this namespace.
+The options under Sources: From enable you to define a source either by using the pod selector or by
+defining an IP block. When using the pod selector method, you can define the namespace, the pods within
+that namespace, or both.
+Namespaces - Selecting a namespace in an ingress rule source permits the pods selected by the pod
+selector, in your selected namespaces, to receive incoming traffic that meets the other defined criteria. If
+you have not selected any pods, the rule permits traffic from all pods in the selected namespaces.
+Pods - This option selects specific Pods which should be allowed as ingress sources or egress
+destinations. If you have not selected any namespaces in the namespace selector, this option selects all
+matching pods in the project namespace. Otherwise, this option selects all matching pods in the selected
+namespaces.
+There also are options to select all namespaces, all pods, or both.
+When defining ingress rules using the IP Block method, you define a CIDR and exception conditions.
+CIDR stands for Classless Inter-Domain Routing and is an IP standard for creating unique network and
+device identifiers. When grouped together so that they share an initial sequence of bits in their binary
+representation, the range of addresses creates a CIDR block. The block identity is in an IPv4-like notation
+including a dotted-decimal address, followed by a slash, then a colon and a number from 0 through 32, for
+example, 127.0.26.33:31.
+Egress rules section
+Egress rules use a similar combination of options to define the outgoing traffic from pods, ranges of pods,
+or namespaces in a Kommander Project. Port, Protocol, and Destination options for egress rules define the
+outgoing traffic. You can define your egress rules under Destination: To. Ensure the egress policy on the
+source pods, and the ingress policy on the destination pods, permit traffic in order for the pods to be able to
+communicate over the network.
+Nutanix Kubernetes Platform | Cluster Operations Management | 404
+
+--- page 405 ---
+Network Policy Examples
+Before you begin each example, ensure you're on the Network Policy page for your project
+•
+Navigating to the Network Policy Page on page 405
+•
+Ingress: Permit Access to API Service Pods from All Namespaces on page 405
+•
+Ingress: Limit Pods That Access a Database to a Namespace on page 406
+•
+Ingress: Disable But Not Delete Ingress Rules on page 407
+•
+Egress: Deny all Egress Traffic from Restricted Pods on page 407
+Navigating to the Network Policy Page
+About this task
+To navigate to your project’s Network Policy page:
+Procedure
+1. From the top menu bar, select your target workspace.
+2. Select Projects from the sidebar menu.
+3. Select your project from the list.
+4. Select the Network Policy tab.
+Ingress: Permit Access to API Service Pods from All Namespaces
+Suppose you need to create a network policy to permit incoming traffic to API service pods in a
+specific Kommander Project’s namespace from any other pod in any namespace that has the label,
+service.corp/users-api-role: client. For this example, API service pods are those pods created
+with the Label, service.corp/users-api-role: api.
+You can limit the policy to just incoming traffic from select namespaces by adding an ingress rule with
+these characteristics:
+•
+Use Port 8080 to receive incoming TCP traffic
+•
+Refuse traffic from pods unless they are client pods that have a specific Label, such as service.corp/
+users-api-role: client. This example follows a common microservice architecture pattern,
+microservice-tier-role: access_mode
+Configuring General Information to Access the API Service Pods
+Procedure
+1. Select + Create Network Policy .
+2. Type “microsvc-users-api-allow” in the ID Name field.
+3. Type “Allow Users microservice clients to reach the APIs provided in this namespace” in the
+Description field.
+4. Select Add under Pod Selector and then select Match Label.
+5. Set the Key to “service.corp/users-api-role” and the Value to “API”.
+Nutanix Kubernetes Platform | Cluster Operations Management | 405
+
+--- page 406 ---
+Creating an Ingress Rule to Access API Service Pods
+Procedure
+1. Leave Policy Types set to Default.
+2. Scroll down to Ingress Rules and select + Add an Ingress Rule.
+3. Select + Add Port, and set the Port to "8080" and the Protocol to TCP.
+Adding Sources to Access API Service Pods
+Procedure
+1. Select + Add Source and mark the Select All Namespaces checkbox.
+2. Select + Add Pod Selector.
+3. Select Match Label.
+4. Set the Key value to service.corp/users-api-role, and Value to client.
+5. Scroll up and click Save.
+Ingress: Limit Pods That Access a Database to a Namespace
+Suppose that while deploying an application in a project, you want to protect its database pods by
+permitting ingress only from API service pods in the current namespace, and prevent ingress from pods in
+any other namespace.
+You can limit the database pods to just the incoming traffic from the current namespaces by adding an
+ingress rule with these characteristics:
+•
+Use Port 3306 to receive incoming TCP traffic for pods that have the label, tier: database
+•
+Refuse traffic from pods unless they have the label, tier: api
+Configuring General Information to Access a Database
+About this task
+To configure general information to access a database:
+Procedure
+1. Select + Create Network Policy .
+2. Type “database-access-api-only” in the ID Name field.
+3. Type “Allow MySQL access only from API pods in this namespace” in the Description field.
+4. Select Add under Pod Selector and then select Match Label.
+5. Set the Key to “tier” and the Value to “database”.
+Nutanix Kubernetes Platform | Cluster Operations Management | 406
+
+--- page 407 ---
+Creating an Ingress Rule to Access a Database
+Procedure
+1. Leave Policy Types set to Default.
+2. Scroll down to Ingress Rules and select + Add an Ingress Rule.
+3. Select + Add Port, and set the Port to "3306" and the Protocol to TCP.
+Adding Sources to Access a Database
+Procedure
+1. Select + Add Source.
+2. Select + Add Pod Selector.
+3. Select Match Label.
+4. Set the Key value to “tier” and set the Value to “database”.
+5. Scroll up and click Save.
+Ingress: Disable But Not Delete Ingress Rules
+Suppose that you want to disable ingress rules temporarily for testing or triaging purposes.
+First, you need to create a network policy with one or more ingress rules. Follow one of the preceding
+procedures. Then, edit the policy to match the following example:
+Editing Your Network Policy
+Procedure
+To modify or edit your network policy, identify the corresponding row in the table belonging to your network
+policy. Click the context menu icon on the right side of the row and select the Edit option.
+Disabling Ingress Rules
+Procedure
+1. Update the Policy Types so that only Egress is selected. If you don’t want to deny all egress traffic,
+ensure that you add an egress rule that suits your preferred level of access. You can add an empty rule
+to allow all egress traffic.
+2. Scroll up and click Save.
+Egress: Deny all Egress Traffic from Restricted Pods
+Suppose that you need to deny all egress traffic from a group of restricted pods. This is a simple egress
+rule and you can create it following this example and steps:
+Configuring General Information to Deny Egress
+Procedure
+1. Select + Add Network Policy .
+Nutanix Kubernetes Platform | Cluster Operations Management | 407

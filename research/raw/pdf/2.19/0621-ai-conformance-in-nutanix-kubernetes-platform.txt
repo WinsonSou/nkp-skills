@@ -1,0 +1,51 @@
+
+--- page 621 ---
+nvidia-operator-validator-zxn4w                                   0/1    
+ Init:CrashLoopBackOff   1 (7s ago)    11s
+To modify the toolkit version, follow these steps:
+a. Apply AppDeployment for the nvidia-gpu-operator application.
+b. Provide the name of a ConfigMap with the custom configuration in AppDeployment.
+cat <<EOF | kubectl apply -f -
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: nvidia-gpu-operator
+  namespace: kommander
+spec:
+  appRef:
+    kind: ClusterApp
+    name: nvidia-gpu-operator-gpu-operator-version
+EOF
+3. If a node includes NVIDIA GPU and the nvidia-gpu-operator application is enabled on the cluster,
+but the node still rejects the GPU workloads, it is possible that the nodes do not have the required label
+that indicates the NVIDIA GPU presence.
+By default, the GPU operator attempts to configure nodes with the following labels:
+"feature.node.kubernetes.io/pci-10de.present": "true",
+ "feature.node.kubernetes.io/pci-0302_10de.present": "true",
+ "feature.node.kubernetes.io/pci-0300_10de.present": "true",
+The node feature discovery component applies these labels.
+If the labels are not available in a node that contains an NVIDIA GPU, manually label the node:
+kubectl label node ${NODE} feature.node.kubernetes.io/pci-0302_10de.present=true
+AI Conformance in Nutanix Kubernetes Platform
+Nutanix Kubernetes Platform (NKP) combines validated platform applications, GPU capabilities, and
+operational controls across accelerators, scheduling, networking, observability, security, and operators to
+meet Cloud Native Computing Foundation (CNCF) Kubernetes AI Conformance goals.
+NKP supports Cloud Native Computing Foundation (CNCF) Kubernetes AI conformance goals by
+combining validated platform applications, GPU capabilities, and operational controls across the cluster life
+cycle. For AI workloads, conformance depends on coordinated capabilities in six categories: accelerators,
+scheduling, networking, observability, security, and operators. You must configure these capabilities
+together to achieve predictable AI workload behavior in production. For more information on CNCF
+certification by NKP, see the NKP Catalog documentation.
+The CNCF Certified Kubernetes AI Conformance sets a vendor-neutral baseline for running AI/ML
+workloads on Kubernetes. A conformant platform provides accelerator management, gang scheduling,
+autoscaling, inference networking, observability, and security on top of standard Kubernetes conformance.
+Workloads then behave consistently across public clouds, on-premises, and edge environments, so you
+can move them and use standard AI tools without re-platforming or vendor lock-in. For more information,
+see CNCF AI Conformance
+Conformance for AI workloads depends on these capability categories:
+Accelerators
+•
+Enable NVIDIA GPU Operator. See GPU Management.
+•
+Enable Dynamic Resource Allocation (DRA). See GPU Management.
+Nutanix Kubernetes Platform | Cluster Operations Management | 621

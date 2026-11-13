@@ -1,0 +1,311 @@
+=== nkpclusters -A ===
+NAMESPACE   NAME          NKP VERSION   KUBERNETES VERSION   PHASE        AGE
+kommander   <mgmt-cluster>   v2.19.0       v1.36.2              Reconciled   3d2h
+
+=== clusters -A ===
+NAMESPACE   NAME          CLUSTERCLASS          AVAILABLE   CP DESIRED   CP AVAILABLE   CP UP-TO-DATE   W DESIRED   W AVAILABLE   W UP-TO-DATE   PHASE         AGE    VERSION
+kommander   <mgmt-cluster>   nkp-nutanix-v2.19.0   True        1            1              1               4           4             4              Provisioned   3d2h   v1.36.2
+
+=== machines ===
+NAMESPACE   NAME                                 CLUSTER       NODE NAME                            READY   AVAILABLE   UP-TO-DATE   PHASE     AGE    VERSION
+kommander   <mgmt-cluster>-6lfwl-8mwqp              <mgmt-cluster>   <mgmt-cluster>-6lfwl-8mwqp              True    True        True         Running   3d2h   v1.36.2
+kommander   <mgmt-cluster>-md-0-x7d5z-vwnsq-clg84   <mgmt-cluster>   <mgmt-cluster>-md-0-x7d5z-vwnsq-clg84   True    True        True         Running   3d2h   v1.36.2
+kommander   <mgmt-cluster>-md-0-x7d5z-vwnsq-gvhdb   <mgmt-cluster>   <mgmt-cluster>-md-0-x7d5z-vwnsq-gvhdb   True    True        True         Running   3d2h   v1.36.2
+kommander   <mgmt-cluster>-md-0-x7d5z-vwnsq-kjnld   <mgmt-cluster>   <mgmt-cluster>-md-0-x7d5z-vwnsq-kjnld   True    True        True         Running   3d2h   v1.36.2
+kommander   <mgmt-cluster>-md-0-x7d5z-vwnsq-wq5dn   <mgmt-cluster>   <mgmt-cluster>-md-0-x7d5z-vwnsq-wq5dn   True    True        True         Running   3d2h   v1.36.2
+
+=== NKPCluster spec (kommander ns) ===
+{
+  "ns": "kommander",
+  "name": "<mgmt-cluster>",
+  "spec": {
+    "capiCluster": {
+      "clusterNetwork": {
+        "pods": {
+          "cidrBlocks": [
+            "192.168.0.0/16"
+          ]
+        },
+        "services": {
+          "cidrBlocks": [
+            "10.96.0.0/12"
+          ]
+        }
+      },
+      "topology": {
+        "classRef": {
+          "name": "nkp-nutanix-v2.19.0"
+        },
+        "controlPlane": {
+          "replicas": 1
+        },
+        "variables": [
+          {
+            "name": "clusterConfig",
+            "value": {
+              "addons": {
+                "ccm": {
+                  "credentials": {
+                    "secretRef": {
+                      "name": "<mgmt-cluster>-pc-credentials-for-ccm"
+                    }
+                  },
+                  "strategy": "HelmAddon"
+                },
+                "clusterAutoscaler": {
+                  "strategy": "HelmAddon"
+                },
+                "cni": {
+                  "provider": "Cilium",
+                  "strategy": "HelmAddon"
+                },
+                "cosi": {
+                  "strategy": "HelmAddon"
+                },
+                "csi": {
+                  "defaultStorage": {
+                    "provider": "nutanix",
+                    "storageClassConfig": "volume"
+                  },
+                  "providers": {
+                    "nutanix": {
+                      "credentials": {
+                        "secretRef": {
+                          "name": "<mgmt-cluster>-pc-credentials-for-csi"
+                        }
+                      },
+                      "storageClassConfigs": {
+                        "volume": {
+                          "allowExpansion": true,
+                          "parameters": {
+                            "csi.storage.k8s.io/fstype": "ext4",
+                            "description": "CSI StorageClass nutanix-volume for <mgmt-cluster>",
+                            "flashMode": "DISABLED",
+                            "hypervisorAttached": "ENABLED",
+                            "storageContainer": "<storage-container>",
+                            "storageType": "NutanixVolumes"
+                          },
+                          "reclaimPolicy": "Delete",
+                          "volumeBindingMode": "WaitForFirstConsumer"
+                        }
+                      },
+                      "strategy": "HelmAddon"
+                    }
+                  },
+                  "snapshotController": {
+                    "strategy": "HelmAddon"
+                  }
+                },
+                "konnectorAgent": {
+                  "credentials": {
+                    "secretRef": {
+                      "name": "<mgmt-cluster>-pc-credentials-for-konnector-agent"
+                    }
+                  },
+                  "enableKubeconfigUpload": true
+                },
+                "nfd": {
+                  "strategy": "HelmAddon"
+                },
+                "serviceLoadBalancer": {
+                  "configuration": {
+                    "addressRanges": [
+                      {
+                        "end": "<ip>",
+                        "start": "<ip>"
+                      }
+                    ]
+                  },
+                  "provider": "MetalLB"
+                }
+              },
+              "controlPlane": {
+                "autoRenewCertificates": {
+                  "daysBeforeExpiry": 180
+                },
+                "nodeRegistration": {
+                  "ignorePreflightErrors": [
+                    "SystemVerification"
+                  ]
+                },
+                "nutanix": {
+                  "machineDetails": {
+                    "bootType": "uefi",
+                    "cluster": {
+                      "name": "<prism-element-cluster>",
+                      "type": "name"
+                    },
+                    "image": {
+                      "name": "nkp-ubuntu-24.04-release-cis-1.36.2-20261014170313",
+                      "type": "name"
+                    },
+                    "memorySize": "16Gi",
+                    "subnets": [
+                      {
+                        "name": "<subnet>",
+                        "type": "name"
+                      }
+                    ],
+                    "systemDiskSize": "200Gi",
+                    "vcpuSockets": 4,
+                    "vcpusPerSocket": 1
+                  }
+                }
+              },
+              "dns": {
+                "coreDNS": {}
+              },
+              "encryptionAtRest": {
+                "providers": [
+                  {
+                    "secretbox": {}
+                  }
+                ]
+              },
+              "globalImageRegistryMirror": {
+                "credentials": {
+                  "secretRef": {
+                    "name": "<mgmt-cluster>-image-registry-mirror-credentials"
+                  }
+                },
+                "url": "https://<registry-fqdn>/nutanix"
+              },
+              "imageRegistries": [
+                {
+                  "credentials": {
+                    "secretRef": {
+                      "name": "<mgmt-cluster>-image-registry-credentials"
+                    }
+                  },
+                  "url": "https://<registry-fqdn>"
+                }
+              ],
+              "kubeProxy": {
+                "mode": "disabled"
+              },
+              "nutanix": {
+                "controlPlaneEndpoint": {
+                  "host": "<ip>",
+                  "port": 6443,
+                  "virtualIP": {
+                    "configuration": {
+                      "address": "<ip>",
+                      "port": 6443
+                    },
+                    "provider": "KubeVIP"
+                  }
+                },
+                "prismCentralEndpoint": {
+                  "credentials": {
+                    "secretRef": {
+                      "name": "<mgmt-cluster>-pc-credentials"
+                    }
+                  },
+                  "insecure": true,
+                  "url": "https://<ip>:9440"
+                }
+              },
+              "users": [
+                {
+                  "name": "konvoy",
+                  "sshAuthorizedKeys": [
+                    "<ssh-public-key>"
+                  ],
+                  "sudo": "ALL=(ALL) NOPASSWD:ALL"
+                }
+              ]
+            }
+          }
+        ],
+        "version": "v1.36.2",
+        "workers": {
+          "machineDeployments": [
+            {
+              "class": "default-worker",
+              "metadata": {
+                "annotations": {
+                  "cluster.x-k8s.io/cluster-api-autoscaler-node-group-max-size": "4",
+                  "cluster.x-k8s.io/cluster-api-autoscaler-node-group-min-size": "4"
+                }
+              },
+              "name": "md-0",
+              "variables": {
+                "overrides": [
+                  {
+                    "name": "workerConfig",
+                    "value": {
+                      "nodeRegistration": {
+                        "ignorePreflightErrors": [
+                          "SystemVerification"
+                        ]
+                      },
+                      "nutanix": {
+                        "machineDetails": {
+                          "bootType": "uefi",
+                          "cluster": {
+                            "name": "<prism-element-cluster>",
+                            "type": "name"
+                          },
+                          "image": {
+                            "name": "nkp-ubuntu-24.04-release-cis-1.36.2-20261014170313",
+                            "type": "name"
+                          },
+                          "memorySize": "32Gi",
+                          "subnets": [
+                            {
+                              "name": "<subnet>",
+                              "type": "name"
+                            }
+                          ],
+                          "systemDiskSize": "200Gi",
+                          "vcpuSockets": 8,
+                          "vcpusPerSocket": 1
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "kommanderCluster": {
+      "labels": {
+        "cluster.x-k8s.io/provider": "nutanix",
+        "kommander.d2iq.io/host": "true"
+      },
+      "spec": {
+        "clusterRef": {
+          "capiCluster": {
+            "name": "<mgmt-cluster>",
+            "namespace": "kommander"
+          }
+        },
+        "ingress": {
+          "hostname": "<ip>"
+        },
+        "kubeconfigRef": {
+          "name": "kommander-self-attach-kubeconfig"
+        },
+        "namespaceRef": {
+          "name": "kommander"
+        },
+        "ociRegistry": {
+          "certSecretRef": {
+            "name": "<mgmt-cluster>-oci-cert"
+          },
+          "mirrorURL": "https://<registry-fqdn>/nutanix",
+          "secretRef": {
+            "name": "<mgmt-cluster>-oci-creds"
+          }
+        },
+        "platform": {
+          "version": "v2.19.0"
+        }
+      }
+    },
+    "version": "v2.19.0"
+  }
+}

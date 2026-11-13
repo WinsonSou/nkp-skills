@@ -1,0 +1,86 @@
+
+--- page 1093 ---
+5.
+Select Cluster Roles, as you provide access to Insights resources across clusters.
+6.
+Select + Add Rule in the Rules section.
+7.
+Enter the following information:
+Field
+Value
+Select Rule Type
+Resources
+Resources
+insights, rca, solutions
+Resource Names
+[Leave this field empty]
+API Groups
+virtual.backend.dkp-insights.d2iq.io
+Verbs
+get
+8.
+Select Save to exit the rule configuration window and Save again to create the new role.
+9.
+Assign the role you created to a user group as explained in Configuring Workspace Role Bindings on
+page 365.
+10. If you want to grant view rights to the alert details for clusters in another Workspace, repeat the same
+procedure on a per-workspace basis.
+Note:
+•
+It will take a few minutes for the resource to be created.
+•
+insights, rca, solutions are virtual resources and are not listed as a Kubernetes API
+resource.
+Uninstall NKP Insights
+Overview of the applications you need to disable for uninstalling NKP Insights.
+Nutanix Kubernetes Platform Insights (NKP Insights) consists of two applications:
+•
+The Insights Management application or nkp-insights-management.
+•
+The Insights Engine application or nkp-insights.
+To uninstall NKP Insights, disable both applications.
+Disable NKP Insights Engine on Additional Clusters.
+This chapter describes about disabling NKP Insights Engine on Additional Clusters.
+This procedure applies only to environments where NKP Insights is installed on additional Managed or
+Attached clusters. This step prevents duplicate data collection, reduces unnecessary resource usage, and
+ensures that insights and alerts stay centrally managed from the primary NKP Management Cluster.
+Following are the ways to Disable NKP Insights Engine on Additional Clusters :
+•
+Disabling NKP Insights Engine in a Workspace via the UI
+•
+Disabling NKP Insights Engine in a Workspace via CLI
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1093
+
+--- page 1094 ---
+Disabling NKP Insights Engine in a Workspace via the UI
+About this task
+Disable the Nutanix Kubernetes Platform Insights (NKP Insights) Engine application on additional clusters
+using the UI
+Procedure
+1. Access the NKP UI.
+2. Select the target Workspace from the top menu bar.
+3. Select Applications and search for NKP Insights.
+4. Select Uninstall from the three-dot menu in the application card.
+5. Confirm that you want to uninstall by following the pop-up window.
+6. Wait until the application is entirely removed before you continue deleting persistent volume claims.
+7. Verify that the application has been removed entirely from clusters.
+a. Select the target Workspace > Clusters > View Details > Applications tab.
+b. Ensure Insights is no longer deployed.
+Note:  The Insights Engine can take several minutes to delete completely.
+Disabling NKP Insights Engine in a Workspace via CLI
+About this task
+Export the environment variable for the target workspace:
+Procedure
+1. To list all workspaces and their namespaces using the command kubectl get workspaces
+export WORKSPACE_NAMESPACE=<target_workspace_namespace>
+2. Disable the Nutanix Kubernetes Platform Insights (NKP Insights) Engine application on all clusters in a
+workspace by deleting the nkp-insights AppDeployment on the management cluster:
+kubectl delete appdeployment -n ${WORKSPACE_NAMESPACE} nkp-insights
+3. Wait until the HelmRelease is removed from attached clusters:
+kubectl -n ${WORKSPACE_NAMESPACE} wait --for=delete helmrelease/nkp-insights --
+timeout=5m
+Note:  The Insights Engine can take several minutes to delete completely.
+Deleting Persistent Volumes formerly used by NKP Insights
+About this task
+Ensure you delete all remaining data by deleting Insights-related PVs.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Insights Guide | 1094

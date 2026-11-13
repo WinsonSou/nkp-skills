@@ -1,0 +1,19 @@
+# Upstream: https://raw.githubusercontent.com/open-policy-agent/gatekeeper-library/a8d4799d8dafd47ec5fafe945ef277d329e2cceb/library/pod-security-policy/privileged-containers/samples/psp-privileged-container/constraint.yaml
+# Version: gatekeeper-library commit a8d4799d8dafd47ec5fafe945ef277d329e2cceb (2026-10-21)
+# Body SHA-256: dff01aba7fabd191348b58b75b981a720bc49b1ecb2935dd4c284bcdacf7d105
+# Upstream SHA-256 = Body SHA-256 (the file is not changed).
+# License: Apache-2.0
+# Copied for air-gapped sites by skill nkp-airgap. Do not edit.
+apiVersion: constraints.gatekeeper.sh/v1beta1
+kind: K8sPSPPrivilegedContainer
+metadata:
+  name: psp-privileged-container
+spec:
+  match:
+    kinds:
+      - apiGroups: [""]
+        kinds: ["Pod"]
+    excludedNamespaces: ["kube-system"]
+  parameters:
+    exemptImages:
+    - "safeimages.com/*"

@@ -1,0 +1,287 @@
+
+--- page 57 ---
+2. Upload the image to Prism Central.
+For information on how to upload images to Prism Central, see Importing Images to Prism Central.
+Note:  Do not rename the image downloaded from the Nutanix Portal.
+For steps on creating a cluster, and more information, see Creating the Nutanix Kubernetes Platform
+Management Cluster using CLI on page 718.
+Building a Custom Image with Nutanix
+You can build your own customized image based on your requirements.
+Before you begin
+Ensure that you meet the following prerequisites:
+•
+For container runtime, you must install a recent version of Docker or Podman.
+•
+For Nutanix Kubernetes Platform (NKP) CLI, ensure that your environment is on Linux or macOS with
+AMD64.
+•
+Export Nutanix Prism Central credentials such as NUTANIX_USERNAME and NUTANIX_PASSWORD as
+environment variables.
+•
+Ensure that you subscribe to one of the NKP licenses such as Pro and Ultimate. Custom images are not
+supported on the NKP Starter license
+•
+Base OS image can be built from ISO or cloud image. If using ISO, ensure the minimum prerequisites
+are met.
+•
+Following are the minimum requirements for the base OS image:
+•
+The source image must be in qcow2 or .img format
+•
+The default user must have sudo privileges
+•
+Ensure that you install and enable the SSH server
+•
+Ensure that you install and configure cloud-init
+•
+Ensure that you install Python version 3.x and it is accessible
+•
+Ensure at least 20 GB of disk space on the root file system is available
+•
+Image must use UEFI Boot type
+•
+Ensure that no existing Kubernetes components are present
+For more information on the supported operating system, see Supported Infrastructure Operating
+Systems on page 13.
+•
+Following are the additional prerequisites for creating a Nutanix image builder (NIB) image:
+•
+Ensure that there is a network connectivity (DHCP or static)
+•
+Verify DNS resolution is working
+•
+Ensure remote repositories are accessible over network, if not air-gapped
+Nutanix Kubernetes Platform | Nutanix Image Builder | 57
+
+--- page 58 ---
+•
+Import the base OS image to Prism Central.
+For more information, see Importing Images to Prism Central in Prism Central Infrastructure Guide.
+Note:
+•
+You cannot use out of the box (OOTB) images downloaded from Nutanix Support Portal or
+already created NIB images as a baseOS image.
+About this task
+To create a custom OS image, you can use the nkp create image nutanix command with required flags,
+or follow the comprehensive procedure below to configure all options using the environment variables:
+Procedure
+1.
+Open the terminal with access to NKP CLI.
+2.
+(Required only for air-gapped Environment): Run the following command:
+docker load --input path_to_nkp-image-builder_tar_file
+Replace path_to_nkp-image-builder_tar_file with the path to the NKP Image Builder container
+image tarball.
+Note:  This step is only required for air-gapped environments. The container image is included in the
+NKP air-gapped bundle downloaded from the Nutanix portal.
+3.
+Choose the operating system:
+export OS_TYPE=Operating System Type
+For more information, see Supported Infrastructure Operating Systems on page 13.
+4.
+Provide the Prism Central endpoint, and optionally the Prism Central custom port:
+export NUTANIX_ENDPOINT=URL of Prism Central Endpoint
+export NUTANIX_PORT=Custom Prism Central port
+•
+Replace URL of Prism Central Endpoint with the URL of Prism Central endpoint.
+By default, the NKP CLI uses the standard port for Prism Central. Use the NUTANIX PORT variable
+if your Prism Central uses a non-standard port.
+The NKP CLI uses the Prism Central API to create the OS image, and this API is hosted at the
+Prism Central endpoint.
+The endpoint must be in one of three formats:
+•
+host
+•
+host:port
+•
+A valid URL: For example, https://host:port
+•
+Replace Prism Central port with the custom port number for Prism Central. The default value is
+9440.
+5.
+Provide the Prism Central credentials:
+export NUTANIX_USER=Prism Central Username
+Nutanix Kubernetes Platform | Nutanix Image Builder | 58
+
+--- page 59 ---
+export NUTANIX_PASSWORD=Prism Central Password
+Replace
+•
+Prism Central Username with the Prism Central username.
+•
+Prism Central Password with the Prism Central password.
+The NKP CLI needs a username and password to access Prism Central if authentication is required.
+6.
+(Optional) Access an HTTPS Prism Central endpoint without a trusted Certificate Authority (CA)
+certificate:
+export INSECURE=true
+The NKP CLI can only verify server certificates signed by a trusted CA. Ensure that you allow insecure
+access to the Prism Central endpoint if the Prism Central server certificate is not signed by a trusted
+CA certificate, and use HTTPS to access the endpoint.
+If the Prism Central endpoint uses a self-signed CA certificate, the CA certificate is untrusted.
+7.
+Choose the name of a Prism Element cluster:
+export NUTANIX_CLUSTER=Name of Prism Central Cluster
+Replace Name of Prism Central Cluster with the name of the Prism Element cluster.
+The system creates the VM for building the OS image in the Prism Element cluster.
+8.
+Choose the name of a subnet associated with the Prism Element cluster
+export SUBNET=Subnet name or UUID
+Replace Subnet name or UUID with the name or UUID of the subnet.
+The VM used for building the OS image is assigned an IP address from this subnet.
+Note:  Ensure that the subnet is in the Prism Element cluster that you selected in the previous step.
+9.
+Choose a base source image:
+export SOURCE_IMAGE=Base Image name or UUID or URL
+Replace Base Image name or UUID or URL with the name, UUID, or URL of the base source image.
+The Nutanix Image Builder uses this base image to create the NKP compatible OS image.
+Note:  For RHEL-8.10, you must provide a source image using this variable.
+10. (Optional) Create a FIPS-compliant image:
+export FIPS_ENABLED=true
+The Nutanix Image Builder creates a FIPS-compliant OS image. For more information, see Supported
+Infrastructure Operating Systems on page 13
+11. (Required for air-gapped environment and optional for non-air-gapped environment) Create a package
+bundle:
+NKP requires Operating System packages to be available in the base image. These packages are
+available in the package repositories accessible over the internet. As air-gapped environments are
+restricted from accessing these package repositories, you must first create a package bundle where
+the repositories can be accessed. Then, transfer this bundle to an air-gapped environment to build the
+OS image in an air-gapped environment.
+Download the NKP air-gapped bundle from the Nutanix portal. For more information, see Downloading
+NKP on page 17. This air-gapped bundle contains the NKP artifacts to build the image. Run the
+Nutanix Kubernetes Platform | Nutanix Image Builder | 59
+
+--- page 60 ---
+following command in an environment with internet access to fetch and add the operating system
+packages, to create a package bundle for NKP.
+nkp create package-bundle ${OS_TYPE} --artifacts-directory nkp-nkp-version/image-
+artifacts/
+${FIPS_ENABLED:+--fips}
+The package bundle contains all the necessary packages and artifacts required to build an NKP
+compatible OS image in an air-gapped environment.
+Note:  Ensure the nkp create package-bundle command is executed from a machine that has
+access to the package repositories hosted by the OS vendor. You must refer to documentation from
+the OS vendor for the list of endpoints that must be allowed to be accessed before you execute this
+command.
+12. (Required for air-gapped environment and optional for non-air-gapped environment) Set the artifacts
+directory:
+export ARTIFACTS_DIRECTORY=nkp-nkp-version/image-artifacts/
+The artifacts directory contains the packages and artifacts required to build the OS image.
+13. (Optional) Configure a bastion host for air-gapped environments:
+export BASTION_HOST=IP or hostname of bastion VM
+export BASTION_USERNAME=SSH user on bastion
+export BASTION_PRIVATE_KEY_FILE=Path to SSH private key file
+Replace:
+•
+IP or hostname of bastion VM with the IP address or hostname of the bastion VM.
+•
+SSH user on bastion with the SSH username on the bastion VM.
+•
+Path to SSH private key file with the location of the SSH private key file.
+In an air-gapped environment, the NKP CLI uses a bastion host to access the VM that builds the OS
+image.
+14. (Optional) Create an image for GPU workloads:
+export GPU_NAME=Name of GPU attached to the cluster
+Replace Name of GPU attached to the cluster with the name of the GPU.
+The Nutanix Image Builder installs the necessary GPU drivers in the OS image.
+15. (Optional) Create an image for vGPU workloads:
+export GPU_NAME=Name of GPU attached to the cluster
+export VGPU_RUNFILE=Path to vGPU driver runfile
+Replace:
+•
+Name of GPU attached to the cluster with the name of the GPU.
+•
+Path to vGPU driver runfile with the path to the vGPU driver runfile.
+The Nutanix Image Builder installs the necessary vGPU drivers in the OS image.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 60
+
+--- page 61 ---
+16. (Optional) Provide container image bundles for air-gapped environments:
+export IMAGE_BUNDLE=./nkp-${nkp-version}/container-images/konvoy-image-bundle-
+${nkp-version}.tar
+Replace nkp-version with the NKP version at your site.
+The --bundle flag is used in an air-gapped environment where the container image needs to be pre-
+loaded into the OS image. NKP provides a bundle that contains all the necessary container images
+required to bootstrap an NKP cluster. Multiple bundles can be provided as a comma-separated list.
+Each file must be in .tar format.
+The Nutanix Image Builder loads these container image bundles into the OS image during the build
+process.
+17. Run NKP CLI to create an image:
+nkp create image nutanix ${OS_TYPE} \
+      --cluster ${NUTANIX_CLUSTER} \
+      --endpoint ${NUTANIX_ENDPOINT} \
+      --subnet ${SUBNET} \
+      --source-image ${SOURCE_IMAGE} \
+      ${ARTIFACTS_DIRECTORY:+--artifacts-directory ${ARTIFACTS_DIRECTORY}} \
+      ${GPU_NAME:+--gpu-name ${GPU_NAME}} \
+      ${VGPU_RUNFILE:+--vgpu-runfile ${VGPU_RUNFILE}} \
+      ${FIPS_ENABLED:+--fips} \
+      ${NUTANIX_PORT:+--port ${NUTANIX_PORT}}
+      ${INSECURE:+--insecure} \
+      ${IMAGE_BUNDLE:+--bundle ${IMAGE_BUNDLE}} \
+      ${BASTION_HOST:+--bastion-host ${BASTION_HOST}} \
+      ${BASTION_USERNAME:+--bastion-username ${BASTION_USERNAME}} \
+      ${BASTION_PRIVATE_KEY_FILE:+--bastion-private-key-file
+ ${BASTION_PRIVATE_KEY_FILE}} \
+The NKP CLI command creates an NKP compatible OS image with the configuration and environment
+variables that you exported.
+What to do next
+To view all the flags and their usage, use the command:
+nkp create image nutanix --help
+For information on creating a cluster, see Creating the Nutanix Kubernetes Platform Management Cluster
+using CLI on page 718.
+Advanced Options for Nutanix Image Builder
+This section details Advanced options to use the Nutanix Image Builder.
+About this task
+The Nutanix Image Builder (NIB) provides several advanced flags for advanced use cases, debugging, and
+custom workflows. These flags are not shown in the standard `--help` output but can be used for specific
+scenarios.
+To create an OS image with hidden and advanced flags, follow these steps:
+Procedure
+1. Open the terminal with access to NKP CLI.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 61
+
+--- page 62 ---
+2. (Optional) Specify a workspace directory for building the OS image:
+export WORK_DIRECTORY=/path/to/workspace
+Replace /path/to/workspace with the path to the workspace directory. The directory must already
+exist. The Nutanix Image Builder uses this directory as the workspace for building the OS image.
+This command is used in the following scenarios:
+•
+To control where temporary build files are stored
+•
+To debug build issues
+•
+To customize build workflows
+3. (Optional) Enable dry-run mode:
+export DRY_RUN=true
+When set to true, the build process runs without creating artifacts, or deletes them after creating.
+This command is used in the following scenarios:
+•
+Validating configurations before the actual build
+•
+To test override files
+•
+To verify the environment setup
+4. (Optional) Enable debug mode:
+export DEBUG=true
+When set to true, NIB runs in debug mode. The user is prompted after each step while building the
+image.
+This command is used in the following scenarios:
+•
+To troubleshoot build failures
+•
+To understand the build process step-by-step
+5. (Optional) Specify override YAML files:
+export OVERRIDES=custom-override.yaml,another-override.yaml
+Replace custom-override.yaml,another-override.yaml with a comma-separated list of override
+YAML files to customize the build process.
+This command is used in the following scenarios:
+•
+To customize your system configuration
+•
+To add custom packages
+•
+To modify the packer file
+Note:  To use custom-overrides, contact Nutanix support.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 62

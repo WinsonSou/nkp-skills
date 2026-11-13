@@ -1,0 +1,405 @@
+
+--- page 1035 ---
+ Compute Gallery built by NIB for Kubernetes v<kubernetes-version>> -n
+ ${CLUSTER_NAMESPACE}
+•
+vSphere:
+nkp update nodepool vsphere ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} --
+kubernetes-version=v<kubernetes-version> --vm-template <vSphere template built by
+ NIB for Kubernetes v<kubernetes-version>> -n ${CLUSTER_NAMESPACE}
+•
+GCP:
+nkp update nodepool gcp ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME} --
+kubernetes-version=v<kubernetes-version> --image=projects/${GCP_PROJECT}/
+global/images/<GCP image built by NIB for Kubernetes v<kubernetes-version>> -n
+ ${CLUSTER_NAMESPACE}
+•
+Pre-provisioned:
+nkp update nodepool preprovisioned ${NODEPOOL_NAME} --cluster-name=${CLUSTER_NAME}
+ --kubernetes-version=v<kubernetes-version> -n ${CLUSTER_NAMESPACE}
+Repeat step 5 for each additional node pool in your non-ClusterClass-based workload cluster.
+What to do next
+Verify the non-ClusterClass-based workload cluster, target versions, and component health. For more
+information, see Verifying Nutanix Kubernetes Platform Upgrade on page 1044.
+Nutanix Kubernetes Platform (NKP) does not upgrade components on attached clusters because their
+respective cloud providers manage them. The tool that you originally used to create the workload clusters
+also upgrades them. Before upgrading, verify that the tool supports a compatible Kubernetes version.
+Upgrade Nutanix Kubernetes Platform with GitOps-Managed Workload
+Clusters
+Upgrade Nutanix Kubernetes Platform (NKP) when your workload clusters are GitOps-managed by
+following a modified workflow that includes GitOps migration. The workflow transitions your GitOps
+repository from managing cluster API CAPICluster resources to managing NKPCluster resources.
+Note:
+NKP supports GitOps-based creation and upgrades only for workload clusters.
+NKP introduces a unified cluster management model built on two new components NKPCluster custom
+resource definition (CRD) and a corresponding admission webhook.
+The NKPCluster resource wraps the configuration of a CAPICluster and a KommanderCluster into a
+single resource and it defines the following major fields:
+spec.capiCluster
+Contains the CAPICluster topology, including the ClusterClass reference, the Kubernetes version,
+the cluster network, control plane replicas, and worker machine deployments.
+spec.kommanderCluster
+Contains the KommanderCluster configuration that governs platform application management.
+spec.version
+Records the NKP platform version.
+A sample NKPCluster resource structure:
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1035
+
+--- page 1036 ---
+kind: NKPCluster
+metadata:
+  name: <cluster-name>
+  namespace: <namespace>
+  labels:
+    cluster.x-k8s.io/cluster-name: <cluster-name>
+    cluster.x-k8s.io/provider: nutanix
+spec:
+  # CAPI Cluster topology — replaces the standalone CAPI Cluster resource
+  capiCluster:
+    clusterNetwork:
+      pods:
+        cidrBlocks:
+        - 192.168.0.0/16
+      services:
+        cidrBlocks:
+        - 10.96.0.0/12
+    topology:
+      classRef:
+        name: nkp-nutanix-v2.19.0 # ClusterClass version
+      version: v1.36.2 # Kubernetes version
+      controlPlane:
+        replicas: 3
+        variables:
+        - name: clusterConfig
+          value: # ... cluster configuration variables ...
+      workers:
+        machineDeployments:
+        - class: default-worker
+          name: md-0 # ... worker configuration ...
+  # Reference to the auto-created CAPI Cluster (managed by NKPCluster controller)
+  capiClusterRef:
+    name: <cluster-name>
+    namespace: <namespace>
+  # KommanderCluster configuration for platform application management
+  kommanderCluster:
+    spec:
+      clusterRef:
+        capiCluster:
+          name: <cluster-name>
+          namespace: <namespace>
+      kubeconfigRef:
+        name: <cluster-name>-kubeconfig
+  # Reference to the auto-created KommanderCluster
+  kommanderClusterRef:
+    name: <cluster-name>
+    namespace: <namespace>
+  # NKP platform version
+  version: v2.19.0
+The NKPCluster controller creates the underlying CAPICluster and KommanderCluster from the
+NKPCluster specification and continuously reconciles them. As a result, the NKPCluster resource is the
+single source of truth for cluster lifecycle operations.
+The admission webhook rejects any direct modification to the spec.topology field of a managed
+CAPICluster, regardless of whether the request originates from kubectl, another controller, or a GitOps
+tool such as Flux. Only the NKPCluster controller can update the topology.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1036
+
+--- page 1037 ---
+Upgrade Sequence for GitOps-Managed Workload Clusters
+If your workload clusters are ClusterClass-based CAPI clusters that you manage through a FluxCD GitOps
+repository, you must migrate the repository to manage NKPCluster resources. The upgrade procedure for
+these clusters includes a GitOps migration step in addition to the standard upgrade workflow. Upgrade your
+NKP environment in the following sequence to avoid compatibility issues:
+1. Disabling Flux Pruning on page 1037
+2. Upgrading Kommander on page 1037
+3. Upgrading the Management Cluster on page 1039
+4. Migrating the GitOps Repository and Upgrading Workload Clusters on page 1041
+Note:  The GitOps-driven upgrades do not generate UpgradePlan resources. As a result, NKP does not
+track the upgrade status the way it tracks upgrades initiated directly through the UI or CLI.
+Disabling Flux Pruning
+Before you upgrade GitOps-managed workload clusters, disable Flux pruning to prevent the unintended
+deletion of live cluster API CAPICluster resources during the GitOps migration.
+About this task
+After you upgrade GitOps-managed workload clusters, an admission webhook blocks Flux from applying
+CAPICluster resources directly. If spec.prune is set to true on the Flux Kustomization that manages your
+workload cluster, removing the CAPICluster YAML from Git during the migration causes Flux to delete the
+live workload cluster. To prevent this issue, disable pruning on the Flux Kustomization that manages the
+workload cluster, before you start the upgrade.
+Note:  Skip this procedure if spec.prune is already set to false on the Flux Kustomization.
+To disable Flux pruning, follow these steps:
+Procedure
+1. Disable the prune based on the option that matches how your Flux Kustomization is managed.
+•
+If the Flux Kustomization was applied manually, patch it directly instead of updating the YAML in Git:
+kubectl patch kustomization <kustomization-name> -n <namespace> \
+  --type merge -p '{"spec":{"prune":false}}'
+•
+If the Flux Kustomization is reconciled by a parent Kustomization through GitOps, follow these steps:
+1. Update spec.prune to false in the Kustomization YAML in your Git repository.
+2. Commit the change to your local repository.
+3. Push the commit to the remote repository.
+Wait for Flux to reconcile the change on the cluster.
+2. Verify that pruning is disabled on the Flux Kustomization:
+kubectl get kustomization <kustomization-name> -n <namespace> \
+  -o jsonpath='{.spec.prune}'
+The expected output is false.
+Upgrading Kommander
+Upgrade Kommander when your environment includes GitOps-managed workload clusters. This upgrade
+installs the NKPCluster CRD and auto-adopts existing Cluster API (CAPI) clusters.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1037
+
+--- page 1038 ---
+Before you begin
+Ensure that the flux pruning is disabled before you start the Kommander upgrade. For more information,
+see Disabling Flux Pruning on page 1037.
+About this task
+Upgrade Kommander to avoid compatibility issues with the Kubernetes version supported by your current
+NKP version. Always upgrade Kommander before upgrading the Kubernetes version in attached clusters to
+apply any required updates for new or updated Kubernetes APIs.
+The Kommander upgrade updates the management plane and the platform applications on the
+management cluster. You do not need to upgrade the platform applications on the management cluster
+separately.
+Verify that you upgrade Kommander on the correct cluster by using the --kubeconfig=
+${CLUSTER_NAME}.conf flag or by setting the KUBECONFIG environment variable. For alternative methods
+and best practices, see Commands within a kubeconfig File on page 34.
+Important:  During NKP upgrade, resources are limited:
+•
+If you configure a custom domain, services are temporarily inaccessible through that domain
+for a few minutes while the upgrade is in progress.
+•
+The NKP UI and other APIs can behave inconsistently or be unavailable until the upgrade
+completes.
+To upgrade Kommander, follow these steps:
+Procedure
+1. Download and install the supported NKP CLI binary for this release.
+For instructions, see Downloading NKP on page 17.
+Important:  The NKP CLI binary must match the target upgrade version. Running nkp upgrade
+kommander with a mismatched binary can cause the upgrade to fail.
+2. Upgrade Kommander:
+nkp upgrade kommander
+Note:  (Optional) To disable Artificial Intelligence (AI) Navigator during the upgrade, add the flag --
+disable-appdeployments ai-navigator-app to the nkp upgrade kommander command.
+Sample output:
+# Checking for deprecated GitRepository-based catalog apps
+Checking that CloudNativePG is enabled on clusters that run NKP AI Navigator or NKP
+ Insights...
+ # Ensuring that new app dependencies introduced by the upgrade are enabled
+ # Ensuring upgrading conditions are met
+ # Checking docker.io/nutanix credentials are present for the fleet
+ # Upgrading ManagementPlane nkp-platform
+ # Ensuring platform Kommander applications are upgraded
+The nkp upgrade kommander command performs the following additional actions when you upgrade
+GitOps-managed workload clusters:
+•
+Installs the NKPCluster custom resource definition (CRD) and controllers.
+•
+Registers new admission webhooks.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1038
+
+--- page 1039 ---
+•
+Auto-adopts existing ClusterClass-based CAPI Cluster resources into NKPCluster resources.
+After the Kommander upgrade completes, Flux reconciliation of CAPI Cluster resources fails with
+webhook rejection errors on GitOps-managed workload clusters. This behavior is expected and
+is resolved when you migrate the GitOps repository to manage NKPCluster resources. For more
+information, see Migrating the GitOps Repository and Upgrading Workload Clusters on page 1041.
+Upgrading the Management Cluster
+Upgrade the Kubernetes version on the management cluster when your environment includes GitOps-
+managed workload clusters.
+Before you begin
+Before upgrading the management cluster, verify that your environment meets the following requirements:
+•
+Verify that your environment meets all upgrade requirements. For more information, see Nutanix
+Infrastructure Requirements on page 692.
+•
+(For Nutanix AHV only) Verify that the control plane and all node pools of your cluster use the same
+Prism Central project. If they do not, converge the cluster onto a single project before you upgrade.
+For instructions, see Converging a Nutanix Kubernetes Platform Cluster Into a Single Prism Project on
+page 1015.
+•
+(For Nutanix AHV only) Create or verify the VM image:
+•
+The image must match the Kubernetes version of the current Nutanix Kubernetes Platform (NKP)
+version.
+•
+If you use a prebuilt image, select the image included with the current NKP version.
+•
+If you create an image, use the same nkp executable that you use for the cluster upgrade. For more
+information, see Nutanix Image Builder on page 55.
+•
+(For Nutanix AHV only) Upload the VM image to Prism Central.
+The upgrade command references the image by name. The image must exist in Prism Central before
+you run the command. For instructions, see Importing Images to Prism Central.
+Note:  Do not rename the image downloaded from the Nutanix Support Portal.
+•
+Upgrade Kommander. For instructions, see Upgrading Kommander
+•
+Upgrade the management cluster before upgrading any managed cluster. Each NKP version updates
+the cluster management software. This software is applied when you upgrade the management cluster.
+•
+Verify that the KUBECONFIG environment variable points to the management-cluster kubeconfig.
+About this task
+This procedure upgrades only the management cluster infrastructure and prepares it for the GitOps
+migration that follows. NKP performs the Kubernetes upgrade for the GitOps-managed workload cluster
+during the GitOps migration.
+You can upgrade NKP clusters deployed on Nutanix AHV using the upgrade cluster nutanix command.
+Most clusters use the same VM image for both the control plane and worker nodes, requiring only one VM
+image name during the upgrade. However, some clusters use different VM images for their control plane
+and worker nodes. In those cases, you must provide multiple VM image names, one for each node type, to
+complete the upgrade successfully.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1039
+
+--- page 1040 ---
+You can also upgrade multiple worker node pools in parallel. The topology.cluster.x-k8s.io/upgrade-
+concurrency annotation on the cluster object controls the number of parallel worker pools upgrades:
+•
+If the annotation is not available, the default value is 1, and NKP upgrades one worker node pool at a
+time.
+•
+If you set the value to 3, up to three worker pools upgrade simultaneously.
+Verify that your upgrades adhere to pod scheduling requirements. For more information, see Pod
+disruption budgets.
+To upgrade the Kubernetes version on a management cluster that uses same or multiple VM images,
+follow these steps:
+Procedure
+1. If your cluster uses the same VM image for both control plane and worker nodes, upgrade your
+management cluster:
+export MANAGEMENT_CLUSTER_NAME=$(kubectl get -n kommander nkpcluster -l
+ 'kommander.d2iq.io/host=true' -o jsonpath='{.items[0].metadata.name}')
+export VM_IMAGE_NAME=vm-image-name
+nkp upgrade cluster nutanix \
+  --cluster-name ${MANAGEMENT_CLUSTER_NAME} \
+  --namespace kommander \
+  --vm-image ${VM_IMAGE_NAME}
+Sample output:
+# Waiting for ClusterClasses to be ready
+# Running preflight checks
+# Upgrading the cluster
+Upgrading the management cluster performs the following actions:
+•
+Upgrades addons such as CNI and CSI on the management cluster.
+•
+Upgrades the control plane to use the new VM image and the new Kubernetes version.
+•
+Upgrades worker pools one pool at a time to use the new VM image and the new Kubernetes
+version.
+2. If your management cluster uses different VM images for both control plane and worker node pools,
+follow these steps:
+a. Set the cluster name, namespace, and control-plane image as environment variables:
+export CLUSTER_NAME=$(kubectl get -n kommander nkpcluster -l 'kommander.d2iq.io/
+host=true' -o jsonpath='{.items[0].metadata.name}')
+export CLUSTER_NAMESPACE=kommander
+export CONTROL_PLANE_VM_IMAGE_NAME=control-plane-vm-image-name
+b. List the worker node pools for your cluster:
+nkp get nodepools \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${CLUSTER_NAMESPACE}
+Note:  Set WORKLOAD_CLUSTER_NAMESPACE based on your target cluster:
+•
+For the management cluster on NKP 2.18 or later, set
+WORKLOAD_CLUSTER_NAMESPACE=kommander. Starting in NKP 2.18, the management
+cluster runs in the kommander namespace.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1040
+
+--- page 1041 ---
+•
+For a workload cluster, set WORKLOAD_CLUSTER_NAMESPACE to the namespace of that
+workload cluster.
+Sample output:
+NODEPOOL               DESIRED               READY               KUBERNETES
+ VERSION
+md-0                   5                     5                   v<kubernetes-
+version>
+other                  3                     3                   v<kubernetes-
+version>
+c. Set the worker node pool names and image names as environment variables:
+export WORKER_POOL_1_NAME=md-0
+export WORKER_POOL_1_VM_IMAGE_NAME=first-worker-pool-vm-image-name
+export WORKER_POOL_2_NAME=other
+export WORKER_POOL_2_VM_IMAGE_NAME=second-worker-pool-vm-image-name
+d. Upgrade the cluster:
+nkp upgrade cluster nutanix \
+  --cluster-name ${CLUSTER_NAME} \
+  --namespace ${CLUSTER_NAMESPACE} \
+  --control-plane-vm-image ${CONTROL_PLANE_VM_IMAGE_NAME} \
+  --worker-vm-images ${WORKER_POOL_1_NAME}=${WORKER_POOL_1_VM_IMAGE_NAME},
+${WORKER_POOL_2_NAME}=${WORKER_POOL_2_VM_IMAGE_NAME}
+For example, WORKER_POOL_1_NAME and WORKER_POOL_2_NAME variables are the worker node pool
+names returned from the nkp get nodepools command output.
+What to do next
+After the management cluster Kubernetes upgrade completes and all nodes are stable, perform the
+following tasks:
+•
+Upgrade Kommander.
+•
+Migrate the GitOps repository.
+•
+Upgrade the workload cluster Kubernetes versions.
+Migrating the GitOps Repository and Upgrading Workload Clusters
+Upgrade the ClusterClass, Kubernetes version and platform applications of Nutanix Kubernetes Platform
+(NKP) cluster resources of workload clusters.
+About this task
+This procedure combines upgrading the ClusterClass, Kubernetes version and platform application of
+a workload cluster in a single Git commit. The workload cluster, platform applications, and Kubernetes
+upgrade happen automatically, preventing inconsistencies between the desired state in Git and the actual
+cluster configuration.
+The NKPCluster controller upgrades NKP, then updates the CAPICluster topology, and performs the
+Kubernetes upgrade. During the upgrade, the controller rolls the control plane nodes first, then rolls the
+worker nodes after the control plane is healthy.
+Note:  Your GitOps directory structure might differ from the structure described in this topic. It demonstrates
+one possible way to organize your GitOps repository for workload clusters. Regardless of your directory
+structure, your repository must contain a YAML file with the Cluster API Cluster object that represents your
+workload cluster instance.
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1041
+
+--- page 1042 ---
+To upgrade GitOps repository and workload cluster, follow these steps:
+Procedure
+1. Generate the upgraded NKPCluster YAML using the nkp upgrade cluster nutanix command in dry-
+run mode:
+nkp upgrade cluster nutanix \
+  --cluster-name <cluster-name> \
+  --namespace <namespace> \
+  --kubeconfig <management-kubeconfig> \
+  2>/dev/null \
+  | yq 'del(.spec.kommanderCluster.labels)' \
+  --dry-run -o yaml > nkpcluster-upgrade.yaml
+The command generates an NKPCluster resource YAML file that contains the upgraded ClusterClass
+version, Kubernetes version, OS image references, and other required changes.
+2. Review the generated YAML file to verify the upgrade configuration:
+•
+Updated spec.capiCluster.topology.classRef.name to a new ClusterClass version
+•
+Updated spec.capiCluster.topology.version to a new Kubernetes version
+•
+Updated OS image references
+•
+Updated spec.kommanderCluster.spec.platform.version and .spec.version
+•
+All other required changes for the new NKP version
+3. Retain the following server-side fields that you need to store in Git:
+•
+metadata.name
+•
+metadata.namespace
+•
+metadata.labels
+•
+metadata.annotations
+4. Replace the contents of your existing cluster.yaml file or an equivalent file with the cleaned
+NKPCluster YAML:
+The directory structure after migration might look as follows:
+clusters/
+### <namespace>_<cluster-name>/
+    ### kustomization.yaml
+    ### cluster.yaml
+Tip:  If you prefer clearer naming, rename the file to nkpcluster.yaml and update the
+kustomization.yaml of the cluster accordingly.
+5. Commit and push the changes to your Git repository:
+git add clusters/<namespace>_<cluster-name>/cluster.yaml
+git commit -m "Migrate <cluster-name> to NKPCluster and upgrade to NKP 2.19"
+git push
+What to do next
+Wait for Flux to reconcile the changes. The GitOps migration and workload cluster upgrade performs the
+following actions:
+Nutanix Kubernetes Platform | Upgrade Nutanix Kubernetes Platform | 1042

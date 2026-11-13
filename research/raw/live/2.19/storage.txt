@@ -1,0 +1,30 @@
+=== storageclasses ===
+NAME                       PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+nutanix-volume (default)   csi.nutanix.com   Delete          WaitForFirstConsumer   true                   3d2h
+
+=== storageclass details ===
+nutanix-volume	provisioner=csi.nutanix.com	default=true	binding=WaitForFirstConsumer	reclaim=Delete	allowExpansion=true	params={"csi.storage.k8s.io/controller-expand-secret-name":"nutanix-csi-credentials","csi.storage.k8s.io/controller-expand-secret-namespace":"ntnx-system","csi.storage.k8s.io/fstype":"ext4","csi.storage.k8s.io/node-publish-secret-name":"nutanix-csi-credentials","csi.storage.k8s.io/node-publish-secret-namespace":"ntnx-system","csi.storage.k8s.io/provisioner-secret-name":"nutanix-csi-credentials","csi.storage.k8s.io/provisioner-secret-namespace":"ntnx-system","description":"CSI StorageClass nutanix-volume for <mgmt-cluster>","flashMode":"DISABLED","hypervisorAttached":"ENABLED","storageContainer":"<storage-container>","storageType":"NutanixVolumes"}
+
+=== csidrivers ===
+NAME              ATTACHREQUIRED   PODINFOONMOUNT   STORAGECAPACITY   TOKENREQUESTS   REQUIRESREPUBLISH   MODES        AGE
+csi.nutanix.com   true             true             false             <unset>         false               Persistent   3d2h
+
+=== volumesnapshotclasses ===
+NAME                     DRIVER            DELETIONPOLICY   AGE
+nutanix-snapshot-class   csi.nutanix.com   Retain           3d2h
+
+=== cephcluster / cephobjectstore ===
+error: the server doesn't have a resource type "cephcluster"
+
+=== pv count / pvc ===
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                                           STORAGECLASS     VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-<uuid>   10Gi       RWO            Delete           Bound    git-operator-system/git-operator-git-volume     nutanix-volume   <unset>                          3d2h
+pvc-<uuid>   2Gi        RWO            Delete           Bound    caren-system/helm-charts-pvc                    nutanix-volume   <unset>                          3d2h
+pvc-<uuid>   2Gi        RWO            Delete           Bound    git-operator-system/git-operator-admin-volume   nutanix-volume   <unset>                          3d2h
+NAMESPACE             NAME                        STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS     VOLUMEATTRIBUTESCLASS   AGE
+caren-system          helm-charts-pvc             Bound    pvc-<uuid>   2Gi        RWO            nutanix-volume   <unset>                 3d2h
+git-operator-system   git-operator-admin-volume   Bound    pvc-<uuid>   2Gi        RWO            nutanix-volume   <unset>                 3d2h
+git-operator-system   git-operator-git-volume     Bound    pvc-<uuid>   10Gi       RWO            nutanix-volume   <unset>                 3d2h
+
+=== bucketclasses ===
+No resources found

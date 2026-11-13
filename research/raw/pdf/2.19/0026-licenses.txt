@@ -1,0 +1,457 @@
+
+--- page 26 ---
+•
+Cloud or Infrastructure as a Service (IaaS) environments that do not currently have a NKP-supported
+infrastructure provider.
+•
+Cloud environments, you must use pre-defined infrastructure instead of having one of the supported
+cloud providers create it for you.
+In an environment with access to the Internet, you can retrieve artifacts from specialized repositories
+dedicated to them, such as docker images from the DockerHub and Helm Charts from a dedicated Helm
+Chart repository. However, in an air-gapped environment, you need local repositories to store Helm charts,
+docker images, and other artifacts. Tools such as JFrog, Harbor, and Nexus handle multiple types of
+artifacts in a single local repository.
+Related Information
+For information on related topics or procedures see Pre-provisioned Installation Options on page 76.
+Licenses
+Use this section to add, remove, and review your NKP licenses.
+Cluster features match the license types you register. Use the topics in this section to add or remove a
+license and to review license types. For a comparison of features by license tier, see Feature Support
+Matrix on page 26. For software options and purchasing, see the Nutanix Cloud Platform Software
+Options page.
+Note:  You cannot downgrade a license after you register it for a cluster.
+NKP licenses are sold by core unit and apply to the vCPUs of all worker nodes in on-premises, public
+cloud, or edge deployments. Contact a Nutanix sales representative.
+Feature Support Matrix
+This table lists NKP Starter, Pro, and Ultimate license tiers. An X in a column indicates the feature is
+included for that tier.
+Table 11: Feature Support Matrix
+Feature
+NKP Starter
+NKP Pro
+NKP Ultimate
+Applications
+Workspace Platform Applications
+X
+X
+Prometheus
+X
+X
+Kubernetes Dashboard
+X
+X
+Reloader
+X
+X
+X
+Traefik
+X
+X
+X
+Project Level Platform Applications
+X
+Catalog Applications
+X
+X
+Custom Applications
+X
+Partner Applications
+X
+X
+Integrated Image Registry
+X
+X
+OpenCost
+X
+Nutanix Kubernetes Platform | Getting Started with NKP | 26
+
+--- page 27 ---
+Feature
+NKP Starter
+NKP Pro
+NKP Ultimate
+AI OPS
+Insights
+X
+AI Navigator
+X
+X
+NKP MCP Server
+X
+X
+Cluster Management
+LCM Management Cluster
+X
+X
+X
+LCM Workload Clusters
+X
+X
+X
+Workload Cluster Creation using UI,
+CLI, or YAML
+X
+X
+X
+Attaching Workload Cluster
+X
+Upgrade Management Cluster
+X
+X
+X
+Upgrade Managed Clusters
+X
+X
+X
+Third-Party Kubernetes Management
+LCM of EKS Cluster
+X
+LCM of AKS Cluster
+X
+GitOps
+Continuous Deployment (FluxCD)
+X
+FluxCD (as an application)
+X
+X
+UX
+NKP CLI
+X
+X
+X
+NKP UI
+X
+X
+X
+Workspaces Management
+X
+Projects
+X
+Add new Infrastructure Provider
+X
+Logging
+Workspace Level Logging
+X
+X
+Fluentbit
+X
+X
+Multi-tenant Logging
+X
+Additional Tooling
+Backup & Restore based on Velero
+X
+X
+NVIDIA GPU
+X
+X
+AMD GPU
+X
+X
+Cluster Provisioning
+NKP on Nutanix AHV
+X
+X
+X
+NKP on AWS
+X
+X
+NKP on Azure
+X
+X
+Nutanix Kubernetes Platform | Getting Started with NKP | 27
+
+--- page 28 ---
+Feature
+NKP Starter
+NKP Pro
+NKP Ultimate
+NKP on GCP
+X
+X
+NKP on vSphere
+X
+X
+Pre-provisioned
+X
+X
+EKS Provisioning
+X
+Multi-Cloud, Hybrid Cloud
+(Management and Workload clusters
+on different infrastructures)
+X
+Security
+Single Sign On
+X
+X
+X
+Policy control using Gatekeeper
+X
+X
+FIPS Compliant Build
+X
+X
+Nutanix Image Builder or Bring your
+own OS
+X
+X
+Nutanix provided Rocky Linux OS
+Image
+X
+X
+X
+Nutanix provided Ubuntu OS Image
+X
+X
+Air-Gapped Deployments
+X
+X
+X
+RBAC
+RBAC - Admin role only
+X
+X
+X
+RBAC - Kubernetes
+X
+X
+X
+NKP RBAC
+X
+X
+Customize UI Banners
+X
+X
+Upload custom Logo
+X
+Note:
+•
+The NKP Ubuntu OS images are for NKP Pro and NKP Ultimate customers only and are only
+permitted to be used for NKP Kubernetes nodes. NKP Starter or Non-NKP customers are not
+permitted to download or use these images.
+•
+The NKP Pro Ubuntu OS images are supported only when using the AHV infrastructure
+provider.
+Adding a Nutanix Kubernetes® Platform License Through the UI
+Add your license to the cluster through the Nutanix Kubernetes® Platform (NKP) user interface.
+About this task
+For licenses purchased directly from D2iQ or Nutanix, you can obtain the license token from the Nutanix
+Support Portal, see Generating NKP License Keys. Insert this token in the last step of the procedure.
+When you create an NKP cluster, NKP automatically assigns a default license key, which you must replace
+with the one you obtain from the portal. The default key is either a Starter for AHV installations or a Pro for
+all other infrastructure providers. When you apply your license key, NKP installs the additional applications
+Nutanix Kubernetes Platform | Getting Started with NKP | 28
+
+--- page 29 ---
+installed by default with the different NKP license levels. For more information, see Supported Platform
+Applications on page 295.
+For example, if you apply Pro or Ultimate license key, NKP installs the AI Navigator App along with the
+other applications associated with that license key. NKP installs Centralized Grafana only when you apply
+an Ultimate license key.
+Note:
+•
+You must be an administrator to add licenses to NKP. Also, when adding a NKP Pro or
+Ultimate license, ensure that your cluster has enough resources to accommodate the
+additional applications that will be deployed.
+•
+If you upgrade the license from NKP Starter to NKP Pro or NKP Ultimate, ensure that you size
+the worker nodes appropriately to support the installation of default platform services.
+To add the license through NKP user interface, follow these steps:
+Procedure
+1. Log into the NKP UI dashboard.
+2. In the workspace header drop-down list, select Global.
+3. In the navigation menu, select Settings > Licensing.
+4. Choose the next step based on your current license and the procured license key.
+»
+Default License: If you have a cluster which is at a default license level (for example, NKP
+Starter in Nutanix Infrastructure, or NKP Pro in a non-Nutanix infrastructure), you must select
+Activate License. Then, enter a valid license key from either a Nutanix or D2IQ source and select
+Activate to activate the license.
+»
+Non-default Nutanix License: If your cluster uses a non-default Nutanix license (for example,
+Nutanix Kubernetes® Platform (NKP) Ultimate), use the Update License option to apply a new
+license. Enter a valid license key obtained from the Nutanix Support Portal, and select Update.
+Use the license update workflow in the following scenarios:
+License renewal: If your cluster already has an NKP Ultimate license and the license is expiring,
+update the cluster by applying a new valid NKP Ultimate license.
+Increased core capacity: If your cluster already has an NKP Ultimate license and you need additional
+licensed core capacity, apply a new NKP Ultimate license that supports a higher core count using the
+same update workflow.
+The license is now activated and the license card will display the status as Valid.
+Note:  If there is an error submitting a license acquired directly from Nutanix, you can activate the license
+through kubectl.
+Adding a Nutanix Kubernetes® Platform License Using Alternate Methods
+Prerequisites
+For licenses that you buy from the AWS Marketplace, an AWS administrator must attach the AWS
+managed policy AWSLicenseManagerConsumptionPolicy to the control-plane.cluster-api-
+provider-aws.sigs.k8s.io role created when configuring AWS IAM policies. If an administrator does
+not attach this policy attached to the role, Nutanix Kubernetes® Platform (NKP) cannot verify the license
+information provided in the procedure steps that follow.
+Nutanix Kubernetes Platform | Getting Started with NKP | 29
+
+--- page 30 ---
+The machine onto which you install NKP must meet these requirements:
+•
+Docker installed: NKP uses Kubernetes-in-Docker (Kind) to create a bootstrap cluster for creating
+Management clusters, and thus Docker installation is required. Docker is not used to run your
+Management or managed clusters.
+•
+Active Internet connectivity.
+•
+Existing AWS account.
+•
+AWS Administrator logged into the AWS account used to buy NKP.
+Downloading the Container Image and Extracting the Binaries
+1. Select a NKP version from the Choose a fulfillment option dropdown when you complete the sales
+transaction in the AWS Marketplace.
+Nutanix recommends that you select the latest version.
+2. Select Continue to Launch.
+The download instructions appear when you select Usage Instructions.
+3. Complete the steps in each of the procedures under Usage Instructions.
+The links in these steps open NKP documentation pages that explain how to set up AWS for NKP and
+how to download and install NKP.
+4. Expand the Create a license token and IAM role link in the Container images section of the window.
+This gives you access to the Create token button to generate the license token and IAM role and
+exposes an inset code window with the token and role credentials.
+5. Use the generated command to log in to AWS using the token and role you just generated.
+Note:  Ignore this step if you have already configured the AWS CLI with valid credentials.
+Tip:  Using the Copy button at the upper right of this inset code window helps ensure you copy the entire
+command.
+6. Run the commands sequentially using your environment's specific values.:
+aws ecr get-login-password \
+            --region <insert-region> | docker login \
+            --username <username> \
+            --password-stdin <ecr-address>
+CONTAINER_IMAGES="<ecr-address>/mesosphere/nutanix-nkp-pro-premium-support:v2.5.0"  
+  
+for i in $(echo $CONTAINER_IMAGES | sed "s/,/ /g"); do docker pull $i; done
+This step downloads the container images.
+7. On the Linux machine where you plan to run the NKP CLI cluster, open a terminal window.
+8. Run the command, using your environment's specific values.
+This step downloads a container with NKP binaries.
+9. Copy the binaries onto your Linux machine:
+docker run -it --rm -u $(id -u):$(id -g) -v $(pwd):/nkp $CONTAINER_IMAGES
+You will then see the following output:
+nkp binary is placed in the local directory, to run:
+              ./nkp --help
+You will now see the nkp binary in your working directory. Follow the Installing NKP on page 46
+instructions using these binaries, and then add your license to NKP.
+Nutanix Kubernetes Platform | Getting Started with NKP | 30
+
+--- page 31 ---
+Obtaining the Amazon Resource Number (ARN) from the AWS Marketplace UI
+You must use the AWS Marketplace user interface to navigate to the license table and configure its settings
+to display the ARN for your purchased license.
+1. From the Launch this software page, go to the Product Detail page.
+2. Select View Subscription button at the upper-right.
+Tip:  You can find this in the blue information box labeled "You have access to this product".
+3. From the left navigation pane, select Manage subscriptions, then click Manage on the specific
+license.
+The license details page appears.
+4. Select the License number hyperlink.
+On the license page, select Granted licenses from the left navigation pane and locate your license in
+the list.
+5. Use the Settings icon in the upper-right corner to choose which columns appear.
+6. Enable the License arn value.
+7. Click Confirm.
+The license list appears and the License ARN appears in the last column, ready for you to copy.
+If you have difficulty obtaining your ARN, contact Nutanix Support for assistance.
+Entering an NKP License Through kubectl
+You can activate a license acquired from Nutanix directly using the kubectl utility.
+1. Create a secret:
+kubectl create secret generic my-license-secret --from-literal=nutanix-license-
+key=NKP-License-Key -n kommander
+Note:  Replace the value my-license-secret and NKP-License-Key in the command with your
+actual, license secret name and Nutanix-provided NKP license token.
+For example:
+kubectl create secret generic test-license --from-literal=nutanix-license-key="AEAAQ-
+xxxxx-xxxxx-xxxxx-xxxxx-xxxxx-xxxxx"  -n kommander
+2. Create a license object:
+cat <<EOF | kubectl apply -f -
+apiVersion: kommander.mesosphere.io/v1beta1
+kind: License
+metadata:
+  name: nutanix-license
+  namespace: kommander
+spec:
+  nutanixLicenseRef:
+    name: nutanix-license-secret
+EOF
+3. Return to the license page in the NKP UI to see your valid license display.
+Updating a Nutanix Kubernetes® Platform License Through the UI
+Update your Nutanix Kubernetes® Platform (NKP) license when your license information changes or when
+you need to add a new license key.
+Nutanix Kubernetes Platform | Getting Started with NKP | 31
+
+--- page 32 ---
+About this task
+Update your license when you receive a new license key or when your current license expires. You can
+find your license key in the Nutanix Support Portal or the D2iQ Support Portal. You can update licenses
+through the NKP UI.
+Note:  You must have NKP administrator permissions to update licenses.
+Procedure
+1. Log in to the NKP UI.
+2. In the workspace header dropdown list, select Global.
+3. In the sidebar menu, select Settings > Licensing.
+The Licensing page displays your existing license information.
+4. On the Licensing page, click Update License.
+5. In the New License Key field, enter your new license key.
+6. Click Update.
+Enabling Nutanix Kubernetes® Platform Full Stack License on NKP
+For Prism Central clusters with CAPX or CAPV, generate and apply a Full Stack license through Nutanix
+Support and the Nutanix Kubernetes® Platform (NKP) user interface.
+About this task
+The NKP Full Stack (NKPFS) license applies only to Prism Central clusters such as Cluster API Provider
+for Nutanix Cloud Infrastructure (CAPX) and Cluster API Provider for vSphere (CAPV).
+Follow these steps to generate and apply the Full Stack license key.
+Before you begin
+•
+Ensure that you have access to the NKP UI dashboard. If you do not have access, run the following
+command.
+nkp open dashboard --kubeconfig kubeconfigfile.conf
+Where kubeconfigfile.conf indicates the kubeconfig file path.
+•
+Ensure that you configure Nutanix credentials that are authorized to run the list of clusters API as
+follows:
+export NUTANIX_USER=<username>
+export NUTANIX_PASSWORD=<password>
+•
+Verify whether the prism-central-metadata secret exists.
+Run the following command in an environment that is already connected to your Kubernetes cluster
+through kubectl.
+export PC_SECRET_NAMESPACE=$(kubectl get -n kommander nkpcluster -l
+ 'kommander.d2iq.io/host=true' -o
+ jsonpath='{.items[0].status.capiClusterRef.namespace}')
+kubectl get secret prism-central-metadata -n $PC_SECRET_NAMESPACE -o
+ jsonpath='{.data}'
+# it should print out a map that contains key 'uuid', where the value is a base64
+ encoded string.
+Nutanix Kubernetes Platform | Getting Started with NKP | 32
+
+--- page 33 ---
+{"uuid":"NGI2YTk3NTYtYTg0Zi00ZGQ3LThkN2UtMTM5N2YxM2UyMWU1"}
+•
+If the prism-central-metadata secret does not exist, create a secret using the following command
+with the environment variables.
+nkp create metadata nutanix --endpoint PC_URL
+Replace PC_URL with the actual Prism Central endpoint.
+Note:  The NKP CLI version 2.13.1 and later is required to run the nkp create metadata command.
+Ensure that your Nutanix credentials environment variables are set as follows: NUTANIX_USER and
+NUTANIX_PASSWORD.
+•
+For existing Full Stack licenses only, to upgrade NKP Kommander components (including the licensing
+module that is updated to support Full Stack licensing) to 2.13.x, run the following command.
+nkp upgrade kommander other application flags
+Note:  Nutanix supports the Full Stack license with the following versions:
+•
+NKP 2.13.1 and later
+•
+AOS versions:
+•
+AOS 6.10.1
+•
+AOS 7.0 and later
+•
+Prism Central 2024.3 and later
+Nutanix Kubernetes Platform | Getting Started with NKP | 33

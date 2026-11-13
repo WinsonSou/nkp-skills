@@ -1,0 +1,46 @@
+
+--- page 67 ---
+10. (Optional) Replicate image to multiple regions:
+export GALLERY_IMAGE_LOCATIONS=location1,location2,location3
+Replace location1,location2,location3 with a comma-separated list of Azure locations where
+you want to replicate the image.
+If not provided, the image will only be available in the location specified in the location specified in a
+previous step.
+11. (Optional) Specify Azure cloud endpoint:
+export AZURE_CLOUD_ENDPOINT=Public|USGovernment|China
+Replace Public|USGovernment|China with the Azure cloud endpoint you want to use. The default
+value is Public
+12. (Optional) Specify a custom instance type:
+export INSTANCE_TYPE=Instance type
+Replace Instance type with the Azure VM instance type to use for building the image. The default is
+Standard_D2s_v3.
+13. Create an NKP compatible OS image:
+nkp create image azure ${OS_TYPE} \
+      ${AZURE_SUBSCRIPTION_ID:+--subscription-id ${AZURE_SUBSCRIPTION_ID}} \
+      ${AZURE_CLIENT_ID:+--client-id ${AZURE_CLIENT_ID}} \
+      ${AZURE_TENANT_ID:+--tenant-id ${AZURE_TENANT_ID}} \
+      ${RESOURCE_GROUP_NAME:+--resource-group-name ${RESOURCE_GROUP_NAME}} \
+      ${AZURE_LOCATION:+--location ${AZURE_LOCATION}} \
+      ${GALLERY_NAME:+--gallery-name ${GALLERY_NAME}} \
+      ${GALLERY_IMAGE_NAME:+--gallery-image-name ${GALLERY_IMAGE_NAME}} \
+      ${GALLERY_IMAGE_OFFER:+--gallery-image-offer ${GALLERY_IMAGE_OFFER}} \
+      ${GALLERY_IMAGE_PUBLISHER:+--gallery-image-publisher
+ ${GALLERY_IMAGE_PUBLISHER}} \
+      ${GALLERY_IMAGE_LOCATIONS:+--gallery-image-locations
+ ${GALLERY_IMAGE_LOCATIONS}} \
+      ${AZURE_CLOUD_ENDPOINT:+--cloud-endpoint ${AZURE_CLOUD_ENDPOINT}} \
+      ${INSTANCE_TYPE:+--instance-type ${INSTANCE_TYPE}} \
+   
+The NKP CLI command creates an NKP compatible OS image with the configuration and environment
+variables in the Azure Shared Image Gallery. This image can be used to create new NKP clusters.
+To view all the flags and their purpose, run the following command:
+nkp create image azure --help
+For the steps to create a cluster, see Azure: Creating a Cluster on page 884.
+Building a Custom Image with GCP
+You can build your own customized image with GCP based on your requirements.
+About this task
+To create a custom OS image, you can use the nkp create image gcp command with required flags, or
+follow the comprehensive procedure below to configure all options using the environment variables:
+Procedure
+1. Open the terminal with access to NKP CLI.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 67

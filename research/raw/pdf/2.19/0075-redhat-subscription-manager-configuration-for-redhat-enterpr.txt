@@ -1,0 +1,48 @@
+
+--- page 75 ---
+RedHat Subscription Manager Configuration for RedHat Enterprise Linux
+Images
+This section details information on RedHat Subscription Manager (RHSM).
+When creating RHEL (Red Hat Enterprise Linux) images, you must configure Red Hat Subscription
+Manager (RHSM) to access RHEL repositories and install packages. The Nutanix Image Builder (NIB)
+supports two methods for RHSM registration:
+•
+Username/password authentication
+•
+Organization/activation key authentication
+RHSM configuration is required in the following scenarios:
+•
+Use of all RHEL images (For example, rhel-8.10, rhel-9.6)
+•
+Installing RHEL packages and updates
+•
+Accessing RHEL repositories
+RedHat Subscription Manager Registration Method
+•
+Registration Method 1: Username and Password
+Use this method if you have the required Red Hat username and password credentials.
+export RHSM_USER=your-redhat-username
+export RHSM_PASS=your-redhat-password
+export RHSM_CONSUMER_NAME=my-rhel-image-builder  #Optional
+export RHSM_ENVIRONMENT=production   # Optional
+export RHSM_POOL_ID=pool-id-12345   # Optional
+NIB automatically registers the system with RHSM during image creation. The system is then
+unregistered after image creation to avoid subscription conflicts
+Use RHSM_CONSUMER_NAME to identify the system in Red Hat's subscription management
+Use RHSM_ENVIRONMENT to specify the environment. This option is available only in the username/
+password method.
+Use RHSM_POOL_ID to attach a specific subscription pool
+•
+Registration Method 2: Organization ID and Activation Key
+Use this method if you have an organization ID and activation key. This method is recommended for
+automated registration.
+export RHSM_ORG_ID=your-org-id
+export RHSM_ACTIVATION_KEY=your-activation-key
+export RHSM_CONSUMER_NAME=my-rhel-image-builder   # Optional
+export RHSM_POOL_ID=pool-id-12345  # Optional
+Activation keys are preferred for automated builds and CI/CD pipelines. They can also be scoped to
+specific repositories and pools.
+This method is more secure than the username/password method as the keys can be rotated
+independently.
+Use RHSM_POOL_ID to attach a specific subscription pool
+Nutanix Kubernetes Platform | Nutanix Image Builder | 75

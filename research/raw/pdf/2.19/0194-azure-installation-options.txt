@@ -1,0 +1,461 @@
+
+--- page 194 ---
+10. You can now view this cluster in your Workspace in the UI and you can confirm its status by using the
+command.
+It may take a few minutes to reach "Joined" status. If you have several Pro Clusters and want to turn
+one of them to a Managed Cluster to be centrally administrated by a Management Cluster, review
+Platform Expansion.
+kubectl get nkpclusters -A
+If you have several Pro Clusters and want to turn one of them to a Managed Cluster to be centrally
+administrated by a Management Cluster, see Platform Expansion: Conversion of an NKP Pro Cluster
+to an NKP Ultimate Managed Cluster on page 472.
+For information on related topics or procedures, refer to the following:
+•
+EKS: Creating an EKS Cluster from the UI on page 856
+•
+Configuring and Running Amazon EKS Clusters
+•
+Cluster Management on page 408
+vSphere Installation Options
+For information on how to install NKP in a vSphere environment, see Install Nutanix Kubernetes Platform
+on vSphere Infrastructure on page 834.
+Azure Installation Options
+For an environment that is on the Azure Infrastructure, install options based on those environment
+variables are provided for you in this location.
+Remember, there are always more options for custom YAML in the Custom Installation and Additional
+Infrastructure Tools section, but this will get you operative in the most common scenarios.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+For a list of all the NKP supported environment combinations, see Supported Infrastructure Operating
+Systems on page 13.
+Additional Resource Information Specific to Azure
+•
+Control plane nodes - NKP on Azure defaults to deploying a Standard_D4s_v3 virtual machine with a
+128 GiB volume for the OS and an 80GiB volume for etcd storage, which meets the above resource
+requirements.
+•
+Worker nodes - NKP on Azure defaults to deploying a Standard_D8s_v3 virtual machine with an 80 GiB
+volume for the OS, which meets the above resource requirements.
+Azure Installation
+This installation provides instructions on how to install NKP in an Azure non-air-gapped environment.
+Remember, there are always more options for custom YAML in the Custom Installation and Additional
+Infrastructure Tools section, but this will get you operating with basic features.
+If not already done, perform the following tasks in Getting Started with NKP on page 19.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 194
+
+--- page 195 ---
+•
+Control Plane Nodes and Worker Nodes Resource Requirements for Nutanix Kubernetes Platform on
+page 694
+•
+Nutanix Kubernetes Platform Requirements on page 48
+•
+Installing NKP on page 46
+Azure Prerequisites
+Before you begin using NKP with Azure, you must:
+1. Sign in to Azure:
+az login
+[
+  {
+    "cloudName": "AzureCloud",
+    "homeTenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "id": "b1234567-abcd-11a1-a0a0-1234a5678b90",
+    "isDefault": true,
+    "managedByTenants": [],
+    "name": "Nutanix Developer Subscription",
+    "state": "Enabled",
+    "tenantId": "a1234567-b132-1234-1a11-1234a5678b90",
+    "user": {
+      "name": "user@azuremesosphere.onmicrosoft.com",
+      "type": "user"
+    }
+  }
+]
+2. Create an Azure Service Principal (SP) by running the following commands:
+1. If you have more than one Azure account, run this command to identify your account:
+echo $(az account show --query id -o tsv)
+2. Run this command to ensure you are pointing to the correct Azure subscription ID:
+az account set --subscription "Nutanix Developer Subscription"
+3. If an SP with the name exists, this command rotates the password:
+az ad sp create-for-rbac --role contributor --name "$(whoami)-konvoy" --scopes=/
+subscriptions/$(az account show --query id -o tsv) --query "{ client_id: appId,
+ client_secret: password, tenant_id: tenant }"
+Output:
+{
+  "client_id": "7654321a-1a23-567b-b789-0987b6543a21",
+  "client_secret": "Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C",
+  "tenant_id": "a1234567-b132-1234-1a11-1234a5678b90"
+}
+3. Set the AZURE_CLIENT_SECRET environment variable:
+export AZURE_CLIENT_SECRET="<azure_client_secret>" #
+ Z79yVstq_E.R0R7RUUck718vEHSuyhAB0C
+export AZURE_CLIENT_ID="<client_id>"               # 7654321a-1a23-567b-
+b789-0987b6543a21
+export AZURE_TENANT_ID="<tenant_id>"               # a1234567-
+b132-1234-1a11-1234a5678b90
+export AZURE_SUBSCRIPTION_ID="<subscription_id>"   # b1234567-abcd-11a1-
+a0a0-1234a5678b90
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 195
+
+--- page 196 ---
+4. Ensure you have an override file to configure specific attributes of your Azure image.
+Azure: Creating an Image
+Learn how to build a custom image for use with NKP.
+About this task
+This procedure describes how to use the Nutanix Image Builder on page 55 (NIB) to create a Cluster API
+compliant Azure Virtual Machine (VM) Image. NIB uses to specify base images and container images to
+use in your new Azure Virtual Machine (VM) Image.
+Note:  The default Azure image is not recommended for use in production. We suggest using NIB for Azure
+to build the image to take advantage of enhanced cluster operations. For more options, see Building a
+Custom Image with Azure on page 65.
+For more information regarding using the image in creating clusters, see Azure: Creating a
+Cluster on page 884.
+Procedure
+Follow the steps listed in Building a Custom Image with Azure on page 65.
+Azure: Creating the Management Cluster
+Create an Azure Management Cluster in a non-air-gapped environment.
+About this task
+Name Your Cluster
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+2. Set the environment variable using the command.
+export CLUSTER_NAME=<azure-example>
+Encoding your Azure Credential Variables:
+About this task
+Warning:  NKP uses the Azure CSI driver as the default storage provider. Use a Kubernetes CSI compatible
+storage that is suitable for production.
+Procedure
+Base64 encodes the Azure environment variables set in the Azure install prerequisites step.
+export AZURE_SUBSCRIPTION_ID_B64="$(echo -n "${AZURE_SUBSCRIPTION_ID}" | base64 | tr -d
+ '\n')"
+export AZURE_TENANT_ID_B64="$(echo -n "${AZURE_TENANT_ID}" | base64 | tr -d '\n')"
+export AZURE_CLIENT_ID_B64="$(echo -n "${AZURE_CLIENT_ID}" | base64 | tr -d '\n')"
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 196
+
+--- page 197 ---
+export AZURE_CLIENT_SECRET_B64="$(echo -n "${AZURE_CLIENT_SECRET}" | base64 | tr -d
+ '\n')"
+Create an Azure Kubernetes Cluster
+About this task
+If you use these instructions to create a cluster on Azure using the NKP default settings without any edits
+to configuration files or additional flags, your cluster is deployed on a three control plane nodes, and four
+worker nodes.
+NKP uses Azure CSI as the default storage provider. You can use a Kubernetes CSIcompatible storage
+solution that is suitable for production. See the Kubernetes documentation called Changing the Default
+Storage Class for more information.
+Availability zones (AZs) are isolated locations within datacenter regions from which public cloud services
+originate and operate. Because all the nodes in a node pool are deployed in a single AZ; you may wish to
+create additional node pools to ensure your cluster has nodes deployed in multiple AZs.
+Note:  By default, the control-plane Nodes will be created in 3 different zones. However, the default worker
+Nodes will reside in a single Availability Zone. You may create additional node pools in other Availability
+Zones with the nkp create nodepool command.
+Procedure
+Generate the Kubernetes cluster objects. Run this command to create your Kubernetes cluster using any
+relevant flags.
+The following example shows a common configuration. See nkp create cluster azure reference for the
+full list of cluster creation options.
+nkp create cluster azure \
+--cluster-name=${CLUSTER_NAME} \
+--self-managed
+Output is similar to below:
+Generating cluster resources
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+•
+A self-managed cluster refers to one in which the CAPI resources and controllers that describe and
+manage it are running on the same cluster they are managing. As part of the underlying processing
+using the --self-managed flag, the NKP CLI:
+•
+creates a bootstrap cluster
+•
+creates a managed cluster
+•
+moves CAPI controllers from the bootstrap cluster to the managed cluster, making it self-managed
+•
+deletes the bootstrap cluster
+To understand how this process works step by step, you can find a customizable Create a Custom Azure
+Cluster under Custom Installation and Additional Infrastructure Tools.
+Cluster Verification
+If you want to monitor or verify the installation of your clusters, refer to: Cluster and NKP Installation
+Verification on page 1004 and Installing NKP on page 46.
+Known Limitations
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 197
+
+--- page 198 ---
+The Konvoy version used to create a bootstrap cluster must match the Konvoy version used to create a
+managed cluster.
+•
+Konvoy supports deploying one managed cluster.
+•
+Konvoy generates a set of objects for one Node Pool.
+•
+Konvoy does not validate edits to cluster objects.
+Azure: Installing Kommander
+This section provides installation instructions for the Kommander component of NKP in a non-air-gapped
+Azure environment.
+About this task
+Once you have installed the component of NKP, you will continue with the installation of the Kommander
+component that will bring up the UI dashboard.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the correct
+cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see Commands
+within a kubeconfig File on page 34.
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install command
+to retry.
+Prerequisites:
+•
+Ensure you have reviewed all Prerequisites for Install.
+•
+Ensure you have a default storage class. For more information, see Default StorageClass on
+page 942.
+•
+Note the name of the cluster where you want to install Kommander. If you do not know the cluster
+name, use kubectl get nkpclusters -A to display and find it.
+Create your Kommander Installation Configuration File
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} >> ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init > kommander.yaml 
+4. If required: Customize your kommander.yaml.
+See Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, External Load Balancer, GPU Utilization, and Rook Ceph
+customization for Pre-provisioned environments.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 198
+
+--- page 199 ---
+Install Kommander in an Air-gapped Environment
+Procedure
+Use the customized kommander.yaml to install NKP.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Azure: Verifying your Installation and UI Log in
+Verify Kommander Install and Log in to the Dashboard UI
+About this task
+After you build the cluster and you install Kommander, verify your installation. It waits for all applications to
+be ready by default.
+Note:  If the Kommander installation fails or you wish to reconfigure applications, you can rerun the install
+command to retry the installation.
+Procedure
+Check the installation status:
+kubectl -n kommander wait --for condition=Ready helmreleases --all --timeout 15m
+Note:  If you prefer the CLI to not wait for all applications to become ready, you can set the --wait=false
+flag.
+The command waits for each Helm chart to reach the Ready condition and returns output similar to the
+following:
+helmrelease.helm.toolkit.fluxcd.io/ai-navigator-app condition met
+helmrelease.helm.toolkit.fluxcd.io/centralized-grafana condition met
+...
+The output can include additional HelmRelease entries.
+Failed HelmReleases
+Procedure
+If an application fails to deploy, check the status of a HelmRelease using the command.
+kubectl -n kommander get helmrelease <HELMRELEASE_NAME>
+If you find any HelmReleases in a “broken” release state, such as “exhausted” or “another rollback/release
+in progress”, trigger a reconciliation of the HelmRelease using the commands.
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": true}]'
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -p='[{"op":
+ "replace", "path": "/spec/suspend", "value": false}]'
+Log in to the UI
+Procedure
+1. By default, log in to the UI in Kommander with the following command:
+nkp open dashboard --kubeconfig=${CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 199
+
+--- page 200 ---
+2. Retrieve your credentials:
+kubectl -n kommander get secret dkp-credentials -o go-template='Username:
+ {{.data.username|base64decode}}{{ "\n"}}Password: {{.data.password|base64decode}}
+{{ "\n"}}'
+3. Retrieve the dashboard URL:
+kubectl -n kommander get svc kommander-traefik -o go-template='https://{{with
+ index .status.loadBalancer.ingress 0}}{{or .hostname .ip}}{{end}}/dkp/kommander/
+dashboard{{ "\n"}}'
+You should only use these static credentials to access the UI for configuring an external identity
+provider. Treat them as backup credentials rather than use them for normal access.
+a. Rotate the dashboard password:
+nkp rotate dashboard-credentials
+The CLI prompts for confirmation. Respond with y to continue or N to cancel:
+This will rotate the NKP dashboard (static admin) password.
+Existing sessions and stored credentials will stop working after rotation.
+Are you sure you want to continue? [y/N]: y
+The dashboard credentials have been rotated. Run nkp get dashboard to retrieve the
+ new password.
+To skip this prompt in non-interactive terminals, add the --yes flag:
+nkp rotate dashboard-credentials --yes
+b. Retrieve the new dashboard credentials:
+nkp get dashboard --kubeconfig=${CLUSTER_NAME}.conf
+For more information, see Rotating the NKP Dashboard Password on page 252.
+You can perform the following operations on Identity Providers:
+•
+Create an Identity Provider
+•
+Temporarily Disable an Identity Provider
+•
+Create Groups
+Dashboard UI Functions
+After installing the component and building a cluster as well as successfully installing Kommander and
+logging into the UI, you are now ready to customize configurations using the Day 2 Cluster Operations
+Management section of the documentation. The majority of this customization such as attaching
+clusters and deploying applications will take place in the dashboard or UI of NKP. The Day 2 section
+allows you to manage cluster operations and their application workloads to optimize your organization’s
+productivity.
+Azure: Creating Managed Clusters Using the NKP CLI
+This topic explains how to continue using the CLI to create managed clusters rather than switching to the
+UI dashboard.
+About this task
+In the previous step, the new cluster was created as Self-managed which allows it to be a Management
+cluster. Subsequent new clusters are not self-managed as they will likely be Managed or Attached clusters
+to this Management Cluster.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 200
+
+--- page 201 ---
+After the initial cluster creation; you can create additional clusters from the CLI. In a previous step, the new
+cluster was created as Self-managed, which allows it to be a Management cluster or a stand-alone cluster.
+Subsequent new clusters are not self-managed, as they will likely be Managed or Attached clusters to this
+Management Cluster.
+Note:  When creating Managed clusters, you do not need to create and move CAPI cluster objects or
+install the Kommander component. Those tasks are only done on Management clusters!
+Your new managed cluster needs to be part of a workspace under a management cluster. To make the new
+managed cluster a part of a Workspace, set that workspace environment variable.
+Procedure
+1. If you have an existing Workspace name, run this command to find the name.
+kubectl get workspace -A
+Note:  If you need to create a new Workspace, follow the instructions to Create a New Workspace
+2. When you have the Workspace name, set the WORKSPACE_NAMESPACE environment variable.
+export WORKSPACE_NAMESPACE=<workspace_namespace>
+Name Your Cluster
+About this task
+Each cluster must have an original name.
+First, you must name your cluster. Then run the command to deploy it.
+Perform both steps to name the cluster:
+Procedure
+1. Give your cluster a unique name suitable for your environment.
+Note:  A cluster name can include only the following characters: a-z, 0-9, ., and -. The cluster creation
+fails if the name has uppercase letters. For more instructions on naming, see  Object Names and IDs.
+When specifying the cluster-name, use the same cluster-name defined in your inventory
+objects to ensure consistency.
+2. Set the environment variable.
+ export MANAGED_CLUSTER_NAME=<MANAGED_CLUSTER_NAME>
+Create a Kubernetes Cluster
+About this task
+Note:  The below instructions tell you how to create a cluster and have it automatically attach to the
+workspace you set above. If you do not set a workspace, it will be created in the default workspace, and
+you need to take additional steps to attach to a workspace later. For instructions on how to do this, see
+Attach a Kubernetes Cluster.
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 201
+
+--- page 202 ---
+Procedure
+Execute this command to create an additional cluster without the self-managed flag:
+nkp create cluster azure \
+--cluster-name=${MANAGED_CLUSTER_NAME} \
+--namespace=${WORKSPACE_NAMESPACE} \
+--additional-tags=owner=$(whoami) \
+--kubeconfig=<management-cluster-kubeconfig-path> 
+Note:  If your environment uses HTTP or HTTPS proxies, include the flags --http-proxy, - -https-
+proxy, and --no-proxy with their values in the command to ensure it runs successfully. For more
+information, see Configuring an HTTP or HTTPS Proxy on page 665.
+Retrieving the kubeconfig and Exploring New Azure Cluster
+Procedure
+1. Fetch the kubeconfig file with the command:
+nkp get kubeconfig --cluster-name ${MANAGED_CLUSTER_NAME} --kubeconfig <management-
+cluster-kubeconfig-path> -n ${WORKSPACE_NAMESPACE} > ${MANAGED_CLUSTER_NAME}.conf
+2. List the nodes with the following command:
+kubectl --kubeconfig=${MANAGED_CLUSTER_NAME}.conf get nodes
+3. List the pods with the following command:
+Note:  Wait for the Status to move to Ready while calico-node pods are being deployed.
+kubectl --kubeconfig=${MANAGED_CLUSTER_NAME}.conf get pods -A
+Manually Attach an NKP CLI Cluster to the Management Cluster
+About this task
+Warning:  These steps are only applicable if you do not set a WORKSPACE_NAMESPACE when creating a
+cluster. If you already set a WORKSPACE_NAMESPACE, then you do not need to perform these steps since
+the cluster is already attached to the workspace.
+When you create a Managed Cluster with the NKP CLI, it attaches automatically to the Management
+Cluster after a few moments.
+However, if you do not set a workspace, the attached cluster will be created in the default workspace.
+To ensure that the attached cluster is created in your desired workspace namespace, follow these
+instructions:
+Procedure
+1.
+Confirm you have your MANAGED_CLUSTER_NAME variable set with the following command.
+echo ${MANAGED_CLUSTER_NAME}
+2.
+Retrieve your kubeconfig from the cluster you have created without setting a workspace.
+nkp get kubeconfig --cluster-name ${MANAGED_CLUSTER_NAME} >
+ ${MANAGED_CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 202
+
+--- page 203 ---
+3.
+You can now either attach it in the UI, link to attaching it to workspace through UI that was earlier, or
+attach your cluster to the workspace you want in the CLI.
+Note:  This is only necessary if you never set the workspace of your cluster upon creation.
+4.
+Retrieve the workspace where you want to attach the cluster.
+kubectl get workspaces -A
+5.
+Set the WORKSPACE_NAMESPACE environment variable.
+export WORKSPACE_NAMESPACE=<workspace-namespace>
+6.
+You need to create a secret in the desired workspace before attaching the cluster to that workspace.
+Retrieve the kubeconfig secret value of your cluster.
+kubectl -n default get secret ${MANAGED_CLUSTER_NAME}-kubeconfig -o go-
+template='{{.data.value}}{{ "\n"}}'
+7.
+This will return a lengthy value. Copy this entire string for a secret using the template below as a
+reference. Create a new attached-cluster-kubeconfig.yaml file.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: <your-managed-cluster-name>-kubeconfig
+  labels:
+    cluster.x-k8s.io/cluster-name: <your-managed-cluster-name>
+type: cluster.x-k8s.io/secret
+data:
+  value: <value-you-copied-from-secret-above>
+8.
+Create this secret in the desired workspace.
+kubectl apply -f attached-cluster-kubeconfig.yaml --namespace
+ ${WORKSPACE_NAMESPACE}
+9.
+Create this nkpcluster object to attach the cluster to the workspace.
+cat << EOF | kubectl apply -f -
+apiVersion: clusters.nkp.nutanix.com/v1alpha1
+kind: NKPCluster
+metadata:
+  name: ${MANAGED_CLUSTER_NAME}
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  capiClusterRef:
+    name: ${MANAGED_CLUSTER_NAME}
+    namespace: default
+  kommanderCluster:
+    spec:
+      kubeconfigRef:
+        name: ${MANAGED_CLUSTER_NAME}-kubeconfig
+      clusterRef:
+        capiCluster:
+          name: ${MANAGED_CLUSTER_NAME}
+EOF
+Nutanix Kubernetes Platform | Basic Installations by Infrastructure | 203

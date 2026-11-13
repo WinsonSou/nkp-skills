@@ -1,0 +1,78 @@
+
+--- page 53 ---
+•
+For pre-provisioned environments:
+•
+Ensure that your environment meet the storage requirements.
+•
+Ensure that you add at least 40 GB of raw storage to each of your cluster worker nodes.
+Required Domains
+This section describes the required domains for NKP.
+You must have access to the following domains through the customer networking rules so that Kommander
+can download all required images.
+Note:  Enable all the listed domains, including redirections and subdomains.
+•
+docker.io
+•
+gcr.io
+•
+k8s.gcr.io
+•
+mcr.microsoft.com
+•
+quay.io
+•
+us.gcr.io
+•
+registry.k8s.io
+•
+nvcr.io
+•
+pkg-containers.githubusercontent.com
+•
+charts.bitnami.com
+•
+charts.jetstack.io
+•
+charts.rook.io
+•
+cloudnative-pg.io
+•
+grafana.github.io
+•
+helm.goharbor.io
+•
+helm.ngc.nvidia.com
+•
+helm.traefik.io
+•
+jaegertracing.github.io
+•
+kiali.io
+•
+kubecost.github.io
+•
+kubernetes.github.io
+•
+mesosphere.github.io
+•
+open-policy-agent.github.io
+•
+prometheus-community.github.io
+•
+fluent.github.io
+•
+kube-logging.github.io
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Requirements | 53
+
+--- page 54 ---
+•
+raw.githubusercontent.com
+•
+insights.nutanix.com
+Note:
+•
+In an air-gapped installation, the required domains need not be accessible.
+•
+For the NKP Pulse to send its data to Nutanix, you must have access to the following domain
+through the cluster networking rules: insights.nutanix.com.

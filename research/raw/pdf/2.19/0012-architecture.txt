@@ -1,0 +1,46 @@
+
+--- page 12 ---
+Features
+Benefits
+Networking and Routing
+Easily automate and expose application endpoints
+(Networking on page 589) with Cilium, Calico,
+Traefik-Forward-Authentication in NKP (TFA) on
+page 583, and CoreDNS.
+Fine-Grained Cluster
+Upgrades reduce operational overhead with
+non-disruptive patching or parallel worker node
+upgrades. See (Upgrade Nutanix Kubernetes
+Platform on page 1007).
+Backup and Recovery
+Ensure business continuity and disaster recovery
+(Nutanix Kubernetes® Platform Backup and
+Restore Management on page 510) with Velero.
+Declarative Automated Installer With Day 2 Platform
+Services
+Accelerate time-to-production on any infrastructure
+(Basic Installations by Infrastructure on page 76)
+with consistency and reliability with the required
+Platform Applications on page 294 needed for
+Cluster Operations Management on page 227.
+Operate in AWS Air-gapped Installation
+Leverage declarative APIs to optimize cluster
+resources for cost, resilience, and performance.
+End-to-End Support
+Enterprise-grade support and services for both
+Kubernetes and its supported platform applications.
+Architecture
+Kubernetes creates the foundation for the Nutanix Kubernetes® Platform (NKP) cluster. This topic briefly
+overviews the native Kubernetes architecture, a simplified version of the NKP architecture for both all
+licence tiers. The architecture also depicts the operational workflow for an NKP cluster.
+Kubernetes® is a registered trademark of The Linux Foundation in the United States and other countries
+and is used according to a license from The Linux Foundation.
+Components of the Kubernetes Control Plane
+The native Kubernetes cluster consists of components in the cluster’s control plane and worker nodes that
+run containers and maintain the runtime environment.
+NKP supplements the native Kubernetes cluster by including a pre-defined and pre-configured set of
+applications. The pre-defined set of applications critical for managing a Kubernetes cluster in a production
+environment are identified as the NKP platform applications.
+To view the full set of NKP platform services, see Platform Applications on page 294.
+The following illustration depicts the NKP architecture and the workflow of the key components:
+Nutanix Kubernetes Platform | Nutanix Kubernetes® Platform Overview | 12

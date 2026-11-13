@@ -1,0 +1,197 @@
+
+--- page 1081 ---
+Platform-Specific Custom Resources
+AI Navigator can also collect the following NKP and Cluster API custom resources from your management
+cluster:
+NKP and Kommander resources
+For example, NKP clusters, the management plane, workspaces, projects, applications and
+AppDeployment resources, licenses, Insights, and GitOps repositories, in the *.nutanix.com,
+*.d2iq.io, and *.mesosphere.io API groups
+Cluster API resources
+For example, clusters, machines, machine deployments, control planes, bootstrap configurations,
+and infrastructure provider resources for Nutanix, vSphere, AWS, Azure, and GCP, in the
+cluster.x-k8s.io and *.cluster.x-k8s.io API groups
+Note:  AI Navigator exposes only the NKP and Cluster API resource types that are installed on your
+management cluster. The exact set depends on your deployment.
+Resources Excluded for Security
+AI Navigator never collects the following resource types:
+•
+Secret resources
+•
+Dex identity provider Client and Connector resources
+•
+Cluster API infrastructure credential and identity resources, such as AWSClusterStaticIdentity,
+AzureClusterIdentity, and VSphereClusterIdentity
+•
+Subresources, such as pods/status
+Cluster Data Processing
+The NKP MCP Server securely queries live cluster data on demand to enrich query context, enabling more
+accurate and contextually relevant responses.
+We prioritize your data's privacy and security. When you enable this feature, any potentially sensitive
+information from your Management cluster will be securely transmitted and processed by our trusted cloud
+service provider, Azure OpenAI. This data is used exclusively to add additional context to your queries to
+provide to the AI Navigator service. We adhere to strict data protection and privacy standards, ensuring
+responsible handling of your information.
+Use of the AI Navigator chatbot with the NKP MCP Server is governed by the terms of the Nutanix License
+and Service Agreement, the  Nutanix privacy policy and the Azure OpenAI privacy policy. For more
+information, see Data Privacy in Azure.
+Data Storage and Management
+You can turn the AI Navigator NKP MCP Server on or off to control your data privacy, but you cannot
+change how the chatbot processes or stores data.
+You cannot modify the way the chatbot processes or stores data.
+Connect AI Navigator with Your Own Azure OpenAI Service
+AI Navigator can use your Azure OpenAI Service so LLM inference traffic stays within your Azure tenant
+instead of routing through Nutanix production services.
+By default, AI Navigator routes queries through a Nutanix-managed Azure OpenAI Service, so no
+additional configuration is required. If your organization requires data to remain within its own Azure tenant,
+you can configure AI Navigator RAG to use your own Azure OpenAI Service instead.
+Nutanix Kubernetes Platform | AI Navigator | 1081
+
+--- page 1082 ---
+In this configuration, the AI Navigator RAG component runs directly on your NKP management cluster and
+connects to your Azure OpenAI deployment for both the conversational model and the embedding model.
+To set this up, create an Azure OpenAI Service resource in your Azure subscription, deploy the required
+chat model (for example, GPT-4o mini) and embedding model (for example, text-embedding-ada-002), and
+then configure the AI Navigator RAG Helm chart with your Azure OpenAI endpoint, deployment names,
+API version, and API key.
+With this setup, all LLM inference traffic stays within your Azure tenant. Query data, documentation
+context, and cluster information retrieved by the NKP MCP Server are sent only to your Azure OpenAI
+endpoint and are never routed through Nutanix production services.
+Enterprise Azure OpenAI Endpoint Disclaimer
+The application supports integration with your Azure OpenAI endpoint, and your organization manages
+security, credentials, data governance, and compliance.
+Your organization, not Nutanix, manages this endpoint to support AI-driven use cases. For more
+information, see Azure OpenAI endpoints.
+By proceeding, you acknowledge and accept the following responsibilities.
+•
+Endpoint security: Your organization must secure and manage its Azure OpenAI endpoint, including
+all configurations, access controls, and network protections.
+•
+Credential management: Your organization must securely store, rotate as needed, and protect all API
+keys, tokens, and authentication credentials in accordance with your internal security policies.
+•
+Data governance: Your organization must ensure that all data transmitted through the endpoint
+complies with your data governance standards and applicable privacy regulations.
+•
+Compliance and risk: Your organization must comply with Azure OpenAI's terms of use and any legal,
+regulatory, or contractual obligations related to the use of Azure OpenAI services.
+•
+Costs: Your organization must bear all costs associated with Azure OpenAI endpoint usage, including
+charges for token usage.
+AI Navigator RAG does not persist or monitor your Azure OpenAI endpoint credentials or transmitted data.
+You can disable the Azure OpenAI endpoint at any time by deleting the deployment that you created. For
+more information, see Azure OpenAI endpoints and Azure OpenAI deployments. If you do not agree to
+these terms, do not proceed with endpoint configuration and the AI Navigator RAG installation.
+Configuring AI Navigator App to use Custom Azure OpenAI Service
+AI Navigator requires an Azure OpenAI Service deployment and a two-step configuration in NKP.
+Prerequisites
+•
+Ensure you have a deployment and endpoint for an Azure OpenAI Service.
+Nutanix Kubernetes Platform | AI Navigator | 1082
+
+--- page 1083 ---
+•
+Ensure that you have the following details from the Azure OpenAI Service deployment:
+•
+Azure OpenAI API key
+•
+Model name
+•
+Completion model deployment name
+•
+Embeddings model name
+•
+Embeddings model deployment name
+•
+API endpoint
+•
+API version
+The 2.18 release of AI Navigator is validated to work with the following:
+•
+Model name: gpt-5o-mini
+•
+Completion model name: gpt-5o-mini
+•
+Embeddings model name: text-embedding-ada-002
+•
+API version: 2024-10-21
+Values other than these are not validated for use with AI Navigator.
+AI Navigator App Configuration
+To use your own Azure OpenAI service with the AI Navigator app to use, follow these steps:
+1. Create a secret with the Azure OpenAI API key.
+2. Reconfigure the AI Navigator app from the NKP UI to use a custom Azure OpenAI service.
+Creating a Secret with Azure OpenAI API Key
+Store the Azure OpenAI API key as a Kubernetes secret on NKP management cluster before you configure
+AI Navigator app.
+About this task
+Create a secret with Azure OpenAI API Key
+Procedure
+1. Open a terminal with access to the NKP management cluster.
+2. Create the secret:
+kubectl create secret generic ai-navigator-app-secrets -n kommander --from-
+literal=OPENAI_API_KEY=$OPENAI_API_KEY
+Replace $OPENAI_API_KEY with your Azure OpenAI API key.
+Switch AI Navigator App to your own Azure OpenAI Service
+Update the AI Navigator app configuration in the NKP user interface by adding Azure OpenAI settings.
+About this task
+Log in to the Nutanix Kubernetes Platform (NKP) user interface.
+To edit the AI Navigator app, complete these steps:
+Nutanix Kubernetes Platform | AI Navigator | 1083
+
+--- page 1084 ---
+Procedure
+1. In the NKP user interface, click Management Cluster Workspace.
+2. Click Applications.
+3. In the Tools section, locate NKP AI Navigator.
+4. Click the three-dots icon and click Edit.
+5. Add the following configuration, replacing the placeholder values with your configuration values:
+The YAML root key is llm.
+llm:
+  apiType: azure
+  modelName: <model name, for example, gpt-5o-mini>
+  embeddingsModelName: <embeddings model name, for example, text-embedding-ada-002>
+  apiEndpoint: https://<Azure OpenAI Service Name>.openai.azure.com
+  openai:
+    modelDeploymentName: <completion model deployment name, for example, gpt-5o-mini>
+    embeddingsDeploymentName: <embeddings model deployment name, for example, text-
+embedding-ada-002>
+    embeddingsModelApiVersion: <embeddings model API version, for example,
+ "2024-10-21">
+    chatModelApiVersion: <completion model API version, for example, "2024-10-21">
+6. Click Save.
+Revert AI Navigator to the Nutanix-Managed Azure OpenAI Service
+Restore AI Navigator to its default configuration by routing queries through the Nutanix-managed Azure
+OpenAI Service.
+About this task
+To restore the AI Navigator app, follow these steps:
+Procedure
+1. In the NKP UI, go to Management Cluster Workspace > Applications, edit NKP AI Navigator, and
+remove the custom llm configuration.
+2. Delete the Kubernetes secret containing the Azure OpenAI API key.
+Restore AI Navigator Configuration
+Restore AI Navigator to its default configuration so queries use the Nutanix-managed Azure OpenAI
+Service instead of a customer-managed endpoint.
+About this task
+After you restore the default configuration, the AI Navigator app uses only the default cloud-based model
+for query responses.
+To restore the AI Navigator app configuration, follow these steps:
+Procedure
+1. In the NKP user interface, click Management Cluster Workspace.
+2. Click Applications.
+Nutanix Kubernetes Platform | AI Navigator | 1084
+
+--- page 1085 ---
+3. In the Tools section, locate NKP AI Navigator.
+4. Click the more options (three dots) icon, and then click Edit.
+5. Remove the llm section with your custom configuration.
+6. Click Save.
+Deleting the Secret with Azure OpenAI API Key
+Delete the Kubernetes secret that stores the Azure OpenAI API key on NKP management cluster to
+remove the AI Navigator RAG configuration.
+About this task
+To delete the Azure OpenAI API key secret from NKP management cluster, follow these steps:
+Procedure
+1. Open a terminal with access to NKP management cluster.
+2. Run the following command to delete the secret:
+kubectl delete secret ai-navigator-app-secrets -n kommander
+Nutanix Kubernetes Platform | AI Navigator | 1085

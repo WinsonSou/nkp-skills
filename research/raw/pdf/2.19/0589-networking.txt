@@ -1,0 +1,911 @@
+
+--- page 589 ---
+Note:  The login page and the cluster URL are the same for the default admin user and the local users you
+create with this method.
+For more information on RBAC resources in NKP and granting access to Kubernetes and Kommander
+resources, see Access to Kubernetes and Kommander Resources on page 231.
+For general information on RBAC as a Kubernetes resource, see Using RBAC Authorization in the
+Kubernetes documentation.
+Modifying Local Users
+Procedure
+1. To change the password or username of a user, edit the dex-overrides ConfigMap.
+2. If you change the email address or username of a user, ensure you update any RoleBindings or RBAC
+resources associated with this user.
+Deleting Local Users
+Procedure
+To delete local users, edit the dex-overrides ConfigMap and remove the email and hash fields for the
+user. Also, ensure you delete any RoleBindings or RBAC resources associated with this user.
+Networking
+Configure and manage networking stack for the Konvoy clusters deployed through Nutanix Kubernetes®
+Platform (NKP).
+The networking stack includes key components such as the container network interface (CNI) plugins,
+ingress controllers, and load balancers interact to support pod communication, service exposure, and
+traffic routing. The networking components assume familiarity with Kubernetes networking and provide
+reliable communication across pods, services, and external endpoints.
+For more information on maximum transmission unit behavior for AHV clusters that use Cilium with overlay
+networking, see Maximum Transmission Unit Configuration for AHV Clusters on page 711.
+Networking Service
+A Service is an API resource that defines a logical set of pods and a policy by which to access them, and is
+an abstracted manner to expose applications as network services.
+For more information on service, see https://kubernetes.io/docs/concepts/services-networking/service/
+#service-resource.
+Kubernetes gives pods their own IP addresses and a single DNS name for a set of pods. Services are
+used as entry points to load-balance the traffic across the pods. A selector determines the set of Pods
+targeted by a Service.
+For example, if you have a set of pods that each listen on TCP port 9191 and carry a label
+app=MyKonvoyApp, as configured in the following:
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-konvoy-service
+  namespace: default
+spec:
+  selector:
+    app: MyKonvoyApp
+  ports:
+Nutanix Kubernetes Platform | Cluster Operations Management | 589
+
+--- page 590 ---
+  - protocol: TCP
+    port: 80
+    targetPort: 9191
+This specification creates a new Service object named "my-konvoy-service", that targets TCP port 9191
+on any pod with the app=MyKonvoyApp label.
+Kubernetes assigns this Service an IP address. In particular, the kube-proxy implements a form of virtual
+IP for Services of type other than ExternalName.
+Note:
+•
+The name of a Service object must be a valid DNS label name.
+•
+A Service is not a Platform Service.
+Service Topology
+A Service Topology is a mechanism in Kubernetes that routes traffic based on the cluster's Node topology.
+For example, you can configure a Service to route traffic to endpoints on specific nodes or even based on
+the region or availability zone of the node’s location.
+To enable this new feature in your Kubernetes cluster, use the feature gates --feature-
+gates="ServiceTopology=true,EndpointSlice=true" flag. After enabling, you can control Service
+traffic routing by defining the topologyKeys field in the Service API object.
+In the following example, a Service defines topologyKeys to be routed to endpoints only in the same zone:
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-konvoy-service
+  namespace: default
+spec:
+  selector:
+    app: MyKonvoyApp
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 9191
+  topologyKeys:
+  - "topology.kubernetes.io/zone"
+Note:  If the value of the topologyKeys field does not match any pattern, the traffic is rejected.
+EndpointSlices
+EndpointSlices are an API resource that appears as a scalable and more manageable solution to network
+endpoints within a Kubernetes cluster. They allow for distributing network endpoints across multiple
+resources with a limit of 100 endpoints per EndpointSlice.
+For more information, see https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/
+#endpointslice-resource.
+An EndpointSlice contains references to a set of endpoints, and the control plane takes care of creating
+EndpointSlices for any service that has a selector specified. These EndpointSlices include references to all
+the pods that match the Service selector.
+Like Services, the name of a EndpointSlice object must be a valid DNS subdomain name.
+In this example, here’s a sample EndpointSlice resource for the example Kubernetes Service:
+apiVersion: discovery.k8s.io/v1beta1
+kind: EndpointSlice
+Nutanix Kubernetes Platform | Cluster Operations Management | 590
+
+--- page 591 ---
+metadata:
+  name: konvoy-endpoint-slice
+  namespace: default
+  labels:
+    kubernetes.io/service-name: my-konvoy-service
+addressType: IPv4
+ports:
+- name: http
+  protocol: TCP
+  port: 80
+endpoints:
+- addresses:
+  - "192.168.126.168"
+  conditions:
+    ready: true
+  hostname: ip-10-0-135-39.us-west-2.compute.internal
+  topology:
+    kubernetes.io/hostname: ip-10-0-135-39.us-west-2.compute.internal
+    topology.kubernetes.io/zone: us-west2-b
+DNS for Services and Pods
+Every new Service object in Kubernetes gets assigned a DNS name. The Kubernetes DNS component
+schedules a DNS name for the pods and services created on the cluster, and then the Kubelets are
+configured so containers can resolve these DNS names.
+Considering previous examples, assume there is a Service named my-konvoy-service in the Kubernetes
+namespace default. A Pod is running in namespace default can look up this service by performing a
+DNS query for my-konvoy-service. A Pod running in namespace kommander can look up this service by
+performing a DNS query for my-konvoy-service.default.
+In general, a pod has the following DNS resolution:
+pod-ip-address.namespace-name.pod-name.cluster-domain.example.
+Similarly, a service has the following DNS resolution:
+service-name.namespace-name.svc.cluster-domain.example.
+For information about all the possible record types and layouts and DNS for Services and Pods, see
+https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/.
+Ingress and Networking
+Ingress is an API resource that manages external access to the services in a cluster through HTTP or
+HTTPS. It offers name-based virtual hosting, SSL termination, and load balancing when exposing HTTP/
+HTTPS routes from outside to services in the cluster.
+For information on Ingress, see https://kubernetes.io/docs/concepts/services-networking/ingress/#what-is-
+ingress.
+The traffic policies are controlled by rules as part of the Ingress definition. Each rule defines the following
+details:
+•
+An optional host to which to apply the rules.
+•
+A list of paths or routes that has an associated backend defined with a Service name, a port name and
+number.
+•
+A backend is a combo of a Service and port names, or a custom resource backend defined as a CRD.
+Consequently HTTP/HTTPS requests to the Ingress that match the host and path of the rule are sent to
+the listed backend.
+In Kommander, you can expose services to the outside world using Ingress objects.
+Nutanix Kubernetes Platform | Cluster Operations Management | 591
+
+--- page 592 ---
+Ingress Controllers
+In contrast with the controllers in the Kubernetes control plane, Ingress controllers are not started with a
+cluster so you need to choose the desired Ingress controller.
+An Ingress controller has to be deployed in a cluster for the Ingress definitions to work.
+Kubernetes, as a project, currently supports and maintains GCE controllers.
+These are three of the most known Ingress controllers:
+•
+HAProxy Ingress is a highly customizable community-driven ingress controller for HAProxy. See https://
+haproxy-ingress.github.io/
+•
+Traefik is a fully featured Ingress controller (Let’s Encrypt, secrets, http2, websocket), and has
+commercial support. See https://github.com/containous/traefik.
+•
+Ambassador API Gateway EXPERIMENTAL is an Envoy based Ingress controller with the community
+and commercial support. See https://www.getambassador.io/.
+In Kommander, Traefik deploys by default as a well-suited Ingress controller.
+Network Policies
+NetworkPolicy is an API resource that controls the traffic flow at port level 3 or 4 or at the IP address
+level. It enables defining constraints on how a pod communicates with various network services such as
+endpoints and services.
+A Pod can be restricted to talk to other network services through a selection of the following identifiers:
+•
+Namespaces that have to be accessed. There can be pods that are not allowed to talk to other
+namespaces.
+•
+Other allowed IP blocks regardless of the node or IP address assigned to the targeted Pod.
+•
+Other allowed Pods.
+An example of a NetworkPolicy specification is:
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: network-konvoy-policy
+  namespace: default
+spec:
+  podSelector:
+    matchLabels:
+      role: db
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - ipBlock:
+        cidr: 172.17.0.0/16
+        except:
+        - 172.17.1.0/24
+    - namespaceSelector:
+        matchLabels:
+          app: MyKonvoyApp
+    - podSelector:
+        matchLabels:
+          app: MyKonvoyApp
+    ports:
+    - protocol: TCP
+Nutanix Kubernetes Platform | Cluster Operations Management | 592
+
+--- page 593 ---
+      port: 6379
+  egress:
+  - to:
+    - ipBlock:
+        cidr: 10.0.0.0/24
+    ports:
+    - protocol: TCP
+      port: 5978
+As shown in the example, when defining a pod or namespace based NetworkPolicy, you use a selector to
+specify what traffic is allowed to and from the Pod(s).
+Adding Entries to Pod /etc/hosts with HostAliases
+The Pod API resource definition has a HostAliases field that allows adding entries to the Pod’s container
+/etc/hosts file. This field overrides the hostname resolution when DNS and other options are not
+applicable.
+For example, to resolve foo.node.local, bar.node.local to 127.0.0.1 and foo.node.remote,
+bar.node.remote to 10.1.2.3, configure the HostAliases values as follows:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: hostaliases-konvoy-pod
+spec:
+  restartPolicy: Never
+  hostAliases:
+  - ip: "127.0.0.1"
+    hostnames:
+    - "foo.node.local"
+    - "bar.node.local"
+  - ip: "10.1.2.3"
+    hostnames:
+    - "foo.node.remote"
+    - "bar.node.remote"
+  containers:
+  - name: cat-hosts
+    image: busybox
+    command:
+    - cat
+    args:
+    - "/etc/hosts"
+Load Balancing
+In a Kubernetes cluster, depending on the flow of traffic direction, there are two kinds of load balancing:
+•
+Internal load balancing for the traffic within a Kubernetes cluster
+•
+External load balancing for the traffic coming from outside the cluster
+Load Balancing for Internal Traffic
+Load balancing within a Kubernetes cluster is accessed through a ClusterIP service type. ClusterIP
+presents a single IP address to the client, and load balances the traffic going to this IP to the backend
+servers.
+NKP now supports Cilium as the default CNI. Cilium replaces kube-proxy and handles Kubernetes
+Service load balancing. For more information, see Kubernetes Service.
+Note:  For environments that use Calico instead of Cilium, kube-proxy is fully supported and available.
+Nutanix Kubernetes Platform | Cluster Operations Management | 593
+
+--- page 594 ---
+Load Balancing for External Traffic
+External traffic destined for the Kubernetes service requires a service of type LoadBalancer, through which
+external clients connect to your internal service. Under the hood, it uses a load balancer provided by the
+underlying infrastructure to direct the traffic.
+Note:  In NKP environments, the external load balancer must be configured without TLS termination.
+In cloud deployments, the load balancer is provided by the cloud provider. For example, in AWS, the
+service controller communicates with the AWS API to provision an ELB service that targets the cluster
+nodes.
+For an on-premises Pre-provisioned deployment, NKP ships with MetalLB (see https://metallb.universe.tf/
+concepts/), which provides load-balancing services. The environments that use MetalLB are pre-
+provisioned, as well as vSphere infrastructures. For more information on how to configure MetalLB for
+these environments, see the following:
+•
+Pre-provisioned: Configuring MetalLB on page 83
+•
+Configure MetalLB for a vSphere infrastructure
+Custom Load Balancer for External Traffic
+If you want to use a non-NKP load balancer for external traffic, see External Load Balancer on page 977.
+Ingress
+Traefik Ingress Controller.
+Kubernetes Ingress resources expose HTTP and HTTPS routes from outside the cluster to services within
+the cluster. In Kommander, the Traefik Ingress controller is installed by default and provides access to the
+NKP UI.
+An Ingress performs the following:
+•
+Gives Services externally-reachable URLs
+•
+Load balances traffic
+•
+Terminates SSL/TLS sessions
+•
+Offers name-based virtual hosting
+An Ingress controller fulfills the Ingress with a load balancer.
+A cluster can have multiple Ingress controllers.
+Traefik
+Traefik is a modern HTTP reverse proxy and load balancer that deploys microservices with ease.
+Kommander currently installs Traefik by default on every cluster. Traefik creates a service of type
+LoadBalancer. In the cloud, the cloud provider creates the appropriate load balancer. In an on-premises
+deployment, by default, it uses MetalLB.
+Traefik listens to the Kubernetes API and automatically generates and updates the routes without any
+further configuration or intervention so that the Services selected by the Ingress resources are connected
+to the outside world. Further, Traefik supports a rich set of functionality such as Name-based routing, Path-
+based routing, Traffic splitting, etc.
+Major features highlighted in the Traefik documentation:
+•
+Continuously updates its configuration (No restarts!)
+Nutanix Kubernetes Platform | Cluster Operations Management | 594
+
+--- page 595 ---
+•
+Supports multiple load balancing algorithms
+•
+Provides HTTPS to your microservices
+•
+Circuit breakers, retry
+•
+A clean web UI
+•
+Websocket, HTTP/2, GRPC ready
+•
+Provides metrics (Rest, Prometheus, Datadog, StatsD, InfluxDB)
+•
+Keeps access logs (JSON, CLF)
+•
+Exposes a Rest API
+•
+Packaged as a single binary file (made with go) and available as a docker image
+Related Information: For information on related topics or procedures, see the following:
+•
+List of Ingress controllers: https://kubernetes.io/docs/concepts/services-networking/ingress-controllers/
+•
+Traefik Migration Guide: https://doc.traefik.io/traefik/migration/v2-to-v3/
+•
+Configuring Ingress for Load Balancing on page 595
+•
+Load Balancing on page 593
+Configuring Ingress for Load Balancing
+Learn how to configure Ingress settings for load balancing (layer-7).
+About this task
+Ingress is the name used to describe an API object that manages external access to the services in a
+cluster. Typically, an Ingress exposes HTTP and HTTPS routes from outside the cluster to services running
+within the cluster.
+The object is called an Ingress because it acts as a gateway for inbound traffic. The Ingress receives
+inbound requests and routes them according to the rules you defined for the Ingress resource as part of
+your cluster configuration.
+Expose an application running on your cluster by configuring an Ingress for load balancing (layer-7).
+Before you begin
+You must:
+•
+Have access to a Linux, macOS, or Windows computer with a supported operating system version.
+•
+Have a properly deployed and running cluster.
+To expose a pod using an Ingress (L7)
+Procedure
+1. Deploy two web application Pods on your Kubernetes cluster by running the following command.
+kubectl run --restart=Never --image hashicorp/http-echo --labels app=http-echo-1 --
+port 80 http-echo-1 -- -listen=:80 --text="Hello from http-echo-1"
+kubectl run --restart=Never --image hashicorp/http-echo --labels app=http-echo-2 --
+port 80 http-echo-2 -- -listen=:80 --text="Hello from http-echo-2"
+Nutanix Kubernetes Platform | Cluster Operations Management | 595
+
+--- page 596 ---
+2. Expose the Pods with a service type of ClusterIP by running the following commands.
+kubectl expose pod http-echo-1 --port 80 --target-port 80 --name "http-echo-1"
+kubectl expose pod http-echo-2 --port 80 --target-port 80 --name "http-echo-2"
+3. Create the Ingress to expose the application to the outside world by running the following command.
+cat <<EOF | kubectl create -f -
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    kubernetes.io/ingress.class: kommander-traefik
+    traefik.ingress.kubernetes.io/router.tls: "true"
+  generation: 7
+  name: echo
+  namespace: default
+spec:
+  rules:
+  - http:
+      paths:
+      - backend:
+          service:
+            name: http-echo-1
+            port:
+              number: 80
+        path: /echo1
+        pathType: Prefix
+  - http:
+      paths:
+      - backend:
+          service:
+            name: http-echo-2
+            port:
+              number: 80
+        path: /echo2
+        pathType: Prefix
+EOF
+The configuration settings in this example illustrate:
+•
+setting the kind to Ingress.
+•
+setting the service.name to be exposed as each backend.
+4. Run the following command to get the URL of the load balancer created on AWS for the Traefik service.
+kubectl get svc kommander-traefik -n kommander
+This command displays the internal and external IP addresses for the exposed service. (Note that IP
+addresses and host names are for illustrative purposes. Always use the information from your own
+cluster)
+NAME                 TYPE           CLUSTER-IP    EXTERNAL-IP                        
+                                     PORT(S)                                     AGE
+kommander-traefik    LoadBalancer   10.0.24.215  
+ abf2e5bda6ca811e982140acb7ee21b7-37522315.us-west-2.elb.amazonaws.com   80:31169/
+TCP,443:32297/TCP,8080:31923/TCP   4h22m
+Nutanix Kubernetes Platform | Cluster Operations Management | 596
+
+--- page 597 ---
+5. Validate that you can access the web application Pods by running the following commands: (Note that
+IP addresses and host names are for illustrative purposes. Always use the information from your own
+cluster)
+curl -k https://abf2e5bda6ca811e982140acb7ee21b7-37522315.us-
+west-2.elb.amazonaws.com/echo1
+curl -k https://abf2e5bda6ca811e982140acb7ee21b7-37522315.us-
+west-2.elb.amazonaws.com/echo2
+Istio as a Microservice
+Nutanix Kubernetes® Platform (NKP) supports Istio in both ambient mode and sidecar mode to provide an
+open-source service mesh that connects, secures, controls, and observes microservices in cloud-based
+deployments.
+By default, Istio-helm application deploys in sidecar mode, where each application pod in the mesh has a
+sidecar container attached to it. You need to enable Istio-Helm in ambient mode, where Istio implements its
+features using a per-node layer-4 (L4) proxy, and optionally a per-namespace layer-7 (L7) proxy.
+For more information on Istio, see Istio Documentation.
+Note:  Operator-based Istio is deprecated from NKP 2.17. To migrate to Istio-helm, seeMigrating Istio
+Operator to Istio-Helm Using Nutanix Kubernetes® Platform on page 599. For more information, see
+the Deprecation Notice.
+Istio Prerequisites
+Review the system requirements and workspace configuration prerequisites before deploying Istio on
+Nutanix Kubernetes® Platform (NKP).
+Before deploying Istio, ensure that your environment meets the following requirements:
+System Requirements
+•
+Access to a Linux, macOS, or Windows computer with a supported operating system version.
+•
+A deployed and running NKP cluster.
+Workspace Configuration
+1. Identify the workspace name for your deployment:
+nkp get workspaces
+This command displays the workspace names and their corresponding namespaces.
+2. Set the WORKSPACE_NAME environment variable to the workspace where your cluster is attached:
+export WORKSPACE_NAME=<workspace_name>
+Deploying Istio Using Nutanix Kubernetes® Platform
+Deploy Istio service mesh on your Nutanix Kubernetes® Platform (NKP) cluster by installing dependencies
+and creating application deployment resources.
+About this task
+To deploy Istio on your cluster, follow these steps:
+Nutanix Kubernetes Platform | Cluster Operations Management | 597
+
+--- page 598 ---
+Procedure
+1. Obtain the current APP ID and version for Istio and its dependencies.
+Review the list of available applications and record its information for use in the following commands.
+For more information, see Platform Applications Dependencies For All Clusters on page 298.
+2. Install Istio dependencies by creating an AppDeployment resource:
+nkp create appdeployment <APPID> --app <APPID-version> --workspace ${WORKSPACE_NAME}
+Replace <APPID> and <APPID-version> with the application information.
+The --app flag requires the APP ID and version in APPID-version format.
+3. Install Istio:
+nkp create appdeployment istio-helm --app <APPID-version> --workspace
+ ${WORKSPACE_NAME}
+Replace <APPID-version> with the version of Istio you want to deploy. For the supported istio version,
+see Supported Applications section in the NKP Release Notes.
+Note:
+•
+Create the resource in the workspace you created, which instructs Kommander to deploy
+the AppDeployment to the KommanderCluster instances in the same workspace.
+•
+Run the nkp create command with the WORKSPACE_NAME instead of the
+WORKSPACE_NAMESPACE flag.
+Enabling Istio Helm in Ambient Mode
+Istio Helm installations use sidecar mode by default, which attaches a sidecar container to each application
+pod in the mesh. Follow this procedure to configure Istio Helm in ambient mode using the NKP UI.
+About this task
+Ambient mode provides a sidecar-free service mesh architecture that reduces resource overhead and
+simplifies operations. This procedure works for both new Istio deployments and existing deployments.
+Important:  For advanced configurations, see Installation guide for Istio in Ambient Mode.
+To configure Istio Helm in ambient mode using the NKP UI, follow these steps:
+Procedure
+1.
+Log in to the NKP UI dashboard.
+2.
+In the top-left corner, click the Global dropdown list and select your target workspace.
+For example, if your target cluster is a management cluster, select Management Cluster Workspace.
+3.
+From the left navigation pane, select Applications.
+4.
+Locate Service Mesh and click View Details.
+5.
+On the Service Mesh page, click Istio-Helm Service Mesh.
+6.
+In the Service Mesh section, click Istio-Helm Service Mesh.
+7.
+In the Overview page, copy the following ConfigMap details:
+ztunnel:
+  enabled: true
+Nutanix Kubernetes Platform | Cluster Operations Management | 598
+
+--- page 599 ---
+  profile: ambient
+cni:
+  profile: ambient
+istiod:
+  profile: ambient
+  env:
+    CA_TRUSTED_NODE_ACCOUNTS: "istio-helm-gateway-ns/ztunnel,istio-helm-system/
+ztunnel"
+8.
+In the top-right corner of the page, click Enable:
+9.
+In the Application Configuration Override section, paste the ConfigMap details.
+10. Click Enable and verify that the application status shows as Enabled.
+•
+New Istio deployments: After enabling Istio in ambient mode, label the namespaces for applications
+that you plan to include in the ambient mesh:
+kubectl label namespace <namespace-name> istio.io/dataplane-mode=ambient
+•
+Existing Istio deployments: Enabling Istio in ambient mode automatically migrates existing Istio
+Helm deployments from sidecar mode to ambient mode. Monitor the automatic migration as
+follows:
+kubectl logs -n istio-helm-gateway-ns -l job-name=istio-helm-ztunnel-ambient-
+migration
+The migration job performs the following actions:
+•
+Discovers namespaces with sidecar injection enabled
+•
+Filters out already migrated namespaces
+•
+Adds the istio.io/dataplane-mode=ambient label
+•
+Removes sidecar injection labels
+•
+Restarts deployments to remove sidecars
+11. (Optional) To disable ambient mode and return to sidecar mode, revert the ConfigMap overrides:
+ztunnel:
+  enabled: true
+  profile: ambient
+cni:
+  profile: ambient
+istiod:
+  profile: ambient
+  env:
+    CA_TRUSTED_NODE_ACCOUNTS: "istio-helm-gateway-ns/ztunnel,istio-helm-system/
+ztunnel"
+This configuration returns Istio Helm to sidecar mode. Applications in the mesh retain their ambient
+labels. To deploy applications in sidecar mode, remove the ambient label and follow the steps in
+Deploying a Sample Application on Istio on page 602.
+Migrating Istio Operator to Istio-Helm Using Nutanix Kubernetes® Platform
+Migrate existing operator-based Istio deployments to Istio Helm on Nutanix Kubernetes® Platform (NKP)
+clusters.
+Nutanix Kubernetes Platform | Cluster Operations Management | 599
+
+--- page 600 ---
+About this task
+To migrate existing workloads and mesh configurations from operator-based Istio to Helm-based Istio
+application on NKP, follow these steps:
+Procedure
+1. Extract your Istio operator configuration to YAML format:
+kubectl get IstioOperator <name> -o yaml > istio.yaml
+Example of the istio.yaml spec field when installation uses default configurations:
+spec:
+  components:
+    cni:
+      enabled: true
+      k8s:
+        priorityClassName: dkp-critical-priority
+      namespace: kube-system
+    ingressGateways:
+      k8s:
+        hpaSpec:
+          minReplicas: 2
+    pilot:
+      k8s:
+        hpaSpec:
+          minReplicas: 2
+        priorityClassName: dkp-critical-priority
+  hub: docker.io/istio
+  profile: default
+  tag: 1.23.6
+Individual components such as CNI, IngressGateways, and pilot have their default and global values.
+Overridden configurations appear in the spec:components field.
+2. Deploy Istio Helm and extract the default Helm values:
+kubectl get -n ${WORKSPACE_NAMESPACE} configmaps istio-helm-1.23.6-config-defaults -
+o=jsonpath='{.data.values\.yaml}' > istio-helm-values.yaml
+3. Edit the resulting istio-helm-values.yaml file.
+Example of overridden configurations to increase replica count for the existing ingress gateway:
+gateway:
+  revision: "istio-helm"
+    - name: istio-helm-ingressgateway
+      autoscaling:
+        enabled: true
+        minReplicas: 3
+        maxReplicas: 3
+      labels:
+        istio: istio-helm-ingressgateway
+      service:
+        ports:
+4. Create a ConfigMap manifest with the override values from the istio-helm-values.yaml file:
+cat <<EOF >istio-helm-config-overrides.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: ${WORKSPACE_NAMESPACE}
+Nutanix Kubernetes Platform | Cluster Operations Management | 600
+
+--- page 601 ---
+  name: istio-helm-config-overrides
+data:
+  values.yaml: |
+$(cat istio-helm-values.yaml | sed 's/^/    /g')
+EOF
+5. Create the ConfigMap from the manifest:
+kubectl apply -f istio-helm-config-overrides.yaml
+6. Edit the istio-helm AppDeployment resource.
+Set the spec.configOverrides.name to the name of the created ConfigMap and deploy the application
+with custom configuration:
+nkp edit appdeployment -n ${WORKSPACE_NAMESPACE} istio-helm
+Example of the AppDeployment resource after the change:
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: istio-helm
+  namespace: ${WORKSPACE_NAMESPACE}
+spec:
+  appRef:
+    name: istio-helm-1.23.6
+    kind: ClusterApp
+  configOverrides:
+    name: istio-helm-config-overrides
+7. Relabel the namespaces and reinject the workloads:
+kubectl label namespace <ns> istio.io/rev=istio-helm —overwrite
+kubectl rollout restart deployment -n <ns>
+Label each target namespace with the appropriate Istio revision to associate workloads with the correct
+Istio control plane. This step is essential because Istio uses namespace labels to determine which
+revision of the sidecar injector to apply. Without relabeling, existing workloads continue to use the old or
+default revision.
+If you updated the revision using config overrides, use the config override revision instead of the default
+istio-helm.
+8. Deploy the new ingress gateways and reapply the gateway manifests:
+kubectl get gateway,virtualservice,destinationrule,serviceentry -A -o yaml > istio-
+networking-configs.yaml
+sed 's/istio: ingressgateway/istio: istio-helm-ingressgateway/g' \ istio-networking-
+configs.yaml > istio2-networking-configs.yaml
+kubectl apply -f istio2-networking-configs.yaml
+Export existing Istio networking resources to update references to the deployed ingress gateways. This
+step binds Gateway, VirtualService, DestinationRule, and ServiceEntry resources to ingress gateways
+through labels. Without updating these references, traffic continues to route through the old gateway
+instances.
+9. After successful migration, disable the Istio operator:
+For detailed steps, see Uninstalling Istio Operator on page 606.
+Downloading the Istio Command Line Utility
+Download and configure the Istio command line utility (istioctl) to manage Istio service mesh
+components.
+Nutanix Kubernetes Platform | Cluster Operations Management | 601
+
+--- page 602 ---
+About this task
+To download and configure Istio, follow these steps:
+Procedure
+1. Download the Istio command line utility to your system:
+curl -L https://istio.io/downloadIstio | ISTIO_VERSION=<your_istio_version_here> sh -
+Replace <your_istio_version_here> with the Istio version you want to deploy.
+2. Navigate to the Istio directory and set the PATH environment variable:
+cd istio*
+export PATH=$PWD/bin:$PATH
+3. Verify the installation by checking the istioctl version:
+istioctl version
+Sample Output:
+client version: <your_istio_version_here>
+control plane version: <your_istio_version_here>
+data plane version: <your_istio_version_here> (1 proxies)
+Deploying a Sample Application on Istio
+Deploy the Istio BookInfo sample application to demonstrate various Istio service mesh features on your
+cluster.
+About this task
+The Istio bookinfo sample application consists of four separate microservices that demonstrate various
+Istio features.
+Procedure
+1. Deploy the sample bookinfo application on the Kubernetes cluster:
+Important:  Ensure that your nkp configuration references the cluster where you deployed Istio by
+setting the KUBECONFIG environment variable or using the --kubeconfig flag, in accordance with
+Kubernetes conventions (see https://kubernetes.io/docs/tasks/access-application-cluster/
+configure-access-multiple-clusters/).
+istioctl kube-inject \
+  --revision istio-helm \
+  -f samples/bookinfo/platform/kube/bookinfo.yaml | kubectl apply -f -
+sed 's/istio: ingressgateway/istio: istio-helm-ingressgateway/g' \
+  samples/bookinfo/networking/bookinfo-gateway.yaml \
+  | kubectl apply -f -
+2. Retrieve the URL of the load balancer created for this service:
+kubectl get svc istio-helm-ingressgateway -n istio-helm-gateway-ns
+Sample Output:
+NAME                   TYPE           CLUSTER-IP    EXTERNAL-IP                      
+                                         PORT(S)                                     
+                                                                                     
+            AGE
+Nutanix Kubernetes Platform | Cluster Operations Management | 602
+
+--- page 603 ---
+istio-helm-ingressgateway   LoadBalancer   10.0.29.241  
+ a682d13086ccf11e982140acb7ee21b7-2083182676.us-west-2.elb.amazonaws.com 
+  15020:30380/TCP,80:31380/TCP,443:31390/TCP,31400:31400/TCP,15029:30756/
+TCP,15030:31420/TCP,15031:31948/TCP,15032:32061/TCP,15443:31232/TCP   110s
+3. Open a browser and navigate to the external IP address for the load balancer to access the application:
+For example, the external IP address in the sample output is
+a682d13086ccf11e982140acb7-2083182676.us-west-2.elb.amazonaws.com. Access the
+application using the following URL: http://a682d13086ccf11e982140acb7ee21b7-2083182676.us-
+west-2.elb.amazonaws.com/productpage
+Explore Istio features using the BookInfo application. For more information on different Istio features,
+see the Istio BookInfo Application documentation.
+Verifying the Istio Installation
+Verify that Istio is successfully installed and is running on your cluster.
+About this task
+To verify your Istio installation, follow these steps:
+Procedure
+Validate the Istio installation and check the version using one of the following method:
+»
+Check the Istio version:
+istioctl version --revision istio-helm
+Sample Output:
+client version: 1.28.1
+control plane version: 1.23.6
+data plane version: 1.23.6 (2 proxies)
+»
+Check the proxy status:
+istioctl proxy-status --revision istio-helm
+Sample Output:
+NAME                                                        CLUSTER        ISTIOD    
+                             VERSION     SUBSCRIBED TYPES
+istio-helm-ingressgateway-79df9868c8-pm6bj.istio-helm-gateway-ns     Kubernetes    
+ istiod-istio-helm-545d9895f9-46hnb     1.23.6      3 (CDS,LDS,EDS)
+istio-helm-ingressgateway-79df9868c8-tp6gs.istio-helm-gateway-ns     Kubernetes    
+ istiod-istio-helm-545d9895f9-4pz2w     1.23.6      3 (CDS,LDS,EDS)
+If both commands return version information and proxy status details, Istio is successfully installed and
+running on your cluster.
+Modifying Istio Configuration in NKP
+Configure custom Istio settings using ConfigMap overrides to persist Day-2 operational changes while
+maintaining GitOps compliance in Nutanix Kubernetes® Platform (NKP).
+About this task
+NKP uses Flux to manage platform applications through GitOps practices. This architecture prevents
+manual modification of Istio downstream resources such as directly editing deployments or pods using
+kubectl edit to change resource limits or replicas. Flux automatically reverts these manual changes
+during its next reconciliation loop, potentially causing unexpected downtime.
+Nutanix Kubernetes Platform | Cluster Operations Management | 603
+
+--- page 604 ---
+To persist configuration changes such as replicas, CPU and memory requests and limits, or horizontal
+pod autoscaler (HPA) settings as Day-2 operations, you must provide configuration overrides using a
+ConfigMap and attach it to the respective AppDeployment resource.
+Alternatively, you can use the NKP UI to apply these configuration overrides. For more information, see
+Application Management Using the UI.
+To apply custom configuration overrides for Istio Operator deployments (supported in NKP version 2.16
+and earlier), follow these steps:
+Procedure
+1. Create a file named istio-operator-overrides.yaml containing the values.yaml payload with your
+desired Istio Operator component configurations:
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: istio-config-overrides
+  namespace: <workspace-namespace>
+data:
+  values.yaml: |
+    istioOperator:
+      components:
+        ingressGateways:
+          - name: istio-ingressgateway
+            enabled: true
+            label:
+              istio: ingressgateway
+            k8s:
+              hpaSpec:
+                minReplicas: 3
+                maxReplicas: 5
+              replicaCount: 3
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  cpu: 4000m
+                  memory: 2Gi
+          - name: istio-ingressgateway-httpv1
+            enabled: true
+            label:
+              istio: ingressgateway-httpv1
+            k8s:
+              service: 
+                 type: LoadBalancer
+              hpaSpec:
+                minReplicas: 3
+                maxReplicas: 5
+              replicaCount: 3
+              resources:
+                requests:
+                  cpu: 500m
+                  memory: 1Gi
+                limits:
+                  cpu: 4000m
+                  memory: 2Gi
+        pilot:
+Nutanix Kubernetes Platform | Cluster Operations Management | 604
+
+--- page 605 ---
+          k8s:
+            resources:
+              limits:
+                cpu: 2000m
+                memory: 2Gi
+Tip:  Replace <workspace-namespace> with your actual workspace namespace. The configuration
+above indicates common customizations including replica scaling, resource limits, and HPA settings for
+ingress gateways and the Istio control plane (pilot).
+2. Apply the ConfigMap to your cluster:
+kubectl apply -f istio-operator-overrides.yaml -n <workspace-namespace>
+Kubernetes creates the ConfigMap in the specified workspace namespace, making the configuration
+overrides available for the AppDeployment resource.
+3. Edit the Istio AppDeployment resource to reference the configuration override:
+nkp edit appdeployment istio -n <workspace-namespace>
+4. Set the configOverrides field to reference your ConfigMap:
+Add or modify the configOverrides section in the AppDeployment specification to point to your new
+ConfigMap:
+spec:
+  configOverrides:
+    name: istio-config-overrides
+Save and exit the editor. NKP applies the configuration changes, and Flux reconciles the updated
+settings across your Istio deployment.
+Configuration Overrides for Istio-Dependent Applications
+Configure applications that depend on Istio to work with Istio-Helm on Nutanix Kubernetes® Platform
+(NKP) clusters.
+Several applications in NKP depend on Istio and are configured by default to work with Istio Operator
+installations. When you use Istio-Helm instead, you must create ConfigMap overrides to ensure that these
+applications can locate and interact with the correct Istio components and namespaces.
+The following applications require configuration overrides when using Istio-Helm:
+•
+Knative
+•
+Kiali
+Knative Configuration Override
+Knative is configured by default to work with Istio Operator installed ingress gateway. When using Istio-
+Helm, create a ConfigMap override to update the ingress gateway configuration and selector:
+knativeIngressGateway:
+  spec:
+    selector:
+      istio: istio-helm-ingressgateway
+serving:
+  manifest:
+    spec:
+      ingress:
+        istio:
+          enabled: true
+          knative-ingress-gateway:
+            selector:
+Nutanix Kubernetes Platform | Cluster Operations Management | 605
+
+--- page 606 ---
+              istio: istio-helm-ingressgateway
+      config:
+        istio:
+          external-gateways: |
+            - name: knative-ingress-gateway
+              namespace: knative-serving
+              service: istio-helm-ingressgateway.istio-helm-gateway-
+ns.svc.cluster.local
+Kiali Configuration Override
+Kiali is configured by default to work with Istio Operator installation in the istio-system namespace.
+When using Istio-Helm, create a ConfigMap override to point Kiali to the correct Istio namespace and
+components:
+cr:
+  spec:
+    istio_namespace: istio-helm-system
+    external_services:
+      istio:
+        component_status:
+          components:
+          - app_label: "istiod"
+            is_core: true
+            is_proxy: false
+            namespace: istio-helm-system
+          - app_label: "istio-helm-ingressgateway"
+            is_core: true
+            is_proxy: true
+            namespace: istio-helm-gateway-ns
+Note:  These configuration overrides are essential when migrating from Istio Operator to Istio-Helm. For
+more information, see Migrating Istio Operator to Istio-Helm Using Nutanix Kubernetes® Platform on
+page 599.
+Uninstalling Istio Operator
+Directions to ensure Istio is entirely uninstalled from a cluster.
+About this task
+To manually uninstall Istio using Nutanix Kubernetes® Platform (NKP) UI, follow these steps:
+Procedure
+1. Log in to the NKP UI dashboard.
+2. Select Management Cluster Workspace from the dropdown menu.
+3. From the left navigation pane, select Applications.
+4. Select the triple dot horizontal icon in the application tile for Istio Operator and click Disable.
+A prompt appears to confirm your decision to disable the application.
+5. Follow the instructions in the prompt and select Disable.
+6. Refresh the page to confirm that the application has been removed from the cluster.
+This process only removes the application from the specific cluster. To remove this application from
+other clusters, navigate to the Clusters page and repeat the process.
+Nutanix Kubernetes Platform | Cluster Operations Management | 606

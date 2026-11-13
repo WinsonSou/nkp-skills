@@ -1,0 +1,201 @@
+
+--- page 71 ---
+14. (Required for air-gapped environment and optional for non-air-gapped environment) Set the artifacts
+directory:
+export ARTIFACTS_DIRECTORY=path_to_artifacts_bundle_Directory
+Replace path_to_artifacts_bundle_Directory with the path to the artifacts bundle directory.
+The artifacts directory contains the packages and artifacts required to build the OS image.
+15. (Optional) Configure a bastion host for air-gapped environments:
+export BASTION_HOST=IP or hostname of bastion VM
+export BASTION_USERNAME=SSH user on bastion
+export BASTION_PRIVATE_KEY_FILE=Path to SSH private key file
+Replace:
+•
+IP or hostname of bastion VM with the IP address or hostname of the bastion VM.
+•
+SSH user on bastion with the SSH username on the bastion VM.
+•
+Path to SSH private key file with the location of the SSH private key file.
+In an air-gapped environment, the NKP CLI uses a bastion host to access the VM that builds the OS
+image.
+16. (Optional) Create a FIPS-compliant image:
+export FIPS_ENABLED=true
+The vSphere Image Builder creates a FIPS-compliant OS image. For more information, see
+Supported Infrastructure Operating Systems on page 13
+17. Create an NKP compatible OS image:
+nkp create image vsphere ${OS_TYPE} \
+      --server ${VCENTER_SERVER} \
+      --template ${TEMPLATE} \
+      --cluster ${VSPHERE_CLUSTER} \
+      --data-center ${DATACENTER} \
+      --resource-pool ${RESOURCE_POOL} \
+      --data-store ${DATASTORE} \
+      --network ${NETWORK} \
+      --folder ${FOLDER} \
+      ${FIPS_ENABLED:+--fips} \
+      ${INSECURE:+--insecure} \
+      ${ARTIFACTS_DIRECTORY:+--artifacts-directory ${ARTIFACTS_DIRECTORY}} \
+      ${BASTION_HOST:+--bastion-host ${BASTION_HOST}} \
+      ${BASTION_USERNAME:+--bastion-username ${BASTION_USERNAME}} \
+      ${BASTION_PRIVATE_KEY_FILE:+--bastion-private-key-file
+ ${BASTION_PRIVATE_KEY_FILE}} \
+The NKP CLI command creates an NKP compatible OS image with the configuration and environment
+variables that you exported in vSphere. This image can be used to create new NKP clusters.
+To view all the flags and their purpose, run the following command:
+nkp create image vsphere --help
+For the steps to create a cluster, and more information, see Install Nutanix Kubernetes Platform on
+vSphere Infrastructure on page 834.
+Upload artifacts to Pre-provisioned Hosts
+The Nutanix Image Builder enables you to configure pre-provisioned hosts by uploading the necessary
+artifacts (packages, container images, GPU drivers) to existing nodes. This is used when existing
+Nutanix Kubernetes Platform | Nutanix Image Builder | 71
+
+--- page 72 ---
+machines need to be configured for NKP clusters. After uploading the artifacts, NKP can use these pre-
+provisioned hosts to form a Kubernetes cluster quickly and consistently. This reduces Kubernetes cluster
+deployment and upgrade errors caused by misconfiguration of OS images and packages
+In a pre-provisioned environment, existing machines are available to be used to form NKP clusters. In
+the case of other providers, images must be built and NKP provisions machines from those images. With
+pre-provisioned environments your existing nodes are configured with the required artifacts using the nkp
+upload image-artifacts command.
+Key Differences:
+•
+Pre-provisioned: You configure existing machines using nkp upload image-artifacts
+•
+Other providers: You build images using nkp create image command, and NKP provisions machines
+from those images with providers such as AWS, Azure, GCP, vSphere, and Nutanix.
+About this task
+To upload image artifacts with all configuration options, follow these steps:
+Procedure
+1.
+Open the terminal with access to NKP CLI.
+2.
+Provide the SSH host information:
+export SSH_HOST=Host IP or hostname
+Replace Host IP or hostname with the IP address or hostname of the remote host(s). For multiple
+hosts, provide a comma-separated list: host1,host2,host3.
+3.
+Provide the SSH username:
+export SSH_USERNAME=SSH username
+Replace SSH username with the username to connect to the remote host.
+4.
+Choose SSH authentication method:
+Choose one of the following authentication methods:
+a. SSH private key (recommended)
+export SSH_PRIVATE_KEY_FILE=Path to SSH private key file
+Replace Path to SSH private key file with the location of the PEM encoded private key file to
+use for authentication.
+b. SSH password (not recommended)
+export SSH_PASSWORD=SSH password
+Replace SSH password with the password for SSH authentication.
+Note:  Using SSH keys is strongly recommended over passwords for security reasons.
+5.
+(Optional) Specify a custom SSH port:
+export SSH_PORT=22
+Replace the variable 22 with the SSH port of the remote host if you use a non-standard port. If not
+specified, the default port is 22.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 72
+
+--- page 73 ---
+6.
+(Required for air-gapped environment and optional for non-air-gapped environment) Create a package
+bundle:
+Download the NKP air-gapped bundle from the Nutanix portal. For air-gapped environments on pre-
+provisioned hosts, download nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz from the
+Nutanix portal. For more information, see Downloading NKP on page 17. Then, extract the tarball to a
+local directory:
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+   cd nkp-nkp-version
+For air-gapped environments, you must build the OS packages after you fetch the packages from the
+distribution repositories. The air-gapped bundle contains the following artifacts, but does not include
+distribution packages:
+•
+NKP Kubernetes packages
+•
+Python packages (provided by upstream)
+•
+Containerd tarball
+7.
+(Optional) Create a FIPS-compliant image:
+export FIPS_ENABLED=true
+The Nutanix Image Builder creates a FIPS-compliant OS image. For more information, see Supported
+Infrastructure Operating Systems on page 13
+8.
+(Required for air-gapped environment) Create a package bundle:
+NKP requires Operating System packages to be available in the base image. These packages are
+available in the package repositories accessible over the internet. As air-gapped environments
+are restricted from accessing these repositories, you must first create a package bundle where the
+repositories can be accessed. Then, transfer this bundle to an air-gapped environment to build the OS
+image in an air-gapped environment.
+Download the NKP air-gapped bundle from the Nutanix portal. For more information, see Downloading
+NKP on page 17.
+This air-gapped bundle contains the NKP artifacts to build the image. Run the following command
+in an environment with internet access to fetch and add the operating system packages, to create a
+package bundle for NKP:
+nkp create package-bundle ${OS_TYPE} --artifacts-directory
+ path_to_artifacts_bundle_DIR
+${FIPS_ENABLED:+--fips}
+Replace path_to_artifacts_bundle_DIR with the path to the artifacts bundle directory.
+The package bundle contains all necessary packages and artifacts required to build an NKP
+compatible OS image in an air-gapped environment.
+9.
+Set the artifacts directory:
+export ARTIFACTS_DIRECTORY=nkp-nkp-version/image-artifacts/
+The artifacts directory contains the packages and artifacts required to configure the pre-provisioned
+host.
+Note:  For air-gapped environments, this should be the directory containing the package bundle
+created in the step to create a bundle above.
+10. (Optional) Configure a bastion host:
+export BASTION_HOST=IP or hostname of bastion VM
+Nutanix Kubernetes Platform | Nutanix Image Builder | 73
+
+--- page 74 ---
+export BASTION_USERNAME=SSH user on bastion
+export BASTION_PRIVATE_KEY_FILE=Path to SSH private key file
+export BASTION_PORT=22
+Replace:
+•
+IP or hostname of bastion VM with the IP address or hostname of the bastion VM.
+•
+SSH user on bastion with the SSH username on the bastion VM.
+•
+Path to SSH private key file with the location of the SSH private key file.
+•
+22 with the Bastion SSH port, if it is different from the default port.
+11. (Optional) Upload NVIDIA GPU drivers:
+export NVIDIA_RUNFILE=Path to NVIDIA driver runfile
+Replace Path to NVIDIA driver runfile with the path to the NVIDIA driver runfile.
+The Nutanix Image Builder uploads the NVIDIA driver runfile to the target host for GPU workload
+support.
+12. (Optional) Specify a provider hint:
+export PROVIDER=aws|azure|gcp|vsphere|nutanix
+Replace aws|azure|gcp|vsphere|nutanix with the provider name when installing provider specific
+utilities.
+This helps the image builder install the appropriate provider specific utilities on the host.
+13. Upload the image artifacts:
+nkp upload image-artifacts \
+--ssh-host ${SSH_HOST} \
+--ssh-username ${SSH_USERNAME} \
+${SSH_PRIVATE_KEY_FILE:+--ssh-private-key-file ${SSH_PRIVATE_KEY_FILE}} \
+${SSH_PASSWORD:+--ssh-password ${SSH_PASSWORD}} \
+${SSH_PORT:+--ssh-port ${SSH_PORT}} \
+--artifacts-directory ${ARTIFACTS_DIRECTORY} \
+${BASTION_HOST:+--bastion-host ${BASTION_HOST}} \
+${BASTION_USERNAME:+--bastion-username ${BASTION_USERNAME}} \
+${BASTION_PRIVATE_KEY_FILE:+--bastion-private-key-file ${BASTION_PRIVATE_KEY_FILE}}
+ \
+${BASTION_PORT:+--bastion-port ${BASTION_PORT}} \
+${NVIDIA_RUNFILE:+--nvidia-runfile ${NVIDIA_RUNFILE}} \
+${PROVIDER:+--provider ${PROVIDER}} \
+${FIPS_ENABLED:+--fips}
+The NKP CLI uploads image artifacts to the specified host(s) with the configuration and environment
+variables that were exported. You can use these hosts to create new NKP clusters.
+Note:  This command uses Ansible playbooks to upload and configure artifacts. Artifacts are
+uploaded to standard locations (eg. `/opt/dkp/packages/`, `/opt/dkp/containerd/`, etc.) on the target host.
+(Optional) For additional customizations that cannot be performed using flags or YAML files, contact
+Nutanix support.
+To view all the flags and their purpose, run the following command:
+nkp upload image-artifacts --help
+For the steps to create a cluster and more information, see Pre-provisioned Infrastructure on
+page 765.
+Nutanix Kubernetes Platform | Nutanix Image Builder | 74

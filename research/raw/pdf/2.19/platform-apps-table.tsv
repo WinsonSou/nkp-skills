@@ -1,0 +1,69 @@
+p295	Applications	NKPStarter		NKPPro		NKPUltimate	
+p295		Management Cluster	Workload Cluster	Management Cluster	Workload Cluster	Management Cluster	Workload Cluster
+p295	AINavigator App			X		X	
+p295	AINavigator ClusterInfo Agent			X		X	
+p295	AINavigator RAG			X		X	
+p295	Centralized Grafana					X	
+p295	CertManager	X	X	X	X	X	X
+p295	Cilium HubbleRelay Traefik			X	X	X	X
+p295	Cloudnative PG			X	X	X	X
+p295	COSIDriver Nutanix			X	X	X	X
+p295	Dex	X		X		X	
+p295	DexK8s Authenticator	X		X		X	
+p295	ExternalDNS			X	X	X	X
+p295	External Secrets		X		X		X
+p295	FluentBit			X	X	X	X
+p295	Flux	X	X	X	X	X	X
+p295	Gatekeeper	X	X	X	X	X	X
+p295	GatewayAPI CRDs	X	X	X	X	X	X
+p295	GitOperator	X		X		X	
+p295	Grafana Logging			X	X	X	X
+p295	GrafanaLoki			X	X	X	X
+p296	Applications	NKPStarter		NKPPro		NKPUltimate	
+p296		Management Cluster	Workload Cluster	Management Cluster	Workload Cluster	Management Cluster	Workload Cluster
+p296	Harbor			X		X	
+p296	IstioHelm			X	X	X	X
+p296	Jaeger			X	X	X	X
+p296	Karma					X	
+p296	Kiali			X	X	X	X
+p296	Knative			X	X	X	X
+p296	KubeOIDC Proxy	X	X	X	X	X	X
+p296	Kube Prometheus Stack			X	X	X	X
+p296	OpenCost					X	X
+p296	Kubernetes Dashboard			X	X	X	X
+p296	Kubetunnel			X	X	X	X
+p296	Logging Operator			X	X	X	X
+p296	NKPInsights					X	X
+p296	NKPInsights Management					X	
+p296	NKPPulse Management	X		X		X	
+p296	NKPPulse Workspace		X		X		X
+p296	NVIDIAGPU Operator			X	X	X	X
+p296	AMDGPU Operator			X	X	X	X
+p296	AMDKMM Operator			X	X	X	X
+p296	Project Grafana Logging					X	X
+p296	Project GrafanaLoki					X	X
+p296	Project Logging					X	X
+p297	Applications	NKPStarter		NKPPro		NKPUltimate	
+p297		Management Cluster	Workload Cluster	Management Cluster	Workload Cluster	Management Cluster	Workload Cluster
+p297	Prometheus Adapter			X	X	X	X
+p297	Reloader	X	X	X	X	X	X
+p297	RookCeph			X	X	X	X
+p297	RookCeph Cluster			X	X	X	X
+p297	Thanos					X	
+p297	Traefik	X	X	X	X	X	X
+p297	Traefik ForwardAuth		X		X		X
+p297	Traefik ForwardAuth Mgmt	X		X		X	
+p297	Velero			X	X	X	X
+p297	vGPUToken Operator			X	X	X	X
+p298	NAMESPACE	NAME	READY	STATUS	AGE
+p298	workspace-test-vjsfq	kiali	True	Release reconciliation succeeded	7m3s
+p299	NAMESPACE	NAME	READY	STATUS	AGE
+p299	workspace-test-vjsfq	kiali	True	Release reconciliation succeeded	7m3s
+p299	Platform Application	APPID	Internal	Required Dependency	Optional Dependency
+p299	Flux	kommander-flux	Yes	N/A	N/A
+p299	[Applicableforboth managementand managedclusters]				
+p299	Reloader	reloader	No	N/A	N/A
+p299	[Applicableforboth managementand managedclusters]				
+p299	Traefik	traefik	No	N/A	
+p299	[Applicableforboth				• cert -manager
+p299	managementand managedclusters]				• reloader

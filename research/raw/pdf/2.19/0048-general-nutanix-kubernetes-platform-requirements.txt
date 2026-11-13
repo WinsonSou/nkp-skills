@@ -1,0 +1,43 @@
+
+--- page 48 ---
+4
+NUTANIX KUBERNETES PLATFORM
+REQUIREMENTS
+Note the requirements for Nutanix Kubernetes Platform (NKP).
+Before you create a Nutanix Kubernetes Platform (NKP) image and deploy the initial NKP cluster, ensure
+that you use the supported version of either a Linux-based or macOS machine and that meets all the
+prerequisites for the NKP components.
+Note:  For an air-gapped environment, additional prerequisites are required. First, ensure that you meet all
+the necessary conditions for a non-air-gapped environment, and then include the additional prerequisites
+required for the air-gapped environment.
+For more information on the general NKP requirements, see General Nutanix Kubernetes Platform
+Requirements on page 48.
+For more information on the Konvoy component requirements, see Konvoy Component Requirements on
+page 49.
+For more information on the Kommander component requirements, seeKommander Component
+Requirements on page 51.
+For the domains that must be reachable so Kommander can download required images, see Required
+Domains on page 53.
+General Nutanix Kubernetes Platform Requirements
+Note the general requirements for Nutanix Kubernetes Platform (NKP).
+Before using NKP to create a Nutanix cluster, ensure that your environment meets the following
+requirements:
+•
+Your host must be a x86_64-based Linux or macOS machine. For Linux hosts, cgroups v2 is required
+and must be enabled on the host.
+•
+Download the NKP binaries from the Nutanix Support Portal.
+For more information, see Downloading NKP on page 17.
+•
+Ensure that you install a container engine or runtime based on your operating system for setting up the
+NKP and bootstrap cluster:
+•
+A Docker or Podman container runtime is required.
+•
+For Linux or macOS, a Docker container engine version 27.4.0 is required.
+For more information, see Get Docker.
+•
+For Linux machines, a Podman version 4.0 or later is required.
+For more information, see Podman Installation Instructions.
+For more information on host requirements, see Host Requirements.
+Nutanix Kubernetes Platform | Nutanix Kubernetes Platform Requirements | 48

@@ -1,0 +1,135 @@
+
+--- page 1078 ---
+    --https-proxy=x.x.x.2
+NKP MCP Server Overview
+NKP MCP Server provides AI Navigator with real-time, identity-aware access to Kubernetes cluster
+resources for context-based operational responses.
+NKP MCP Server is a Model Context Protocol (MCP)-compliant server that provides AI Navigator with
+real-time access to Kubernetes cluster state. MCP is an open standard that defines how AI assistants
+discover and invoke external tools. NKP MCP Server exposes cluster operations, such as listing pods and
+inspecting resources, as MCP tools that AI Navigator can invoke on demand.
+When you ask a cluster question in AI Navigator, the request is sent to NKP MCP Server. The server
+queries the Kubernetes API and returns structured data that AI Navigator uses to generate the response.
+This workflow grounds AI Navigator responses in live cluster data instead of static documentation or
+pretrained model knowledge.
+NKP MCP Server helps retrieve operational details such as cluster etcd version, container image,
+behavior of a specific CronJob, and Insights version in use.
+NKP MCP Server discovers the resource types that are available on your cluster automatically. Starting
+in NKP MCP Server release 0.2.0, AI Navigator can also use the discover_resource_types and
+list_resource_fields tools. These tools work alongside the existing list and get tools.
+For more information about the resource types that NKP MCP Server exposes, see Types of Data
+Collected and Processed on page 1080.
+NKP MCP Server enforces Kubernetes RBAC based on user identity. When a user interacts with AI
+Navigator, the server passes that identity to the Kubernetes API, and Kubernetes RBAC evaluates each
+request against the roles and permissions already defined in the cluster.
+NKP MCP Server is available for internet-connected environments with a Pro or Ultimate license.
+For more information about data collection and processing, see AI Navigator Data Privacy on page 1079.
+Warning:  To support security requirements in public sector, defense, and network-restricted environments,
+AI Navigator is not available for air-gapped implementations.
+NKP MCP Server Infrastructure
+To allow AI Navigator to retrieve live cluster information, enable NKP MCP Server first. After this platform
+application is enabled, AI Navigator registers tools that query management cluster data. For more
+information, see NKP MCP Server Activation on page 1078.
+NKP MCP Server Activation
+NKP MCP Server enriches NKP AI Navigator responses with cluster-specific data such as recent events
+and health status.
+Prerequisite :
+Ensure Artificial Intelligence (AI) Navigator is enabled.
+Enable the NKP MCP Server
+Activate the NKP MCP Server application on your management cluster. For more information, see
+Activating an Application Using the UI.
+Note:
+•
+If you have an ultimate license, select the management cluster workspace before deploying
+the NKP MCP Server.
+Nutanix Kubernetes Platform | AI Navigator | 1078
+
+--- page 1079 ---
+•
+After the NKP MCP Server is enabled, it takes up to one minute for the AI Navigator agent to
+discover and load the available tools.
+Disabling NKP MCP Server
+Uninstall the NKP MCP Server application from the management cluster when you no longer need cluster-
+specific data in AI Navigator responses.
+About this task
+After you uninstall the NKP MCP Server, AI Navigator responses no longer include cluster-specific data
+such as configuration details and health status. You can reinstall the application at any time from the NKP
+UI. To uninstall the NKP MCP Server, follow these steps:
+Procedure
+Uninstall the NKP MCP Server application like any other application as explained in Ultimate: Disabling an
+Application Using the UI on page 280.
+AI Navigator Data Privacy
+AI Navigator data handling covers query flow, Kubernetes metadata, processing purpose, and NKP MCP
+Server controls under Nutanix and Microsoft commitments.
+When the NKP MCP Server is on, AI Navigator can combine your prompts with live Kubernetes metadata
+and status from the management cluster. Use the sections that follow to learn how that information moves,
+what enters processing, why it is used, and what you can change.
+Data Flow During Queries
+With the NKP MCP Server enabled, each exchange routes prompt and cluster context through the AI
+service without retaining content for model training in the ways described for the supporting cloud offering.
+For more information, see What Happens to My Data During an AI Navigator Query if the NKP MCP Server
+is Enabled? on page 1079.
+Types of Data Collected and Processed
+AI Navigator pulls object metadata and status for workload, storage, GitOps, NKP, and Cluster API
+resources needed to ground answers in current cluster state. For more information, see Types of Data
+Collected and Processed on page 1080.
+Cluster Data Processing
+The NKP MCP Server forwards only the cluster context required for your question so the AI service can
+return a relevant answer, in line with Nutanix and contractual privacy requirements. For more information,
+see Cluster Data Processing on page 1081.
+Data Storage and Management
+You can turn the NKP MCP Server off to exclude live cluster data from responses. Other chatbot
+processing and retention behaviors are not end-user configurable. For more information, see Data Storage
+and Management on page 1081.
+What Happens to My Data During an AI Navigator Query if the NKP MCP Server is Enabled?
+Understand how AI Navigator processes queries with NKP MCP Server enabled, including cluster-data
+retrieval, documentation lookup, and response generation flow.
+NKP does not store data related to your queries, pro clusters, or management clusters. The Azure OpenAI
+Service also does not store your data. OpenAI, Nutanix, and other customers cannot access your data,
+Nutanix Kubernetes Platform | AI Navigator | 1079
+
+--- page 1080 ---
+and the OpenAI model does not use your data for training. For more information, see Data, privacy, and
+security for Azure Direct Models in Microsoft Foundry.
+AI Navigator with NKP MCP Server enabled stores query-related data directly in your environment. The
+following steps describe the data flow during a query:
+1. You make a query requesting information related to your cluster, documentation, or both.
+2. AI Navigator sends your query to the Azure OpenAI Service, which determines the appropriate action
+based on the question querying live cluster data, searching documentation, or both for troubleshooting
+scenarios.
+3. For cluster data questions, the Azure OpenAI Service instructs the agent to retrieve information from the
+NKP MCP Server. The NKP MCP Server queries the Kubernetes API on your management cluster in
+real time, applying smart field filtering to return only the relevant data. Your identity is forwarded so that
+Kubernetes RBAC policies are enforced.
+4. For documentation questions, the agent searches the vector store to retrieve relevant NKP, Kubernetes,
+Flux, or Cluster API documentation.
+5. The Azure OpenAI Service synthesizes the results live cluster state, documentation context, or both into
+a single answer to your query.
+Types of Data Collected and Processed
+AI Navigator collects real-time Kubernetes, GitOps, and NKP resource metadata on a read-only basis for
+accurate cluster insights and recommendations.
+AI Navigator gathers real-time metadata and status for Kubernetes resources to provide accurate cluster
+insights and operational recommendations. The NKP MCP Server grants read-only access, returns only
+the fields relevant to each query, and enforces Kubernetes RBAC against your identity. You see only the
+resources that your assigned role permits.
+Standard Resource Types
+AI Navigator can collect the following built-in Kubernetes and Flux GitOps resource types from your
+management cluster:
+Core workloads and configuration
+nodes, pods, services, events, endpoints, namespaces, resourcequotas, and limitranges
+Applications
+deployments, statefulsets, daemonsets, and replicasets
+Batch workloads
+jobs and cronjobs
+Networking
+ingresses and networkpolicies
+Autoscaling, availability, and scheduling
+horizontalpodautoscalers, poddisruptionbudgets, and priorityclasses
+Storage
+persistentvolumeclaims, persistentvolumes, and storageclasses
+Flux GitOps
+helm.toolkit.fluxcd.io/helmreleases, kustomize.toolkit.fluxcd.io/kustomizations,
+source.toolkit.fluxcd.io/gitrepositories, source.toolkit.fluxcd.io/
+helmrepositories, source.toolkit.fluxcd.io/helmcharts, and source.toolkit.fluxcd.io/
+ocirepositories
+Nutanix Kubernetes Platform | AI Navigator | 1080

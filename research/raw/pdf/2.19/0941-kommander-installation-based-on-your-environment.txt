@@ -1,0 +1,734 @@
+
+--- page 941 ---
+9
+ADDITIONAL KOMMANDER
+CONFIGURATION
+The Kommander component of NKP can be configured differently depending on your environment type
+and other desired customizations.
+The Kommander Installation Based on Your Environment on page 941 section contains instructions for
+installing the Kommander component in air-gapped, non-air-gapped, or pre-provisioned environments. It
+also contains instructions on how to enable NKP catalog apps or NKP Insights, if desired.
+The Kommander Customizations on page 957 section contains instructions for enabling a custom
+configuration of a Kommander component,see such as custom domains or certificates, an HTTP Proxy, an
+external load balancer, etc.
+Kommander Installation Based on Your Environment
+This section provides installation instructions for the Kommander component of NKP according to your
+environment type.
+Before you install the Kommander component, perform the following checks:
+Is Your environment Air-gapped or Non-Air-gapped?
+In an air-gapped environment, your environment is isolated from unsecured networks, like the Internet.
+In a non-air-gapped environment, your environment has two-way access to and from the Internet.
+For more information, see Installing Kommander in an Air-gapped Environment on page 943 and
+Installing Kommander in a Non-Air-gapped Environment on page 946.
+What License do you Have?
+NKP Pro and NKP Government Pro are self-managed single-cluster Kubernetes solutions that give you
+a feature-rich, easy-to-deploy, and easy-to-manage entry-level cloud container platform. The NKP Pro and
+NKP Gov licenses give the user access to the entire Konvoy cluster environment, as well as manage the
+Kommander platform application manager.
+NKP Ultimate and NKP Government Advanced are multi-cluster solutions centered around a
+management cluster that manage multiple attached or managed Kubernetes clusters through a centralized
+management dashboard. For this license type, you will determine whether or not to use the Workspace
+Catalog Applications on page 327.
+For more information, see Licenses on page 26.
+Do you want to enable NKP Insights?
+NKP Insights is a predictive analytics capability that detects anomalies that occur either in the present or
+future and generates an alert in the NKP UI.
+For more information, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 941
+
+--- page 942 ---
+Decide Whether to Install the AI Navigator Application
+The AI Navigator is an AI chatbot that offers real-time, interactive communication to answer a wide range of
+user queries, spanning basic instructions to complex functionalities. NKP installs this application by default
+in non-air-gapped environments. However, you can disable it, if desired, as part of the installation of the
+NKP Kommander component.
+Typically, we recommend that you generate a Kommander configuration file so that you can customize the
+configuration prior to installing Kommander. You can use this method to disable AI Navigator. If you prefer
+to use a CLI approach to the installation, there is also a flag for disabling the application.
+Note:  For security purposes, AI Navigator is not installed for air-gapped environments.
+Installation Type Based on Your Environment
+Select the installation type according to your environment:
+•
+Installing Kommander in an Air-gapped Environment on page 943
+•
+Installing Kommander in a Non-Air-gapped Environment on page 946
+•
+Installing Kommander in a Pre-provisioned Air-gapped Environment on page 947
+•
+Installing Kommander in a Pre-provisioned, Non-Air-gapped Environment on page 951
+•
+Installing Kommander in a Small Environment on page 953
+Default StorageClass
+Kommander requires a default StorageClass.
+For the supported cloud providers, the Konvoy component handles the creation of a default StorageClass.
+For pre-provisioned environments, the Konvoy component handles the creation of a StorageClass in
+the form of a local volume provisioner, which is not suitable for production use. Before installing the
+Kommander component, you should identify and install a Kubernetes CSI (see https://kubernetes.io/docs/
+concepts/storage/volumes/#volume-types) compatible storage provider that is suitable for production, and
+then ensure it is set as the default, as shown below. For more information, see Provisioning a Static Local
+Volume on page 44..
+For infrastructure driver specifics, see Default Storage Providers on page 37.
+Identifying and Modifying Your StorageClass
+This StorageClass is required to install Kommander.
+Procedure
+1. Execute the following command to verify one is configured.
+kubectl get sc --kubeconfig ${CLUSTER_NAME}.conf
+For example, output, note the (default) after the name:
+NAME               PROVISIONER       RECLAIMPOLICY   VOLUMEBINDINGMODE     
+ ALLOWVOLUMEEXPANSION   AGE
+ebs-sc (default)   ebs.csi.aws.com   Delete          WaitForFirstConsumer   false    
+              41s
+2. If the desired StorageClass is not set as default, add the following annotation to the StorageClass
+manifest.
+annotations:
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 942
+
+--- page 943 ---
+  storageclass.kubernetes.io/is-default-class: "true"
+For more information on setting a StorageClass as default, see https://kubernetes.io/docs/tasks/
+administer-cluster/change-default-storage-class/.
+Installing Kommander in an Air-gapped Environment
+Follow these steps to install the Kommander component of NKP in an air-gapped environment.
+Before you begin
+•
+Ensure you have reviewed all the Nutanix Kubernetes Platform Requirements on page 48.
+•
+Ensure you have a default StorageClass.
+•
+Ensure you have loaded all necessary images for your configuration. For more information, see Images
+Download into Your Registry: Air-gapped Environments on page 944.
+•
+Note down the name of the cluster where you want to install Kommander. If you do not know it, use
+kubectl get nkpclusters -A to display it.
+About this task
+Create your Kommander Installer Configuration File as follows:
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init --airgapped > kommander.yaml
+4. If required, customize your kommander.yaml file.
+For customization options, see Installing Kommander with a Configuration File  on page 959.
+Some of them include:
+•
+Custom Domains and Certificates
+•
+HTTP proxy
+•
+External Load Balancer
+•
+GPU utilization, etc.
+•
+Rook Ceph customization for Pre-provisioned environments
+5. If required: If your cluster uses a custom AWS VPC and requires an internal load-balancer, set the
+traefik annotation to create an internal-facing ELB.
+...
+apps:
+  traefik:
+    enabled: true
+    values: |
+      service:
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 943
+
+--- page 944 ---
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true
+...
+6. Perform Pro License: Installing Kommander in an Air-gapped Environment  on page 944 depending
+on your application environments.
+If your environment uses HTTP/HTTPS proxies, you must include the flags --http-proxy, --https-
+proxy, and --no-proxy and their related values in this command for it to be successful.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the
+correct cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see
+Commands within a kubeconfig File on page 34.
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install
+command to retry.
+What to do next
+See Verifying Kommander Installation on page 955.
+If you want to enable a solution that detects current and future anomalies in workload configurations or
+Kubernetes clusters, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Pro License: Installing Kommander in an Air-gapped Environment
+Use the customized kommander.yaml to install NKP in an air-gapped environment.
+Procedure
+In the kommander.yaml file, run the following command.
+nkp install kommander \
+--installer-config kommander.yaml --kubeconfig=${CLUSTER_NAME}.conf
+Images Download into Your Registry: Air-gapped Environments
+Because air-gapped environments do not have direct access to the Internet, you must download, extract,
+and load the required images before installing NKP.
+For more information on downloading images, see Registry Mirror Tools on page 990.
+Downloading all Images for Air-gapped Deployments
+If you are operating in an air-gapped environment, a local container registry containing all the necessary
+installation images, including the Kommander images, is required. See below for prerequisites to download
+and then how to push the necessary images to this registry.
+Procedure
+1. Download the NKP air-gapped bundle for this release to load registry images as explained below.
+For more information, see Downloading NKP on page 17.
+nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 944
+
+--- page 945 ---
+2. Connectivity with clusters attaching to the management cluster is required.
+•
+Both management and attached clusters must be able to connect to the local registry.
+•
+The management cluster must be able to connect to all the attached cluster API servers.
+•
+The management cluster must be able to connect to any load balancers created for platform
+services on the management cluster.
+Extracting Air-gapped Images and Set Variables
+Follow these steps to extract the air-gapped image bundles into your private registry:
+Procedure
+1. Assuming you have downloaded nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz,
+extract the tar file to a local directory.
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+2. The directory structure after extraction can be accessed in subsequent steps using commands
+to access files from different directories. EX: For the bootstrap, change your directory to the nkp-
+<version>directory, similar to the example below, depending on your current location.
+cd nkp-nkp-version
+3. Set an environment variable with your registry address.
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+Loading Images to Your Private Registry
+Before creating or upgrading a Kubernetes cluster, you need to load the required images in a local registry
+if operating in an air-gapped environment. This registry must be accessible from both the bastion machine
+and either the AWS EC2 instances or other machines that will be created for the Kubernetes cluster.
+About this task
+For more information on creating a bastion machine, see Creating a Bastion Host on page 679.
+Warning:  If you do not already have a local registry, set up one. For more information, see Registry Mirror
+Tools on page 990.
+Procedure
+1. To load the air-gapped image bundle into your local registry mirror:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar,./
+container-images/konvoy-image-bundle-nkp-version.tar,./container-images/nutanix-
+product-catalog-nkp-version-airgapped.tar,./container-images/nkp-release-specs-nkp-
+version.tar 
+--to-registry=${REGISTRY_URL} 
+--to-registry-username=${REGISTRY_USERNAME} 
+--to-registry-password=${REGISTRY_PASSWORD}
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 945
+
+--- page 946 ---
+2. To load the air-gapped image bundle into your internal registry:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar,./
+container-images/konvoy-image-bundle-nkp-version.tar,./container-images/nutanix-
+product-catalog-nkp-version-airgapped.tar,./container-images/nkp-release-specs-nkp-
+version.tar 
+--to-internal-registry-mirror 
+--kubeconfig=${CLUSTER_NAME}.conf
+Note:
+•
+Replace nkp_version with the NKP version at your site.
+•
+Specify only the required bundle as comma-separated values in the --bundle parameter.
+•
+Pushing images to your registry might take time, depending on network performance
+between the machine running the command and the registry.
+•
+The nutanix-product-catalog-nkp-version-airgapped.tar bundle is only supported
+on Nutanix infrastructure. You must exclude this bundle when deploying on other
+infrastructure providers such as Pre-provisioned, AWS, Azure, vSphere, and GCP.
+•
+The nutanix-product-catalog-nkp-version-airgapped.tar included in the NKP air-
+gapped bundle contains images exclusively for Nutanix Data Services for Kubernetes
+(NDK). You must specify the Nutanix product catalog bundle only if you plan to deploy NDK.
+Installing Kommander in a Non-Air-gapped Environment
+Install the Kommander components of NKP non-air-gapped environments.
+Before you begin
+•
+Ensure you have reviewed all the Nutanix Kubernetes Platform Requirements on page 48.
+•
+Ensure you have a default StorageClass. See Identifying and Modifying Your StorageClass on
+page 942.
+•
+Note down the name of the cluster where you want to install Kommander. If you do not know it, use
+kubectl get nkpclusters -A to display it.
+About this task
+Create your Kommander Installer Configuration File as follows:
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+nkp install kommander --init > kommander.yaml
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 946
+
+--- page 947 ---
+4. (Optional) Customize your kommander.yaml file.
+See the Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, Disabling the AI Navigator application, External Load Balancer,
+GPU utilization, Rook Ceph customization for Pre-provisioned environments, and so on.
+For more information on installing Kommanderthe dataset, Installing Kommander in a Pre-provisioned
+Air-gapped Environment on page 947.
+5. (Optional) If your cluster uses a custom AWS VPC and requires an internal load-balancer, set the
+traefik annotation to create an internal-facing ELB.
+...
+apps:
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true
+...
+6. Perform Pro License: Installing Kommander in a Non-Air-gapped Environment  on page 947,
+depending on your application environments.
+If your environment uses HTTP/HTTPS proxies, you must include the flags --http-proxy, --
+https-proxy, and --no-proxy and their related values in this command for it to be successful. More
+information is available in.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the
+correct cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see
+Commands within a kubeconfig File on page 34.
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install
+command to retry.
+What to do next
+See Verifying Kommander Installation on page 955.
+If you want to enable a solution that detects current and future anomalies in workload configurations or
+Kubernetes clusters, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Pro License: Installing Kommander in a Non-Air-gapped Environment
+Use the customized kommander.yaml to install NKP in a non-air-gapped environment.
+Procedure
+In the kommander.yaml file, run the following command.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Installing Kommander in a Pre-provisioned Air-gapped Environment
+Follow these steps to install the Kommander component of NKP in a Pre-provisioned environment.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 947
+
+--- page 948 ---
+Before you begin
+•
+Ensure you have completed all the Nutanix Kubernetes Platform Requirements on page 48.
+•
+Ensure you have a default StorageClass. See Identifying and Modifying Your StorageClass on
+page 942.
+•
+Ensure you have loaded all necessary images for your configuration. See Images Download into Your
+Registry: Air-gapped Environments on page 944.
+•
+Note down the name of the cluster where you want to install Kommander. If you do not know it, use
+kubectl get nkpclusters -A to display it.
+About this task
+Create and customize your Kommander Installer Configuration File as follows:
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+3. Create a configuration file for the deployment.
+For more information, see Installing Kommander with a Configuration File  on page 959.
+nkp install kommander --init --airgapped > kommander.yaml 
+4. Include configuration overrides for the rook-ceph-cluster.
+Edit the installer file to perform this step.
+NKP’s default configuration ships Ceph with PVC based storage (see https://rook.io/docs/rook/v1.10/
+CRDs/Cluster/pvc-cluster/) which requires your CSI provider to support PVC with type volumeMode:
+Block. As this is not possible with the default local static provisioner (see Default Storage Providers on
+page 37), you can install Ceph in host storagemode (see https://rook.io/docs/rook/v1.10/CRDs/Cluster/
+host-cluster/).
+You can choose whether Ceph’s object storage daemon (osd) pods should consume all or just some of
+the devices on your nodes. Include one of the following Overrides.
+a. To automatically assign all raw storage devices on all nodes to the Ceph cluster.
+...
+rook-ceph-cluster:
+    enabled: true
+    values: |
+      cephClusterSpec:
+        storage:
+          storageClassDeviceSets: []
+          useAllDevices: true
+          useAllNodes: true
+          deviceFilter: "<<value>>"
+...
+b. To assign specific storage devices on all nodes to the Ceph cluster.
+...
+rook-ceph-cluster:
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 948
+
+--- page 949 ---
+    enabled: true
+    values: |
+      cephClusterSpec:
+        storage:
+          storageClassDeviceSets: []
+          useAllNodes: true
+          useAllDevices: false
+          deviceFilter: "^sdb."
+...
+Note:
+•
+If you want to assign specific devices to specific nodes using the deviceFilter option,
+see https://rook.io/docs/rook/v1.10/CRDs/Cluster/host-cluster/#specific-nodes-and-
+devices.
+•
+For general information on the deviceFilter value, see https://rook.io/docs/rook/v1.10/
+CRDs/Cluster/ceph-cluster-crd/#storage-selection-settings.
+5. (Optional) Customize your kommander.yaml file.
+See the Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, Disabling the AI Navigator application, External Load Balancer,
+GPU utilization, Rook Ceph customization for Pre-provisioned environments, and so on.
+6. (Optional) If your cluster uses a custom AWS VPC and requires an internal load-balancer, set the
+traefik annotation to create an internal-facing ELB.
+...
+apps:
+...
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true
+...
+7. Perform Pro License: Installing Kommander in a Pre-provisioned Air-gapped Environment  on
+page 949, depending on your application environments.
+What to do next
+See Verifying Kommander Installation on page 955.
+If you want to enable a solution that detects current and future anomalies in workload configurations or
+Kubernetes clusters, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Pro License: Installing Kommander in a Pre-provisioned Air-gapped Environment
+Use the customized kommander.yaml to install NKP in a non-air-gapped environment.
+Procedure
+In the kommander.yaml file, run the following command.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 949
+
+--- page 950 ---
+Images Download into Your Registry: Air-gapped, Pre-provisioned Environments
+Because air-gapped environments do not have direct access to the Internet, you must download, extract,
+and load the required images before installing NKP.
+For more information on downloading images, see Registry Mirror Tools on page 990.
+Downloading all Images for Air-gapped Pre-provisioned Deployments
+If you are operating in an air-gapped environment, the local container registry containing all the necessary
+installation images, including the Kommander images, is required. See below for prerequisites to download
+and then how to push the necessary images to this registry.
+Procedure
+1. Download the NKP air-gapped Bundle for this release (that is. nkp-air-gapped-bundle_nkp-
+version>_linux_amd64.tar.gz) to load registry images as explained below. See Downloading NKP
+on page 17.
+2. Connectivity with clusters attaching to the management cluster is required.
+•
+Both management and attached clusters must be able to connect to the local registry.
+•
+The management cluster must be able to connect to all the attached cluster’s API servers.
+•
+The management cluster must be able to connect to any load balancers created for platform
+services on the management cluster.
+Extracting Air-gapped Pre-provisioned Images and Set Variables
+Follow these steps to extract the air-gapped image bundles into your private registry:
+Procedure
+1. Assuming you have downloaded nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz,
+extract the tar file to a local directory.
+tar -xzvf nkp-air-gapped-bundle_nkp-version_linux_amd64.tar.gz
+2. The directory structure after extraction can be accessed in subsequent steps using commands
+to access files from different directories. EX: For the bootstrap, change your directory to the nkp-
+<version>directory similar, to the example below, depending on your current location.
+cd nkp-nkp-version
+3. Set an environment variable with your registry address.
+export REGISTRY_URL="<https/http>://<registry-address>:<registry-port>"
+export REGISTRY_USERNAME=<username>
+export REGISTRY_PASSWORD=<password>
+(Only Pre-provisioned) Loading Images for Deployments - Konvoy
+For more information on loading images for Deployments, see the Nutanix Image Builder (NIB) section.
+Procedure
+For detailed steps and procedure, see Upload artifacts to Pre-provisioned Hosts on page 71.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 950
+
+--- page 951 ---
+Loading Images to Your Private Registry
+Before creating or upgrading a Kubernetes cluster, you need to load the required images in a local registry
+if operating in an air-gapped environment. This registry must be accessible from both the bastion machine
+and either the AWS EC2 instances or other machines that will be created for the Kubernetes cluster.
+About this task
+For more information on creating a bastion machine, see Creating a Bastion Host on page 679.
+Warning:  If you do not already have a local registry, set up one. For more information, see Registry Mirror
+Tools on page 990.
+Procedure
+1. To load the air-gapped image bundle into your local registry mirror:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar,./
+container-images/konvoy-image-bundle-nkp-version.tar
+--to-registry=${REGISTRY_URL} 
+--to-registry-username=${REGISTRY_USERNAME} 
+--to-registry-password=${REGISTRY_PASSWORD}
+2. To load the air-gapped image bundle into your internal registry:
+nkp push bundle --bundle ./container-images/kommander-image-bundle-nkp-version.tar,./
+container-images/konvoy-image-bundle-nkp-version.tar
+--to-internal-registry-mirror 
+--kubeconfig=${CLUSTER_NAME}.conf
+Note:
+•
+Replace nkp_version with the NKP version at your site.
+•
+Specify only the required bundle as comma-separated values in the --bundle parameter.
+•
+Pushing images to your registry might take time, depending on network performance
+between the machine running the command and the registry.
+Installing Kommander in a Pre-provisioned, Non-Air-gapped Environment
+Install the Kommander components of NKP.
+Before you begin
+For more information on pre-provisioned environments, see Pre-provisioned Installation Options on
+page 76. For more information on non-air-gapped environments, see Air-Gapped or Non-Air-Gapped
+Environment on page 24.
+•
+Ensure you have reviewed all the prerequisites for installation (see Nutanix Kubernetes Platform
+Requirements on page 48).
+•
+Ensure you have a Default StorageClass on page 942.
+•
+Note down the name of the cluster where you want to install Kommander. If you do not know it, use
+kubectl get nkpclusters -A to display it.
+Warning:  You must modify the Kommander installer configuration file (kommander.yaml) before installing
+the Kommander component of NKP in a pre-provisioned environment.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 951
+
+--- page 952 ---
+About this task
+Create and customize your Kommander Installer Configuration File as follows:
+Procedure
+1. Set the environment variable for your cluster.
+export CLUSTER_NAME=<your-management-cluster-name>
+2. Copy the kubeconfig file of your Management cluster to your local directory.
+nkp get kubeconfig -c ${CLUSTER_NAME} > ${CLUSTER_NAME}.conf
+3. Create a configuration file.
+For more information, see Installing Kommander with a Configuration File  on page 959.
+nkp install kommander --init > kommander.yaml
+4. Include configuration overrides for the rook-ceph-cluster.
+NKP’s default configuration ships Ceph with PersistentVolumeClaim (PVC) based storage, which
+requires your CSI provider to support PVC with type volumeMode: Block. As this is impossible with
+the default local static provisioner, you can install Ceph in host storage mode. You can choose whether
+Ceph’s object storage daemon (osd) pods can consume all or just some of the devices on your nodes.
+Include one of the following Overrides.
+a. To automatically assign all raw storage devices on all nodes to the Ceph cluster.
+rook-ceph-cluster:
+    enabled: true
+    values: |
+      cephClusterSpec:
+        storage:
+          storageClassDeviceSets: []
+          useAllDevices: true
+          useAllNodes: true
+          deviceFilter: "<<value>>"
+b. To assign specific storage devices on all nodes to the Ceph cluster.
+rook-ceph-cluster:
+    enabled: true
+    values: |
+      cephClusterSpec:
+        storage:
+          storageClassDeviceSets: []
+          useAllNodes: true
+          useAllDevices: false
+          deviceFilter: "^sdb."
+Note:  If you want to assign specific devices to specific nodes using the deviceFilter option, refer
+to Specific Nodes and Devices. For general information on the deviceFilter value, refer to
+Storage Selection Settings.
+5. (Optional) Customize your kommander.yaml file.
+See the Kommander Customizations page for customization options. Some options include Custom
+Domains and Certificates, HTTP proxy, Disabling the AI Navigator application, External Load Balancer,
+GPU utilization, Rook Ceph customization for Pre-provisioned environments, and so on.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 952
+
+--- page 953 ---
+6. (Optional) If your cluster uses a custom AWS VPC and requires an internal load-balancer, set the
+traefik annotation to create an internal-facing ELB.
+...
+apps:
+  traefik:
+    enabled: true
+    values: |
+      service:
+        annotations:
+          service.beta.kubernetes.io/aws-load-balancer-internal: "true
+...
+7. Perform Pro License: Installing Kommander in a Pre-provisioned, Non-Air-gapped Environment  on
+page 953, depending on your application environments.
+If your environment uses HTTP/HTTPS proxies, you must include the flags --http-proxy, --
+https-proxy, and --no-proxy and their related values in this command for it to be successful. More
+information is available in Configuring an HTTP/HTTPS Proxy.
+Tips and Recommendations:
+•
+The --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you install Kommander on the
+correct cluster. For alternatives and to Provide Context for Commands with a kubeconfig File, see
+Commands within a kubeconfig File on page 34.
+•
+Applications can take longer to deploy and time out the installation. Add the --wait-timeout <time
+to wait> flag and specify a period (for example, 1h) to allocate more time to the deployment of
+applications.
+•
+If the Kommander installation fails, or you want to reconfigure applications, rerun the install
+command to retry.
+What to do next
+See Verifying Kommander Installation on page 955.
+If you want to enable a solution that detects current and future anomalies in workload configurations or
+Kubernetes clusters, see Nutanix Kubernetes Platform Insights Guide on page 1086.
+Pro License: Installing Kommander in a Pre-provisioned, Non-Air-gapped Environment
+Use the customized kommander.yaml to install NKP in a non-air-gapped environment.
+Procedure
+In the kommander.yaml file, run the following command.
+nkp install kommander --installer-config kommander.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+Installing Kommander in a Small Environment
+You can install the Kommander component of NKP on a small, single-cluster environment with smaller
+memory, storage, and CPU requirements for testing and demo purposes. This topic describes methods for
+installing Kommander in these environments.
+About this task
+Minimal Kommander installation:
+The YAML file that is used to install a minimal configuration of Kommander contains the bare minimum
+setup that allows you to deploy applications and access the NKP UI. It does not include applications for
+cost monitoring, logging, alerting, object storage, etc.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 953
+
+--- page 954 ---
+In this YAML file, you can find the lines that correspond to all platform applications included in a normal
+Kommander setup. Applications that have enabled set to false are not taken into account during
+installation. If you want to test an additional application, you can enable it individually to be installed by
+setting enabled to true on the corresponding line in the YAML file.
+For example, if you want to enable the logging stack, set enabled to true for grafana-logging, grafana-
+lokilogging-operator, rook-ceph and rook-ceph-cluster. Note that depending on the size of your
+cluster, enabling several platform applications can exhaust your cluster’s resources.
+Warning:  Some applications depend on other applications to work properly. To find out which other
+applications you need to enable to test the target application, see See Platform Applications on page 294
+.
+Before you begin
+Warning:  Ultimate License considerations: Nutanix recommends performing testing and demo tasks in
+a single-cluster environment. The Ultimate license is designed for multi-cluster environments and fleet
+management, which require a minimum number of resources. Applying an Ultimate license key to the
+previous installation adds modifications to your environment that can exhaust a small environment’s
+resources.
+Ensure you have done the following:
+•
+You have acquired a NKP license.
+•
+You have installed Basic Installations by Infrastructure on page 76.
+•
+You have reviewed the prerequisite section pertaining to your air-gapped, or networked environment.
+Procedure
+1. Initialize your Kommander installation and name it kommander_minimal.yaml.
+nkp install kommander --init --kubeconfig=${CLUSTER_NAME}.conf -oyaml >
+ kommander_minimal.yaml
+2. Edit your kommander_minimal.yaml file to match the following example.
+apiVersion: config.kommander.mesosphere.io/v1alpha1
+kind: Installation
+apps:
+  dex:
+    enabled: true
+  dex-k8s-authenticator:
+    enabled: true
+  nkp-insights-management:
+    enabled: false
+  gatekeeper:
+    enabled: true
+  git-operator:
+    enabled: true
+  grafana-logging:
+    enabled: false
+  grafana-loki:
+    enabled: false
+  kommander:
+    enabled: true
+  kommander-ui:
+    enabled: true
+  kube-prometheus-stack:
+    enabled: false
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 954
+
+--- page 955 ---
+  kubernetes-dashboard:
+    enabled: false
+  kubefed:
+    enabled: true
+  kubetunnel:
+    enabled: false
+  logging-operator:
+    enabled: false
+  prometheus-adapter:
+    enabled: false
+  reloader:
+    enabled: true
+  rook-ceph:
+    enabled: false
+  rook-ceph-cluster:
+    enabled: false
+  traefik:
+    enabled: true
+  traefik-forward-auth-mgmt:
+    enabled: true
+  velero:
+    enabled: false
+ageEncryptionSecretName: sops-age
+clusterHostname: ""
+3. Install Kommander on your cluster with the following command.
+nkp install kommander --installer-config ./kommander_minimal.yaml --kubeconfig=
+${CLUSTER_NAME}.conf
+In the previous command, the --kubeconfig=${CLUSTER_NAME}.conf flag ensures that you set the
+context to install Kommander on the right cluster. For alternatives and recommendations around setting
+your context, see Commands within a kubeconfig File on page 34.
+Tip:  Sometimes, applications require a longer period of time to deploy, which causes the installation to
+time out. Add the --wait-timeout <time to wait> flag and specify a period of time (for example,
+1h) to allocate more time to the deployment of applications.
+If the Kommander installation fails, or you wish to reconfigure applications, you can rerun the install
+command, and you can view the progress by increasing the log verbosity by adding the flag -v 2.
+Verifying Kommander Installation
+After you build the Konvoy cluster and you install Kommander, verify your installation. After the CLI
+successfully installs the components, it waits for all applications to be ready by default.
+About this task
+Note:  If the Kommander installation fails or you want to reconfigure applications, you can rerun the install
+command to retry the installation.
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 955
+
+--- page 956 ---
+Procedure
+1. Do one of the following.
+»
+If you prefer the CLI not to wait for all applications to become ready, you can set the --wait=false
+flag.
+»
+If you choose not to wait through the NKP CLI, you can check the status of the installation using the
+following command:
+kubectl -n kommander wait --for condition=Ready helmreleases --all --timeout 15m
+The command waits for each Helm chart to reach the Ready condition and returns output similar to
+the following:
+helmrelease.helm.toolkit.fluxcd.io/ai-navigator-app condition met
+helmrelease.helm.toolkit.fluxcd.io/centralized-grafana condition met
+...
+The output can include additional HelmRelease entries.
+2. In case of failed HelmReleases, do one of the following.
+»
+If an application fails to deploy, check the status of a HelmRelease with:
+kubectl -n kommander get helmrelease <HELMRELEASE_NAME
+»
+If you find any HelmReleases in a “broken” release state, such as “exhausted” or “another rollback/
+release in progress” trigger a reconciliation of the HelmRelease using the following commands:
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -
+p='[{"op": "replace", "path": "/spec/suspend", "value": true}]'
+kubectl -n kommander patch helmrelease <HELMRELEASE_NAME> --type='json' -
+p='[{"op": "replace", "path": "/spec/suspend", "value": false}]'
+What to do next
+After building the Konvoy cluster and installing Kommander, you can verify your Kommander installation
+Logging into the UI with Kommander on page 956.
+Logging into the UI with Kommander
+Logging into the UI with Kommander
+Procedure
+1. By default, log in to the UI in Kommander with the following command:
+nkp open dashboard --kubeconfig=${CLUSTER_NAME}.conf
+2. Retrieve your credentials:
+kubectl -n kommander get secret nkp-credentials -o go-template='Username:
+ {{.data.username|base64decode}}{{ "\n"}}Password: {{.data.password|base64decode}}
+{{ "\n"}}'
+Nutanix Kubernetes Platform | Additional Kommander Configuration | 956

@@ -1,0 +1,32 @@
+
+--- page 1074 ---
+•
+Default installation:
+AI Navigator app deploys on a NKP management cluster and integrates with the Nutanix-managed
+Azure OpenAI Service through AI Navigator RAG service.
+Figure 22: AI Navigator Architecture with Azure OpenAI Through Nutanix
+In the default deployment, the AI Navigator app runs on the NKP management cluster. Requests move
+from the app to a local AI Navigator RAG service inside the cluster. The RAG service connects to
+the Nutanix-managed Azure OpenAI Service for model inference. The figure summarizes how the
+management cluster, the external RAG service, and Azure OpenAI connect.
+•
+Your Azure OpenAI Service:
+You can configure the AI Navigator app component to use your own instance of Azure OpenAI Service,
+providing greater control over data residency, compliance, and cost optimization.
+In this configuration, the overall system architecture remains largely consistent. However, you configure
+the RAG component to query your language model endpoint instead of the default Nutanix-managed
+service. The bring-your-own-model (BYOM) approach helps you tailor the AI capabilities to your specific
+operational and governance requirements.
+When you use your own Azure OpenAI Service, the AI Navigator app and the RAG workload run on
+the management cluster. The RAG component sends inference traffic to your Azure OpenAI endpoint
+instead of the Nutanix-managed service. The figure summarizes how your requests pass through the
+app and local RAG tier to your Azure OpenAI instance for BYOM, data residency, and governance
+requirements.
+AI Navigator installation
+AI Navigator runs with licensed NKP, Pro or Ultimate, and internet. At first install choose inclusion; NKP
+installs it by default with those licenses.
+To use AI Navigator, log in to a licensed Nutanix Kubernetes Platform (NKP) environment.
+When you install NKP for the first time, you choose whether to include AI Navigator.
+To deploy AI Navigator, follow the installation procedures for your infrastructure provider. NKP installs AI
+Navigator by default when your deployment uses a Pro or Ultimate license.
+Nutanix Kubernetes Platform | AI Navigator | 1074

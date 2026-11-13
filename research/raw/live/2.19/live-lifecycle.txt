@@ -1,0 +1,394 @@
+# Live lifecycle facts (read-only), NKP 2.19.0 management cluster. Collected 2026-11-02.
+
+=== mhc -A ===
+NAMESPACE   NAME                     CLUSTER       REPLICAS   HEALTHY   PAUSED   AGE
+kommander   <mgmt-cluster>-6lfwl        <mgmt-cluster>   1          1         False    3d21h
+kommander   <mgmt-cluster>-md-0-x7d5z   <mgmt-cluster>   4          4         False    3d21h
+=== mhc spec ===
+<mgmt-cluster>-6lfwl	{"checks":{"nodeStartupTimeoutSeconds":600,"unhealthyNodeConditions":[{"status":"False","timeoutSeconds":300,"type":"Ready"},{"status":"Unknown","timeoutSeconds":300,"type":"Ready"},{"status":"True","timeoutSeconds":300,"type":"MemoryPressure"},{"status":"True","timeoutSeconds":300,"type":"DiskPressure"},{"status":"True","timeoutSeconds":300,"type":"PIDPressure"},{"status":"True","timeoutSeconds":300,"type":"NetworkUnavailable"}]},"clusterName":"<mgmt-cluster>","remediation":{"triggerIf":{"unhealthyLessThanOrEqualTo":"40%"}},"selector":{"matchLabels":{"cluster.x-k8s.io/control-plane":"","topology.cluster.x-k8s.io/owned":""}}}
+<mgmt-cluster>-md-0-x7d5z	{"checks":{"nodeStartupTimeoutSeconds":600,"unhealthyNodeConditions":[{"status":"False","timeoutSeconds":300,"type":"Ready"},{"status":"Unknown","timeoutSeconds":300,"type":"Ready"},{"status":"True","timeoutSeconds":300,"type":"MemoryPressure"},{"status":"True","timeoutSeconds":300,"type":"DiskPressure"},{"status":"True","timeoutSeconds":300,"type":"PIDPressure"},{"status":"True","timeoutSeconds":300,"type":"NetworkUnavailable"}]},"clusterName":"<mgmt-cluster>","remediation":{"triggerIf":{"unhealthyLessThanOrEqualTo":"40%"}},"selector":{"matchLabels":{"topology.cluster.x-k8s.io/deployment-name":"md-0","topology.cluster.x-k8s.io/owned":""}}}
+=== clusterclass mhc ===
+
+{"checks":{"nodeStartupTimeoutSeconds":600,"unhealthyNodeConditions":[{"status":"False","timeoutSeconds":300,"type":"Ready"},{"status":"Unknown","timeoutSeconds":300,"type":"Ready"},{"status":"True","timeoutSeconds":300,"type":"MemoryPressure"},{"status":"True","timeoutSeconds":300,"type":"DiskPressure"},{"status":"True","timeoutSeconds":300,"type":"PIDPressure"},{"status":"True","timeoutSeconds":300,"type":"NetworkUnavailable"}]},"remediation":{"triggerIf":{"unhealthyLessThanOrEqualTo":"40%"}}}
+default-worker	{"checks":{"nodeStartupTimeoutSeconds":600,"unhealthyNodeConditions":[{"status":"False","timeoutSeconds":300,"type":"Ready"},{"status":"Unknown","timeoutSeconds":300,"type":"Ready"},{"status":"True","timeoutSeconds":300,"type":"MemoryPressure"},{"status":"True","timeoutSeconds":300,"type":"DiskPressure"},{"status":"True","timeoutSeconds":300,"type":"PIDPressure"},{"status":"True","timeoutSeconds":300,"type":"NetworkUnavailable"}]},"remediation":{"triggerIf":{"unhealthyLessThanOrEqualTo":"40%"}}}
+host-agent-worker	
+=== nkp get nodepools ===
+2026-11-02 06:05:29 INF Getting NKPCluster kommander/<mgmt-cluster> (manages CAPI Cluster kommander/<mgmt-cluster>)
+NODEPOOL               DESIRED               READY               KUBERNETES VERSION               
+md-0                   4                     4                   v1.36.2                          
+=== machinedeployments ===
+NAMESPACE   NAME                     CLUSTER       AVAILABLE   DESIRED   CURRENT   READY   AVAILABLE   UP-TO-DATE   PHASE     AGE     VERSION
+kommander   <mgmt-cluster>-md-0-x7d5z   <mgmt-cluster>   True        4         4         4       4           4            Running   3d21h   v1.36.2
+=== kcp ===
+NAMESPACE   NAME                CLUSTER       AVAILABLE   DESIRED   CURRENT   READY   AVAILABLE   UP-TO-DATE   INITIALIZED   AGE     VERSION
+kommander   <mgmt-cluster>-6lfwl   <mgmt-cluster>   True        1         1         1       1           1            true          3d21h   v1.36.2
+=== kcp rollout/certs ===
+{"before":{"certificatesExpiryDays":180},"strategy":{"rollingUpdate":{"maxSurge":1},"type":"RollingUpdate"}}
+
+
+
+=== machine certs expiry ===
+<mgmt-cluster>-6lfwl-8mwqp	2027-10-29T08:16:41Z
+<mgmt-cluster>-md-0-x7d5z-vwnsq-clg84	
+<mgmt-cluster>-md-0-x7d5z-vwnsq-gvhdb	
+<mgmt-cluster>-md-0-x7d5z-vwnsq-kjnld	
+<mgmt-cluster>-md-0-x7d5z-vwnsq-wq5dn	
+=== explain nkpcluster.spec ===
+GROUP:      clusters.nkp.nutanix.com
+KIND:       NKPCluster
+VERSION:    v1alpha1
+
+FIELD: spec <Object>
+
+
+DESCRIPTION:
+    NKPClusterSpec defines the desired state of NKPCluster.
+    
+FIELDS:
+  capiCluster	<Object>
+    CAPICluster is the cluster specification (drives CAPI Cluster
+    configuration).
+
+  capiClusterRef	<Object>
+    CAPIClusterRef is a reference to the CAPI Cluster.
+
+  kommanderCluster	<Object>
+    KommanderCluster is the KommanderCluster specification.
+
+  kommanderClusterRef	<Object>
+    KommanderClusterRef is a reference to the KommanderCluster.
+
+  version	<string> -required-
+    Version is the NKP platform version.
+
+
+=== explain nkpcluster.status ===
+GROUP:      clusters.nkp.nutanix.com
+KIND:       NKPCluster
+VERSION:    v1alpha1
+
+FIELD: status <Object>
+
+
+DESCRIPTION:
+    NKPClusterStatus defines the observed state of NKPCluster.
+    
+FIELDS:
+  capiCluster	<Object>
+    CAPICluster is the observed state of the underlying CAPI cluster.
+
+  capiClusterRef	<Object>
+    CAPIClusterRef is a reference to the CAPI Cluster.
+
+  conditions	<[]Object>
+    Conditions represent the latest available observations of the NKPCluster's
+    state.
+
+  history	<[]Object>
+    History tracks version transitions in descending order (newest first).
+
+  kommanderCluster	<Object>
+    KommanderCluster rolls up the status from the referenced KommanderCluster
+    (JSON-serialized status).
+    
+    Example usage:
+      import (
+        kommanderv1beta1
+    "github.com/mesosphere/kommander/v2/clientapis/pkg/apis/kommander/v1beta1"
+        "encoding/json"
+      )
+    
+      // To set status from a KommanderCluster:
+      statusJSON, _ := json.Marshal(kommanderCluster.Status)
+      nkpCluster.Status.KommanderCluster = &apiextensionsv1.JSON{Raw:
+    statusJSON}
+    
+      // To unmarshal status back to KommanderClusterStatus:
+      var status kommanderv1beta1.KommanderClusterStatus
+      json.Unmarshal(nkpCluster.Status.KommanderCluster.Raw, &status)
+
+  kommanderClusterRef	<Object>
+    KommanderClusterRef is a reference to the KommanderCluster.
+
+  kommanderCoreVersion	<string>
+    KommanderCoreVersion is the currently observed Kommander Core version (if
+    management cluster).
+
+  kubernetesVersion	<string>
+    KubernetesVersion is the currently observed Kubernetes version.
+
+  phase	<string>
+  enum: Reconciling Platform Applications, Reconciling Kubernetes and Cluster Infrastructure, Reconciled
+    Phase is the current phase of reconciliation.
+
+  platformVersion	<string>
+    PlatformVersion is the currently observed version of platform applications.
+
+
+=== nkpcluster status ===
+{"capiCluster":{"certificatesExpiryDate":"2027-10-29T08:16:41Z","certificatesRolloutBeforeExpiryDays":180,"clusterReady":true,"conditions":[{"lastTransitionTime":"2026-10-29T08:28:26Z","message":"","observedGeneration":2,"reason":"Available","status":"True","type":"Available"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"ProbeSucceeded","status":"True","type":"RemoteConnectionProbe"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"Ready","status":"True","type":"InfrastructureReady"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"Initialized","status":"True","type":"ControlPlaneInitialized"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"Available","status":"True","type":"ControlPlaneAvailable"},{"lastTransitionTime":"2026-10-29T08:28:26Z","message":"","observedGeneration":2,"reason":"Available","status":"True","type":"WorkersAvailable"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"ReconcileSucceeded","status":"True","type":"TopologyReconciled"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"NotRollingOut","status":"False","type":"RollingOut"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"NotRemediating","status":"False","type":"Remediating"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"NotScalingDown","status":"False","type":"ScalingDown"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"NotScalingUp","status":"False","type":"ScalingUp"},{"lastTransitionTime":"2026-10-29T08:28:26Z","message":"","observedGeneration":2,"reason":"Ready","status":"True","type":"ControlPlaneMachinesReady"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"Ready","status":"True","type":"WorkerMachinesReady"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"UpToDate","status":"True","type":"ControlPlaneMachinesUpToDate"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"UpToDate","status":"True","type":"WorkerMachinesUpToDate"},{"lastTransitionTime":"2026-10-29T08:30:29Z","message":"","observedGeneration":2,"reason":"KommanderInitialized","status":"True","type":"KommanderInitialized"},{"lastTransitionTime":"2026-10-29T08:28:23Z","message":"","observedGeneration":2,"reason":"NotPaused","status":"False","type":"Paused"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"","observedGeneration":2,"reason":"NotDeleting","status":"False","type":"Deleting"}],"controlPlane":{"availableReplicas":1,"desiredReplicas":1,"readyReplicas":1,"replicas":1,"upToDateReplicas":1},"controlPlaneAvailable":true,"controlPlaneRef":{"apiVersion":"controlplane.cluster.x-k8s.io/v1beta2","kind":"KubeadmControlPlane","name":"<mgmt-cluster>-6lfwl","namespace":"kommander"},"controlPlaneUpToDate":true,"infrastructureAvailable":true,"infrastructureRef":{"apiVersion":"infrastructure.cluster.x-k8s.io/v1beta2","kind":"NutanixCluster","name":"<mgmt-cluster>-cmt2n","namespace":"kommander"},"nutanix":{"projectPolicy":"default-only"},"phase":"Provisioned","workers":{"availableReplicas":4,"desiredReplicas":4,"readyReplicas":4,"replicas":4,"upToDateReplicas":4},"workersReady":true,"workersUpToDate":true},"capiClusterRef":{"name":"<mgmt-cluster>","namespace":"kommander"},"conditions":[{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"Adopted existing CAPI Cluster kommander/<mgmt-cluster>","reason":"CAPIClusterAdopted","status":"True","type":"CAPIClusterAdopted"},{"lastTransitionTime":"2026-10-29T08:28:24Z","message":"Topology is up to date","observedGeneration":1,"reason":"TopologyUpToDate","status":"True","type":"CAPIClusterTopologyUpToDate"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"CAPI cluster status synced","observedGeneration":2,"reason":"CAPIClusterStatusSyncSuccess","status":"True","type":"CAPIClusterStatusSynced"},{"lastTransitionTime":"2026-10-29T08:28:25Z","message":"","observedGeneration":2,"reason":"ReconcileSucceeded","status":"True","type":"CAPITopologyReconciled"},{"lastTransitionTime":"2026-10-29T08:36:30Z","message":"KommanderCluster kommander/<mgmt-cluster> was created","reason":"KommanderClusterCreated","status":"True","type":"KommanderClusterReady"},{"lastTransitionTime":"2026-10-29T08:36:30Z","message":"KommanderCluster status synced","reason":"KommanderClusterStatusSyncSuccess","status":"True","type":"KommanderClusterStatusSynced"},{"lastTransitionTime":"2026-10-29T08:44:08Z","message":"KommanderCluster platform apps version v2.19.0 is reconciled","observedGeneration":2,"reason":"PlatformAppsReconciled","status":"True","type":"PlatformAppsReconciled"},{"lastTransitionTime":"2026-10-29T08:37:07Z","message":"Successfully synced KommanderCluster to kommander/<mgmt-cluster>","reason":"KommanderClusterSyncSucceeded","status":"True","type":"KommanderClusterSynced"}],"history":[{"kubernetes":{"completedAt":"2026-10-29T08:28:24Z","startedAt":"2026-10-29T08:28:24Z","version":"v1.36.2"},"platform":{"completedAt":"2026-10-29T08:44:08Z","startedAt":"2026-10-29T08:36:30Z","version":"v2.19.0"}}],"kommanderCluster":{"clusterId":"<uuid>","conditions":[{"lastTransitionTime":"2026-10-29T08:36:30Z","message":"Ingress service address has been provisioned","reason":"IngressServiceAddressFound","status":"True","type":"IngressAddressReady"},{"lastTransitionTime":"2026-10-29T08:36:33Z","message":"Certificate is up to date and has not expired","reason":"Ready","status":"True","type":"IngressCertificateReady"},{"lastTransitionTime":"2026-10-29T08:44:08Z","message":"All platform AppDeployments are ready","reason":"Succeeded","status":"True","type":"PlatformAppDeploymentsReady"},{"lastTransitionTime":"2026-10-29T08:37:07Z","message":"Loggingstack version v2.19.0 successfully reconciled","reason":"ReconciliationSucceeded","status":"True","type":"LoggingStackVersionReconciled"},{"lastTransitionTime":"2026-10-29T08:44:08Z","message":"Cluster successfully reconciled to platform version v2.19.0","reason":"ReconciliationSucceeded","status":"True","type":"PlatformVersionReconciled"},{"lastTransitionTime":"2026-10-29T08:37:07Z","message":"successfully reflected OCIRegistry config for <mgmt-cluster> in kommander namespace","reason":"Succeeded","status":"True","type":"OCIRegistryConfigSynced"},{"lastTransitionTime":"2026-10-29T08:37:22Z","message":"Skipped for non-expanded cluster","reason":"Skipped","status":"True","type":"AttachmentCompleted"},{"lastTransitionTime":"2026-10-29T08:37:23Z","message":"Applied federated workspace manifests.","reason":"Succeeded","status":"True","type":"WorkspaceKustomizationCreated"},{"lastTransitionTime":"2026-10-29T08:37:37Z","message":"Created \"cluster\" kustomization and initialized git file system.","reason":"Succeeded","status":"True","type":"ClusterKustomizationCreated"}],"dextfaclientRef":{"name":"dextfa-client-<mgmt-cluster>-n54r8","namespace":"kommander"},"ingress":{"address":"<ip>","caBundle":"<omitted>"},"kubefedclusterRef":{"name":"<mgmt-cluster>"},"kubernetesVersion":"v1.36.2","phase":"Joined","platform":{"version":"v2.19.0"},"type":"Unknown"},"kommanderClusterRef":{"name":"<mgmt-cluster>","namespace":"kommander"},"kubernetesVersion":"v1.36.2","phase":"Reconciled","platformVersion":"v2.19.0"}
+=== nkpcluster annotations ===
+(only kubectl last-applied-configuration; omitted)
+=== cluster annotations ===
+{"capx.nutanix.com/project-policy":"default-only","caren.nutanix.com/cluster-uuid":"<uuid>","csi.nutanix.com/storage-project-policy":"project-policy","topology.internal.cluster.x-k8s.io/upgrade-step":""}
+=== validating webhooks nkp ===
+cluster-api-runtime-extensions-nutanix-validating-webhook-configuration   2          3d21h
+cluster-api-stack-operator-validating-webhook-configuration               1          3d21h
+nkp-cluster-validating                                                    2          3d21h
+nkp-management-plane-validating                                           1          3d21h
+=== hosts ===
+No resources found
+=== explain machinedeployment topology ===
+GROUP:      cluster.x-k8s.io
+KIND:       Cluster
+VERSION:    v1beta2
+
+FIELD: machineDeployments <[]Object>
+
+
+DESCRIPTION:
+    machineDeployments is a list of machine deployments in the cluster.
+    MachineDeploymentTopology specifies the different parameters for a set of
+    worker nodes in the topology.
+    This set of nodes is managed by a MachineDeployment object whose lifecycle
+    is managed by the Cluster controller.
+    
+FIELDS:
+  class	<string> -required-
+    class is the name of the MachineDeploymentClass used to create the set of
+    worker nodes.
+    This should match one of the deployment classes defined in the ClusterClass
+    object
+    mentioned in the `Cluster.Spec.Class` field.
+
+  deletion	<Object>
+    deletion contains configuration options for Machine deletion.
+
+  failureDomain	<string>
+    failureDomain is the failure domain the machines will be created in.
+    Must match a key in the FailureDomains map stored on the cluster object.
+
+  healthCheck	<Object>
+    healthCheck allows to enable, disable and override MachineDeployment health
+    check
+    configuration from the ClusterClass for this MachineDeployment.
+
+  metadata	<Object>
+    metadata is the metadata applied to the MachineDeployment and the machines
+    of the MachineDeployment.
+    At runtime this metadata is merged with the corresponding metadata from the
+    ClusterClass.
+
+  minReadySeconds	<integer>
+    minReadySeconds is the minimum number of seconds for which a newly created
+    machine should
+    be ready.
+    Defaults to 0 (machine will be considered available as soon as it
+    is ready)
+
+  name	<string> -required-
+    name is the unique identifier for this MachineDeploymentTopology.
+    The value is used with other unique identifiers to create a
+    MachineDeployment's Name
+    (e.g. cluster's name, etc). In case the name is greater than the allowed
+    maximum length,
+    the values are hashed together.
+
+  readinessGates	<[]Object>
+    readinessGates specifies additional conditions to include when evaluating
+    Machine Ready condition.
+    
+    This field can be used e.g. to instruct the machine controller to include in
+    the computation for Machine's ready
+    computation a condition, managed by an external controllers, reporting the
+    status of special software/hardware installed on the Machine.
+    
+    If this field is not defined, readinessGates from the corresponding
+    MachineDeploymentClass will be used, if any.
+
+  replicas	<integer>
+    replicas is the number of worker nodes belonging to this set.
+    If the value is nil, the MachineDeployment is created without the number of
+    Replicas (defaulting to 1)
+    and it's assumed that an external entity (like cluster autoscaler) is
+    responsible for the management
+    of this value.
+
+  rollout	<Object>
+    rollout allows you to configure the behaviour of rolling updates to the
+    MachineDeployment Machines.
+    It allows you to define the strategy used during rolling replacements.
+
+
+=== explain topology.controlPlane ===
+FIELDS:
+  deletion	<Object>
+    deletion contains configuration options for Machine deletion.
+
+  healthCheck	<Object>
+    healthCheck allows to enable, disable and override control plane health
+    check
+    configuration from the ClusterClass for this control plane.
+
+  metadata	<Object>
+    metadata is the metadata applied to the ControlPlane and the Machines of the
+    ControlPlane
+    if the ControlPlaneTemplate referenced by the ClusterClass is machine based.
+    If not, it
+    is applied only to the ControlPlane.
+    At runtime this metadata is merged with the corresponding metadata from the
+    ClusterClass.
+
+  readinessGates	<[]Object>
+    readinessGates specifies additional conditions to include when evaluating
+    Machine Ready condition.
+    
+    This field can be used e.g. to instruct the machine controller to include in
+    the computation for Machine's ready
+    computation a condition, managed by an external controllers, reporting the
+    status of special software/hardware installed on the Machine.
+    
+    If this field is not defined, readinessGates from the corresponding
+    ControlPlaneClass will be used, if any.
+    
+    NOTE: Specific control plane provider implementations might automatically
+    extend the list of readinessGates;
+    e.g. the kubeadm control provider adds ReadinessGates for the
+    APIServerPodHealthy, SchedulerPodHealthy conditions, etc.
+
+  replicas	<integer>
+    replicas is the number of control plane nodes.
+    If the value is not set, the ControlPlane object is created without the
+    number of Replicas
+    and it's assumed that the control plane controller does not implement
+    support for this field.
+    When specified against a control plane provider that lacks support for this
+    field, this value will be ignored.
+
+  variables	<Object>
+    variables can be used to customize the ControlPlane through patches.
+
+
+=== explain topology md rollout ===
+FIELDS:
+  strategy	<Object>
+    rollingUpdate	<Object>
+      maxSurge	<Object>
+      maxUnavailable	<Object>
+    type	<string> -required-
+    enum: RollingUpdate, OnDelete
+
+=== explain md healthCheck ===
+FIELDS:
+  checks	<Object>
+    nodeStartupTimeoutSeconds	<integer>
+    unhealthyMachineConditions	<[]Object>
+      status	<string> -required-
+      enum: True, False, Unknown
+      timeoutSeconds	<integer> -required-
+      type	<string> -required-
+    unhealthyNodeConditions	<[]Object>
+      status	<string> -required-
+      timeoutSeconds	<integer> -required-
+      type	<string> -required-
+  enabled	<boolean>
+  remediation	<Object>
+    maxInFlight	<Object>
+    templateRef	<Object>
+      apiVersion	<string> -required-
+      kind	<string> -required-
+      name	<string> -required-
+    triggerIf	<Object>
+      unhealthyInRange	<string>
+      unhealthyLessThanOrEqualTo	<Object>
+
+=== explain md deletion ===
+FIELDS:
+  nodeDeletionTimeoutSeconds	<integer>
+  nodeDrainTimeoutSeconds	<integer>
+  nodeVolumeDetachTimeoutSeconds	<integer>
+  order	<string>
+  enum: Random, Newest, Oldest
+
+=== nkp-cluster-validating rules ===
+webhook.nkpcluster.kommander.mesosphere.io	[{"apiGroups":["clusters.nkp.nutanix.com"],"apiVersions":["v1alpha1"],"operations":["CREATE","UPDATE"],"resources":["nkpclusters"],"scope":"*"}]
+webhook.nkpcluster.child.kommander.mesosphere.io	[{"apiGroups":["kommander.mesosphere.io"],"apiVersions":["v1beta1"],"operations":["CREATE","UPDATE"],"resources":["kommanderclusters"],"scope":"*"},{"apiGroups":["cluster.x-k8s.io"],"apiVersions":["v1beta1","v1beta2"],"operations":["CREATE","UPDATE"],"resources":["clusters"],"scope":"*"}]
+=== autoscaler deploy ===
+NAMESPACE   NAME                                                      READY   UP-TO-DATE   AVAILABLE   AGE     CONTAINERS                      IMAGES                                                   SELECTOR
+kommander   cluster-autoscaler-<uuid>   1/1     1            1           3d21h   clusterapi-cluster-autoscaler   registry.k8s.io/autoscaling/cluster-autoscaler:v1.36.1   app.kubernetes.io/instance=ca-<uuid>,app.kubernetes.io/name=clusterapi-cluster-autoscaler
+kommander                                cluster-autoscaler-<uuid>                1/1     1            1           3d21h
+=== autoscaler args ===
+kommander/cluster-autoscaler-<uuid>
+null
+=== kubeletConfiguration schema (worker) ===
+[{"k":"automaticReservations","t":"object","min":null,"max":null,"enum":null},{"k":"containerLogMaxFiles","t":"integer","min":2,"max":null,"enum":null},{"k":"containerLogMaxSize","t":"string","min":null,"max":null,"enum":null},{"k":"cpuManagerPolicy","t":"string","min":null,"max":null,"enum":["none","static"]},{"k":"enforceNodeAllocatable","t":"array","min":null,"max":null,"enum":null},{"k":"evictionHard","t":"object","min":null,"max":null,"enum":null},{"k":"evictionSoft","t":"object","min":null,"max":null,"enum":null},{"k":"evictionSoftGracePeriod","t":"object","min":null,"max":null,"enum":null},{"k":"imageGCHighThresholdPercent","t":"integer","min":0,"max":100,"enum":null},{"k":"imageGCLowThresholdPercent","t":"integer","min":0,"max":100,"enum":null},{"k":"kubeReserved","t":"object","min":null,"max":null,"enum":null},{"k":"maxParallelImagePulls","t":"integer","min":0,"max":null,"enum":null},{"k":"maxPods","t":"integer","min":50,"max":256,"enum":null},{"k":"memoryManagerPolicy","t":"string","min":null,"max":null,"enum":["None","Static"]},{"k":"podPidsLimit","t":"integer","min":1024,"max":16384,"enum":null},{"k":"protectKernelDefaults","t":"boolean","min":null,"max":null,"enum":null},{"k":"seccompDefault","t":"boolean","min":null,"max":null,"enum":null},{"k":"shutdownGracePeriod","t":"string","min":null,"max":null,"enum":null},{"k":"shutdownGracePeriodCriticalPods","t":"string","min":null,"max":null,"enum":null},{"k":"systemReserved","t":"object","min":null,"max":null,"enum":null},{"k":"topologyManagerPolicy","t":"string","min":null,"max":null,"enum":["none","best-effort","restricted","single-numa-node"]}]
+=== autoRenewCertificates schema ===
+{"description":"AutoRenewCertificates specifies the configuration for auto-renewing the\ncertificates of the control plane.","properties":{"daysBeforeExpiry":{"description":"DaysBeforeExpiry indicates a rollout needs to be performed if the\ncertificates of the control plane will expire within the specified days.\nSet to 0 to disable automated certificate renewal.","format":"int32","type":"integer","x-kubernetes-validations":[{"message":"Value must be 0 or at least 7","rule":"self == 0 || self >= 7"}]}},"required":["daysBeforeExpiry"],"type":"object"}
+=== machineDetails schema keys ===
+["additionalCategories","bootType","cluster","gpus","image","imageLookup","memorySize","project","subnets","systemDiskSize","vcpuSockets","vcpusPerSocket","vmProfile"]
+=== gpus schema ===
+{"description":"List of GPU devices that need to be added to the machines.\nMutually exclusive with VMProfile. When VMProfile is set, GPUs must not be set.","items":{"description":"NutanixGPU identifies a GPU to attach to a VM, either by device (name/deviceID) or\nby an AHV GPU profile.","properties":{"deviceID":{"description":"deviceID is the id of the GPU entity.","format":"int64","type":"integer"},"name":{"description":"name is the GPU name","minLength":1,"type":"string"},"profile":{"description":"profile identifies the AHV GPU profile to assign by name or UUID. Profile-based GPU\nassignment uses the named GPU profile APIs and is only supported on PC 7.6 or later.","properties":{"name":{"description":"name is the resource name in the PC","minLength":1,"type":"string"},"type":{"description":"Type is the identifier type to use for this resource.","enum":["uuid","name"],"type":"string"},"uuid":{"description":"uuid is the UUID of the resource in the PC.","format":"uuid","maxLength":36,"minLength":36,"type":"string"}},"required":["type"],"type":"object","x-kubernetes-validations":[{"message":"'name' must be set when type is 'name', and forbidden otherwise","rule":"self.type == 'name' ? has(self.name) : !has(self.name)"},{"message":"'uuid' must be set when type is 'uuid', and forbidden otherwise","rule":"self.type == 'uuid' ? has(self.uuid) && self.uuid.contains('-') : !has(self.uuid)"}]},"type":{"description":"Type is the identifier type to use for this resource.","enum":["deviceID","name","profile"],"type":"string"}},"required":["type"],"type":"object","x-kubernetes-validations":[{"message":"'name' must be set when type is 'name', and forbidden otherwise","rule":"self.type == 'name' ? has(self.name) : !has(self.name)"},{"message":"'deviceID' must be set when type is 'deviceID', and forbidden otherwise","rule":"self.type == 'deviceID' ? has(self.deviceID) : !has(self.deviceID)"},{"message":"'profile' must be set when type is 'profile', and forbidden otherwise","rule":"self.type == 'profile' ? has(self.profile) : !has(self.profile)"}]},"maxItems":32,"type":"array"}
+=== taints worker? ===
+["hostAgent","kubeletConfiguration","nodeRegistration","nutanix","taints"]
+
+=== Server-side dry runs on the NKPCluster (kubectl patch --dry-run=server; nothing changed). 2026-11-02 ===
+NKP webhooks (validating nkp-cluster-validating, caren preflight/cluster-validator; mutating nkpcluster/caren defaulters): sideEffects=None -> server dry run is safe.
+- JSON patch with a "test" op on .../machineDeployments/0/name: wrong name -> "test failed", rc=1, no change.
+- add .../machineDeployments/0/healthCheck {"remediation":{"triggerIf":{"unhealthyLessThanOrEqualTo":"50%"}}} -> accepted.
+- add .../machineDeployments/0/machineHealthCheck {"maxUnhealthy":"50%"} (PDF p.684 shape, CAPI v1beta1) -> accepted, but the field is PRUNED (not in the result). It has no effect.
+- add .../machineDeployments/0/replicas 5 on a pool with autoscaler annotations -> rejected: "replicas: cannot be set ... if the same MachineDeploymentTopology has autoscaler annotations".
+- add clusterConfig.controlPlane.kubeletConfiguration {"maxPods":20} -> rejected by schema (maxPods >= 50).
+- replace clusterConfig.controlPlane.autoRenewCertificates.daysBeforeExpiry 3 -> rejected ("Value must be 0 or at least 7").
+- replace controlPlane.replicas 2 -> accepted by dry run (no webhook check for an even count).
+- replace clusterConfig.addons.cni.provider Calico -> accepted by dry run (no webhook block).
+- replace clusterNetwork.pods.cidrBlocks[0] -> accepted by dry run (no webhook block).
+- direct JSON patch of the CAPI Cluster spec.topology.controlPlane.replicas -> denied: "spec.topology: Forbidden: CAPI Cluster topology spec is managed by NKPCluster <ns>/<name> and must not be modified directly. Update .spec.capiCluster.topology on the NKPCluster resource instead."
+- A merge patch to the CAPI Cluster that sets the same value is accepted (no-op).
+- Management pool md-0 has no topology replicas; min-size=max-size=4 annotations own the count. Cluster autoscaler: Deployment cluster-autoscaler-<uuid> in the cluster namespace on the management cluster (HelmChartProxy ca-<uuid>), image registry.k8s.io/autoscaling/cluster-autoscaler:v1.36.1.
+- Worker MachineDeployment spec.rollout: {"strategy":{"rollingUpdate":{"maxSurge":1,"maxUnavailable":0},"type":"RollingUpdate"}}. KCP spec.rollout: before.certificatesExpiryDays 180, strategy RollingUpdate maxSurge 1.
+- remove both autoscaler annotations + add replicas 4 in one patch -> accepted (pool gets a fixed replicas field).
+- min-size "0" -> accepted by dry run.
+- add workerConfig.taints [{"key":"nvidia.com/gpu","effect":"NoSchedule"}] -> accepted.
+- add machineDeployments[0].metadata.labels {"nkp.nutanix.com/pool":"gpu"} -> accepted.
+- add workerConfig.nutanix.machineDetails.memorySize "48Gi" -> accepted. systemDiskSize "10Gi" -> accepted by dry run (schema text says minimum 20Gi; not enforced).
+- nkp create nodepool nutanix <pool> --dry-run -o yaml: prints the whole NKPCluster with a new machineDeployments entry: class default-worker, annotations min-size = max-size = --replicas, no replicas field, workerConfig with nodeRegistration.ignorePreflightErrors [SystemVerification] and nutanix.machineDetails (bootType uefi, cluster, image, memorySize, subnets, systemDiskSize 80Gi default, vcpuSockets, vcpusPerSocket). Log line: "Creating NKPCluster <ns>/<name> (manages CAPI Cluster ...)". Runs preflight checks.
+- nkp delete nodepool <missing> --dry-run: ERR "did not find a MachineDeployment <pool> in the cluster". nkp delete nodepool md-0 --dry-run: no change (pool still listed).
+- kubectl wait clusters.cluster.x-k8s.io/<name> --for=condition=RollingOut=False|ScalingUp=False|ScalingDown=False|Remediating=False|Available|WorkerMachinesUpToDate|ControlPlaneMachinesUpToDate -> "condition met" on a settled cluster. nkpcluster --for=jsonpath='{.status.phase}'=Reconciled -> met.
+- NKPCluster status.capiCluster.certificatesExpiryDate (1 year after create) and certificatesRolloutBeforeExpiryDays 180; control-plane Machine status.certificatesExpiryDate; worker machines have none.
+
+=== Fix pass 2026-11-02 (read-only: get, sha256sum -c) ===
+--- nkpclusters -A: .metadata.labels | .spec.kommanderCluster.labels (workspace uid dropped) ---
+kommander	{"cluster.x-k8s.io/provider":"nutanix","kommander.d2iq.io/host":"true","konvoy.d2iq.io/cluster-name":"<mgmt-cluster>","konvoy.d2iq.io/provider":"nutanix","workspaces.kommander.mesosphere.io/workspace-ref":"<uuid>"}	{"cluster.x-k8s.io/provider":"nutanix","kommander.d2iq.io/host":"true"}
+- Result: the label kommander.d2iq.io/host=true is on the NKPCluster .metadata.labels AND on .spec.kommanderCluster.labels. It is also on the KommanderCluster and on the CAPI Cluster (kommander namespace).
+--- get deploy,pods -A -l app.kubernetes.io/name=clusterapi-cluster-autoscaler (management cluster kubeconfig) ---
+NAMESPACE   NAME                                  READY
+kommander   cluster-autoscaler-<uuid>             1/1      (Deployment, label app.kubernetes.io/instance=ca-<uuid>, chart cluster-autoscaler-9.59.0)
+kommander   cluster-autoscaler-<uuid>-<hash>      1/1 Running (Pod)
+- Result: the autoscaler for the management cluster runs in the cluster namespace (kommander) on the management cluster.
+--- bundle: sha256sum -c nkp-ubuntu-24.04-release-amd64.iso.sha256 (in the bundle folder) ---
+nkp-ubuntu-24.04-release-amd64.iso: OK
+- Result: the .sha256 file holds "<hash>  <file name>"; sha256sum -c works from the bundle folder.
+
+=== Fix pass A 2026-11-02: registry mirror and CA on a running cluster (read-only + server dry run) ===
+Webhook check before the dry run: validating nkp-cluster-validating (webhook.nkpcluster.kommander.mesosphere.io) sideEffects None; validation.gatekeeper.sh None; mutating nkp-cluster-defaulting None; mutation.gatekeeper.sh None. All matching webhooks have sideEffects None.
+--- NKPCluster clusterConfig registry part ---
+mirror=https://<registry-fqdn>/nutanix secret=<mgmt-cluster>-image-registry-mirror-credentials
+registry=https://<registry-fqdn> secret=<mgmt-cluster>-image-registry-credentials
+--- KubeadmControlPlane and KubeadmConfigTemplates: files with contentFrom ---
+/etc/containerd/certs.d/<registry-fqdn>/ca.crt <- <mgmt-cluster>-image-registry-mirror-credentials/ca.crt
+/etc/kubernetes/static-image-credentials.json <- <mgmt-cluster>-static-credential-provider-response/static-credential-provider
+/etc/kubernetes/pki/encryptionconfig.yaml <- <mgmt-cluster>-encryption-config/config
+(hosts.toml, registry-config.toml, dynamic-credential-provider-config.yaml are inline in the spec.)
+--- Secret <mgmt-cluster>-image-registry-mirror-credentials: data keys only (no values read) ---
+ca.crt password username
+--- DRY RUN 1: kubectl patch nkpcluster --type json (test clusterConfig; add imageRegistries/- {url: https://registry.example.invalid}) --dry-run=server ---
+The request is invalid: $.spec.topology.variables[?@.name=="clusterConfig"].value.imageRegistries[1]: Failed to ping registry "<url>": ... no such host. First verify that the management cluster can reach the registry, then retry.
+--- DRY RUN 2: same, replace globalImageRegistryMirror/url with https://registry.example.invalid/nutanix --dry-run=server ---
+The request is invalid: $.spec.topology.variables[?@.name=="clusterConfig"].value.globalImageRegistryMirror: Failed to ping registry "<url>": ... no such host. ...
+- Result: the NKPCluster webhook pings each registry URL from the management cluster. An unreachable URL is rejected. The node CA file comes from the Secret key ca.crt (contentFrom), so a change only in the Secret does not change the machine spec. Whether it reaches running nodes or starts a roll is not tested (P-27).
+- Guide: "Changing the image registry configuration will result in a rolling upgrade of all nodes in a cluster." [pdf p.287]
+--- nkp upgrade kommander --disable-appdeployments x --help (review 1, 2026-11-02) ---
+ERR unknown flag: --disable-appdeployments
+--- get clusters.v1beta1.cluster.x-k8s.io -o custom-columns=C:.spec.topology.class,R:.spec.topology.classRef.name (review 1) ---
+nkp-nutanix-v2.19.0  <none>
+- Result: in CAPI v1beta1 the class is spec.topology.class; in v1beta2 spec.topology.classRef.name. The CLUSTERCLASS printer column of `kubectl get clusters` works on both. `get nkpclusters -l cluster.x-k8s.io/provider=nutanix` returns the AHV NKPCluster.

@@ -1,0 +1,1111 @@
+# Live facts for skill nkp-platform-apps-gitops (NKP 2.19.0, AHV, Starter). Collected 2026-11-02/03, read-only.
+# Scrubbed: cluster name -> <mgmt-cluster>, IPs -> <ip>, UUIDs -> <uuid>. Long ClusterApp icon annotation cut.
+
+## Webhook check before the server dry runs
+Webhooks that match the dry-run objects (appdeployments, helmreleases, configmaps, projects, gitopsrepositories):
+  kommander-appmanagement-validating/defaulting webhook.appmanagement.kommander.mesosphere.io (appdeployments): sideEffects NoneOnDryRun
+  kommander-validating/defaulting webhook.federation.kommander.mesosphere.io (configmaps, projects, workspaces): NoneOnDryRun
+  gatekeeper validation.gatekeeper.sh / mutation.gatekeeper.sh (*/*): None
+  No webhook matches helm.toolkit.fluxcd.io/helmreleases except gatekeeper (*/*).
+All None or NoneOnDryRun -> server dry runs allowed (AGENTS.md).
+
+## --help (2.19.0 CLI)
+########## nkp create appdeployment --help ##########
+Creates an AppDeployment in a workspace or project.
+
+When [--clusters C1,C2..] is not specified, it targets all existing clusters in the specified workspace or project.
+
+Usage:
+  nkp create appdeployment APPDEPLOYMENT_NAME --app NAME [flags]
+
+Flags:
+      --add-cluster-config-overrides strings   Comma-separated list of mappings of kommanderCluster name to cluster configuration override ConfigMap name to apply to the targeting clusters. (e.g., cluster-1:override-1-cm,cluster-2:override-2-cm)(only valid for dkp clusters version 2.3.x and up) (default [])
+  -a, --app string                             Name of the App to deploy
+      --clusters strings                       List of names of kommanderClusters to select for the command. (e.g., cluster-1,cluster-2)(only valid for dkp clusters version 2.3.x and up) (default [])
+      --config string                          Config file to use (default "/home/runner/.kommander/config")
+  -c, --config-overrides string                Name of the ConfigMap used to override default configuration of the App
+      --context string                         The name of the kubeconfig context to use
+      --dry-run                                Export in YAML format to stdout
+  -h, --help                                   Help for appdeployment
+      --kubeconfig string                      Path to the kubeconfig file to use for CLI requests.
+  -o, --output string                          Output format. One of: yaml|json (default "yaml")
+  -p, --project string                         Name of the project to create the AppDeployment in. Requires workspace flag (workspace that the project belongs to).
+      --request-timeout string                 The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int                            Output verbosity
+  -w, --workspace string                       Name of the workspace to create the AppDeployment in
+
+########## nkp get appdeployments --help ##########
+Prints a table of the most important information about the specified resources. In case the AppDeployments are configured with cluster scoped specification, an optional CLUSTERS column (when printing in table format) will display enabled clusters for each AppDeployment.
+
+Usage:
+  nkp get appdeployments [APPDEPLOYMENT_NAME] [flags]
+
+Aliases:
+  appdeployments, appdeployment, appd
+
+Flags:
+  -A, --all-namespaces           If present, list the requested object(s) across all namespaces.
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for appdeployments
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+  -o, --output string            Output format. One of: table|yaml
+  -p, --project string           Name of the project to show AppDeployments from. Requires workspace flag (workspace that the project belongs to).
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+  -w, --workspace string         Name of the workspace to show AppDeployments from
+
+########## nkp edit --help ##########
+Edit a resource from the default editor.
+
+ The edit command allows you to directly edit any API resource you can retrieve via the command-line tools. It will open
+the editor defined by your KUBE_EDITOR, or EDITOR environment variables, or fall back to 'vi' for Linux or 'notepad' for
+Windows. You can edit multiple objects, although changes are applied one at a time. The command accepts file names as
+well as command-line arguments, although the files you point to must be previously saved versions of resources.
+
+Usage:
+  nkp edit (RESOURCE/NAME | -f FILENAME)
+
+Flags:
+      --allow-missing-template-keys   If true, ignore any errors in templates when a field or map key is missing in the template. Only applies to golang and jsonpath output formats. (default true)
+      --config string                 Config file to use (default "/home/runner/.kommander/config")
+      --context string                The name of the kubeconfig context to use
+      --field-manager string          Name of the manager used to track field ownership. (default "kommander-cli")
+  -f, --filename strings              Filename, directory, or URL to files to use to edit the resource (default [])
+  -h, --help                          Help for edit
+      --kubeconfig string             Path to the kubeconfig file to use for CLI requests.
+  -k, --kustomize string              Process the kustomization directory. This flag can't be used together with -f or -R.
+  -n, --namespace string              namespace of the resource (default "default")
+  -o, --output string                 Output format. One of: (json, yaml, kyaml, name, go-template, go-template-file, template, templatefile, jsonpath, jsonpath-as-json, jsonpath-file).
+      --output-patch                  Output the patch if the resource is edited.
+  -R, --recursive                     Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.
+      --request-timeout string        The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+      --save-config                   If true, the configuration of current object will be saved in its annotation. Otherwise, the annotation will be unchanged. This flag is useful when you want to perform kubectl apply on this object in the future.
+      --show-managed-fields           If true, keep the managedFields when printing objects in JSON or YAML format.
+      --subresource string            If specified, edit will operate on the subresource of the requested object.
+      --template string               Template string or path to template file to use when -o=go-template, -o=go-template-file. The template format is golang templates [http://golang.org/pkg/text/template/#pkg-overview].
+      --validate string[="strict"]    Must be one of: strict (or true), warn, ignore (or false). "true" or "strict" will use a schema to validate the input and fail the request if invalid. It will perform server side validation if ServerSideFieldValidation is enabled on the api-server, but will fall back to less reliable client-side validation if not. "warn" will warn about unknown or duplicate fields without blocking the request if server-side field validation is enabled on the API server, and behave as "ignore" otherwise. "false" or "ignore" will not perform any schema validation, silently dropping any unknown or duplicate fields. (default "strict")
+  -v, --verbose int                   Output verbosity
+      --windows-line-endings          Defaults to the line ending native to your platform.
+
+########## nkp edit appdeployment --help ##########
+Edit a resource from the default editor.
+
+ The edit command allows you to directly edit any API resource you can retrieve via the command-line tools. It will open
+the editor defined by your KUBE_EDITOR, or EDITOR environment variables, or fall back to 'vi' for Linux or 'notepad' for
+Windows. You can edit multiple objects, although changes are applied one at a time. The command accepts file names as
+well as command-line arguments, although the files you point to must be previously saved versions of resources.
+
+Usage:
+  nkp edit (RESOURCE/NAME | -f FILENAME)
+
+Flags:
+      --allow-missing-template-keys   If true, ignore any errors in templates when a field or map key is missing in the template. Only applies to golang and jsonpath output formats. (default true)
+      --config string                 Config file to use (default "/home/runner/.kommander/config")
+      --context string                The name of the kubeconfig context to use
+      --field-manager string          Name of the manager used to track field ownership. (default "kommander-cli")
+  -f, --filename strings              Filename, directory, or URL to files to use to edit the resource (default [])
+  -h, --help                          Help for edit
+      --kubeconfig string             Path to the kubeconfig file to use for CLI requests.
+  -k, --kustomize string              Process the kustomization directory. This flag can't be used together with -f or -R.
+  -n, --namespace string              namespace of the resource (default "default")
+  -o, --output string                 Output format. One of: (json, yaml, kyaml, name, go-template, go-template-file, template, templatefile, jsonpath, jsonpath-as-json, jsonpath-file).
+      --output-patch                  Output the patch if the resource is edited.
+  -R, --recursive                     Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.
+      --request-timeout string        The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+      --save-config                   If true, the configuration of current object will be saved in its annotation. Otherwise, the annotation will be unchanged. This flag is useful when you want to perform kubectl apply on this object in the future.
+      --show-managed-fields           If true, keep the managedFields when printing objects in JSON or YAML format.
+      --subresource string            If specified, edit will operate on the subresource of the requested object.
+      --template string               Template string or path to template file to use when -o=go-template, -o=go-template-file. The template format is golang templates [http://golang.org/pkg/text/template/#pkg-overview].
+      --validate string[="strict"]    Must be one of: strict (or true), warn, ignore (or false). "true" or "strict" will use a schema to validate the input and fail the request if invalid. It will perform server side validation if ServerSideFieldValidation is enabled on the api-server, but will fall back to less reliable client-side validation if not. "warn" will warn about unknown or duplicate fields without blocking the request if server-side field validation is enabled on the API server, and behave as "ignore" otherwise. "false" or "ignore" will not perform any schema validation, silently dropping any unknown or duplicate fields. (default "strict")
+  -v, --verbose int                   Output verbosity
+      --windows-line-endings          Defaults to the line ending native to your platform.
+
+########## nkp create project --help ##########
+Create a Project
+
+Usage:
+  nkp create project PROJECT_NAME [flags]
+
+Flags:
+      --config string                Config file to use (default "/home/runner/.kommander/config")
+      --context string               The name of the kubeconfig context to use
+      --display-name string          Display name shown in the UI (defaults to PROJECT_NAME)
+      --dry-run                      Export in YAML format to stdout
+  -h, --help                         Help for project
+      --kubeconfig string            Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string             Optional namespace name to use for the project (immutable)
+  -o, --output string                Output format. One of: yaml|json (default "yaml")
+      --request-timeout string       The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int                  Output verbosity
+  -w, --workspace string             Name of the Workspace the project belongs to
+      --workspace-namespace string   Namespace backing the Workspace (where the Project CR is created). If empty, it will be looked up from the Workspace.
+
+########## nkp create workspace --help ##########
+Create a Workspace
+
+Usage:
+  nkp create workspace WORKSPACE_NAME [flags]
+
+Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+      --display-name string      Display name shown in the UI (defaults to WORKSPACE_NAME)
+      --dry-run                  Export in YAML format to stdout
+  -h, --help                     Help for workspace
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+  -n, --namespace string         Name of the Namespace to create for the workspace
+  -o, --output string            Output format. One of: yaml|json (default "yaml")
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+########## nkp get workspaces --help ##########
+Get Workspaces
+
+Usage:
+  nkp get workspaces [flags]
+
+Aliases:
+  workspaces, workspace, ws
+
+Flags:
+  -A, --all-namespaces           If present, list the requested object(s) across all namespaces.
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for workspaces
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+  -o, --output string            Output format. One of: table|yaml
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+########## nkp get projects --help ##########
+Get Projects from a Workspace or all Workspaces
+
+Usage:
+  nkp get projects [PROJECT_NAME] [flags]
+
+Aliases:
+  projects, project, proj
+
+Flags:
+  -A, --all-namespaces           If present, list the requested object(s) across all namespaces.
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for projects
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+  -o, --output string            Output format. One of: table|yaml
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+  -w, --workspace string         Name of the workspace to show Projects from
+
+########## nkp attach cluster --help ##########
+Attach a cluster
+
+Usage:
+  nkp attach cluster -n NAME --attached-kubeconfig FILENAME [flags]
+
+Flags:
+      --attached-kubeconfig string   Path of the kubeconfig file of the cluster to be attached
+  -h, --help                         Help for cluster
+  -n, --name string                  Desired name of the attached cluster
+      --registry-cacert file         Path to file containing the CA certificate used to verify the registry server certificate
+      --registry-password string     Password used to authenticate with the registry
+      --registry-url url             URL of a container registry (default https://ghcr.io/mesosphere)
+      --registry-username string     Username used to authenticate with the registry
+  -w, --workspace string             Name of the workspace of the attached cluster
+
+Global Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+########## nkp detach cluster --help ##########
+Detach a cluster
+
+Usage:
+  nkp detach cluster CLUSTER_NAME [flags]
+
+Flags:
+  -h, --help               Help for cluster
+      --timeout duration   The length of time to wait before giving up on a detach, defaults to wait forever (default 0s)
+      --wait               If true, wait for resources to be gone before returning. This waits for finalizers. (default true)
+  -w, --workspace string   Name of the workspace of the attached cluster
+
+Global Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+########## nkp experimental --help ##########
+Experimental one of [catalog, gitops]
+
+Usage:
+  nkp experimental [command]
+
+Available Commands:
+  catalog     Experimental catalog commands (release, docgen)
+  gitops      commands to interact with NKP's Gitops Host
+
+Flags:
+  -h, --help   Help for experimental
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+Use "nkp experimental [command] --help" for more information about a command.
+
+########## nkp experimental gitops --help ##########
+commands to interact with NKP's Gitops Host
+
+Usage:
+  nkp experimental gitops [command]
+
+Available Commands:
+  clone       clone a repo hosted on NKP Gitops system
+
+Flags:
+      --config string            Config file to use (default "/home/runner/.kommander/config")
+      --context string           The name of the kubeconfig context to use
+  -h, --help                     Help for gitops
+      --kubeconfig string        Path to the kubeconfig file to use for CLI requests.
+      --request-timeout string   The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests.
+  -v, --verbose int              Output verbosity
+
+Use "nkp experimental gitops [command] --help" for more information about a command.
+
+########## nkp experimental catalog --help ##########
+Experimental catalog commands (release, docgen)
+
+Usage:
+  nkp experimental catalog [command]
+
+Available Commands:
+  docgen      Generate Markdown CLI documentation from the command tree
+  release     Build the release artifacts for a given catalog repository
+
+Flags:
+  -h, --help          Help for catalog
+  -v, --verbose int   Output verbosity
+
+Use "nkp experimental catalog [command] --help" for more information about a command.
+
+########## nkp generate catalog-repository --help ##########
+Generate the catalog repository layout and its contents
+
+Usage:
+  nkp generate catalog-repository [flags]
+
+Flags:
+      --apps strings      Apps to generate (name=version)
+  -h, --help              Help for catalog-repository
+      --overwrite         Overwrite existing application files
+      --repo-dir string   Path to the catalog repository in which to generate the files. (default to current working directory)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+########## nkp validate catalog-repository --help ##########
+Validate the given catalog repository contents
+
+Usage:
+  nkp validate catalog-repository [flags]
+
+Flags:
+      --apps strings      Applications to validate (name=version). Accepts comma-separated values or can be repeated. When omitted, all applications are validated.
+      --config string     Path to the catalog validation config file
+  -h, --help              Help for catalog-repository
+      --repo-dir string   Path to the catalog repository. (default to current working directory)
+
+Global Flags:
+  -v, --verbose int   Output verbosity
+
+## Objects (explain, AppDeployments, HelmRelease values chain)
+=== explain appdeployment.spec (recursive) ===
+GROUP:      apps.kommander.d2iq.io
+KIND:       AppDeployment
+VERSION:    v1alpha3
+
+FIELD: spec <Object>
+
+
+DESCRIPTION:
+    AppDeploymentSpec defines an instance of an Application.
+    
+FIELDS:
+  appRef	<Object> -required-
+    apiVersion	<string>
+    appID	<string>
+    kind	<string> -required-
+    name	<string>
+  clusterConfigOverrides	<[]Object>
+    appVersion	<string>
+    clusterSelector	<Object>
+      matchExpressions	<[]Object>
+        key	<string> -required-
+        operator	<string> -required-
+        values	<[]string>
+      matchLabels	<map[string]string>
+    configMapName	<string> -required-
+  clusterPolicy	<Object>
+    join	<string>
+    enum: Install, Skip
+  clusterSelector	<Object>
+    matchExpressions	<[]Object>
+      key	<string> -required-
+      operator	<string> -required-
+      values	<[]string>
+    matchLabels	<map[string]string>
+  configOverrides	<Object>
+    name	<string>
+
+=== explain appdeployment.status (recursive) ===
+GROUP:      apps.kommander.d2iq.io
+KIND:       AppDeployment
+VERSION:    v1alpha3
+
+FIELD: status <Object>
+
+
+DESCRIPTION:
+    AppDeploymentStatus defines the current state of the AppDeployment.
+    
+FIELDS:
+  clusters	<[]Object>
+    appVersion	<string>
+    clusterConfigOverridesRef	<Object>
+      name	<string>
+    conditions	<[]Object>
+      lastTransitionTime	<string> -required-
+      message	<string> -required-
+      observedGeneration	<integer>
+      reason	<string> -required-
+      status	<string> -required-
+      enum: True, False, Unknown
+      type	<string> -required-
+    name	<string> -required-
+  observedGeneration	<integer>
+
+=== explain clusterapp.spec ===
+GROUP:      apps.kommander.d2iq.io
+KIND:       ClusterApp
+VERSION:    v1alpha3
+
+FIELD: spec <Object>
+
+
+DESCRIPTION:
+    GenericAppSpec defines the actual Application spec.
+    
+FIELDS:
+  appId	<string> -required-
+  gitRepositoryRef	<Object>
+    apiVersion	<string>
+    kind	<string> -required-
+    enum: GitRepository, Bucket, OCIRepository
+    name	<string> -required-
+    namespace	<string>
+  sourceRef	<Object> -required-
+    apiVersion	<string>
+    kind	<string> -required-
+    enum: GitRepository, Bucket, OCIRepository
+    name	<string> -required-
+    namespace	<string>
+  version	<string> -required-
+
+=== appdeployment traefik -n kommander -o yaml ===
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  creationTimestamp: "2026-10-29T08:33:23Z"
+  finalizers:
+  - kommander.mesosphere.io/appdeployment
+  generation: 2
+  name: traefik
+  namespace: kommander
+  resourceVersion: "17391"
+  uid: <uuid>
+spec:
+  appRef:
+    appID: traefik
+    kind: ClusterApp
+    name: traefik-39.0.7
+  clusterConfigOverrides:
+  - appVersion: 39.0.7
+    clusterSelector:
+      matchExpressions:
+      - key: kommander.d2iq.io/cluster-name
+        operator: In
+        values:
+        - <mgmt-cluster>
+    configMapName: ""
+status:
+  clusters:
+  - appVersion: 39.0.7
+    conditions:
+    - lastTransitionTime: "2026-10-29T08:33:26Z"
+      message: AppDeployment is enabled on this cluster
+      reason: AppDeploymentEnabled
+      status: "True"
+      type: AppDeploymentEnabled
+    - lastTransitionTime: "2026-10-29T08:33:26Z"
+      message: AppDeploymentInstance is synced
+      reason: Succeeded
+      status: "True"
+      type: AppDeploymentInstanceSynced
+    name: <mgmt-cluster>
+  observedGeneration: 2
+=== appdeployment traefik -n kommander-default-workspace -o yaml ===
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  creationTimestamp: "2026-10-29T08:36:26Z"
+  finalizers:
+  - kommander.mesosphere.io/appdeployment
+  generation: 1
+  name: traefik
+  namespace: kommander-default-workspace
+  resourceVersion: "24654"
+  uid: <uuid>
+spec:
+  appRef:
+    kind: ClusterApp
+    name: traefik-39.0.7
+status:
+  observedGeneration: 1
+=== appdeploymentinstances -A ===
+NAMESPACE   NAME                                             APP                                KOMMANDER CLUSTER   AGE
+kommander   cert-manager-<mgmt-cluster>-edc74a25                cert-manager-1.20.3                <mgmt-cluster>         4d8h
+kommander   dex-k8s-authenticator-<mgmt-cluster>-3ac1ce81       dex-k8s-authenticator-1.4.9        <mgmt-cluster>         4d8h
+kommander   dex-<mgmt-cluster>-78246342                         dex-2.14.5                         <mgmt-cluster>         4d8h
+kommander   external-secrets-<mgmt-cluster>-f8698032            external-secrets-2.7.0             <mgmt-cluster>         4d8h
+kommander   gatekeeper-<mgmt-cluster>-4eacfeea                  gatekeeper-3.23.0                  <mgmt-cluster>         4d8h
+kommander   gateway-api-crds-<mgmt-cluster>-e819278b            gateway-api-crds-1.11.2            <mgmt-cluster>         4d8h
+kommander   git-operator-<mgmt-cluster>-f6cd48a6                git-operator-0.13.24               <mgmt-cluster>         4d8h
+kommander   kommander-appmanagement-<mgmt-cluster>-bfcfbb96     kommander-appmanagement-0.19.0     <mgmt-cluster>         4d8h
+kommander   kommander-flux-<mgmt-cluster>-138edffa              kommander-flux-2.8.5               <mgmt-cluster>         4d8h
+kommander   kommander-ui-<mgmt-cluster>-47b9c504                kommander-ui-17.313.79             <mgmt-cluster>         4d8h
+kommander   kommander-<mgmt-cluster>-6603bd37                   kommander-0.19.0                   <mgmt-cluster>         4d8h
+kommander   kube-oidc-proxy-<mgmt-cluster>-1e30c1c1             kube-oidc-proxy-0.3.8              <mgmt-cluster>         4d8h
+kommander   kubefed-<mgmt-cluster>-c8664160                     kubefed-0.12.1                     <mgmt-cluster>         4d8h
+kommander   reloader-<mgmt-cluster>-ca566b18                    reloader-2.2.14                    <mgmt-cluster>         4d8h
+kommander   traefik-forward-auth-mgmt-<mgmt-cluster>-562446db   traefik-forward-auth-mgmt-0.3.18   <mgmt-cluster>         4d8h
+kommander   traefik-<mgmt-cluster>-06f6c826                     traefik-39.0.7                     <mgmt-cluster>         4d8h
+=== nkp get appdeployments -w kommander-workspace ===
+	NAME                     	APP                             	CLUSTERS   
+	dex                      	dex-2.14.5                      	<mgmt-cluster>
+	dex-k8s-authenticator    	dex-k8s-authenticator-1.4.9     	<mgmt-cluster>
+	external-secrets         	external-secrets-2.7.0          	<mgmt-cluster>
+	gatekeeper               	gatekeeper-3.23.0               	<mgmt-cluster>
+	gateway-api-crds         	gateway-api-crds-1.11.2         	<mgmt-cluster>
+	git-operator             	git-operator-0.13.24            	<mgmt-cluster>
+	kommander                	kommander-0.19.0                	<mgmt-cluster>
+	kommander-appmanagement  	kommander-appmanagement-0.19.0  	<mgmt-cluster>
+	kommander-flux           	kommander-flux-2.8.5            	<mgmt-cluster>
+	kommander-ui             	kommander-ui-17.313.79          	<mgmt-cluster>
+	kube-oidc-proxy          	kube-oidc-proxy-0.3.8           	<mgmt-cluster>
+	kubefed                  	kubefed-0.12.1                  	<mgmt-cluster>
+	reloader                 	reloader-2.2.14                 	<mgmt-cluster>
+	traefik                  	traefik-39.0.7                  	<mgmt-cluster>
+	traefik-forward-auth-mgmt	traefik-forward-auth-mgmt-0.3.18	<mgmt-cluster>
+=== nkp get appdeployments -w default-workspace ===
+	NAME            	APP                    
+	cert-manager    	cert-manager-1.20.3    
+	external-secrets	external-secrets-2.7.0 
+	gatekeeper      	gatekeeper-3.23.0      
+	gateway-api-crds	gateway-api-crds-1.11.2
+	kommander-flux  	kommander-flux-2.8.5   
+	reloader        	reloader-2.2.14        
+	traefik         	traefik-39.0.7         
+=== nkp get workspaces ===
+	NAME               	NAMESPACE                  
+	default-workspace  	kommander-default-workspace
+	kommander-workspace	kommander                  
+=== helmrelease traefik -n kommander spec ===
+{
+    "chartRef": {
+        "kind": "OCIRepository",
+        "name": "traefik-39.0.7-chart",
+        "namespace": "kommander"
+    },
+    "dependsOn": [
+        {
+            "name": "traefik-crds",
+            "namespace": "kommander"
+        }
+    ],
+    "install": {
+        "crds": "Skip",
+        "remediation": {
+            "retries": 30
+        },
+        "serverSideApply": true
+    },
+    "interval": "15s",
+    "releaseName": "kommander-traefik",
+    "rollback": {
+        "serverSideApply": "enabled"
+    },
+    "timeout": "5m0s",
+    "upgrade": {
+        "crds": "Skip",
+        "remediation": {
+            "retries": 30
+        },
+        "serverSideApply": "enabled"
+    },
+    "valuesFrom": [
+        {
+            "kind": "ConfigMap",
+            "name": "traefik-39.0.7-config-defaults"
+        },
+        {
+            "kind": "ConfigMap",
+            "name": "traefik-overrides",
+            "optional": true
+        }
+    ]
+}
+=== helmrelease traefik status conditions/history ===
+Ready=True InstallSucceeded
+Released=True InstallSucceeded
+deployed
+=== configmaps with traefik in kommander ===
+cert-manager-1.20.3-config-defaults                 1      4d8h
+cert-manager-gateway-api-crds-kommander-overrides   1      4d8h
+dex-2.14.5-config-defaults                          1      4d8h
+dex-cluster-overrides                               1      4d8h
+dex-k8s-authenticator-1.4.9-config-defaults         1      4d8h
+dex-k8s-authenticator-cluster-overrides             1      4d8h
+dex-k8s-authenticator-kommander-overrides           1      4d8h
+dex-kommander-overrides                             1      4d8h
+external-secrets-2.7.0-config-defaults              1      4d8h
+gatekeeper-3.23.0-config-defaults                   1      4d8h
+gateway-api-crds-1.11.2-config-defaults             1      4d8h
+grafana-dashboards-traefik-459c2f592m               1      4d8h
+kommander-0.19.0-config-defaults                    1      4d8h
+kommander-appmanagement-0.19.0-config-defaults      1      4d8h
+kommander-flux-2.8.5-config-defaults                1      4d8h
+kommander-overrides                                 1      4d8h
+kommander-ui-17.313.79-config-defaults              1      4d8h
+kube-oidc-proxy-0.3.8-config-defaults               1      4d8h
+kube-oidc-proxy-cluster-overrides                   1      4d8h
+kube-prometheus-stack-mgmt-overrides                1      4d8h
+kubefed-0.12.1-config-defaults                      1      4d8h
+reloader-2.2.14-config-defaults                     1      4d8h
+traefik-39.0.7-config-defaults                      1      4d8h
+traefik-app-dashboard-info                          4      4d8h
+traefik-crds-config-defaults                        1      4d8h
+traefik-forward-auth-mgmt-0.3.18-config-defaults    1      4d8h
+traefik-forward-auth-mgmt-cluster-overrides         1      4d8h
+traefik-forward-auth-mgmt-configmap                 1      4d8h
+traefik-forward-auth-mgmt-<mgmt-cluster>               1      4d8h
+=== kustomizations -A ===
+NAMESPACE                     NAME                                        AGE    READY   STATUS
+kommander-default-workspace   workspace-tls-root-ca                       4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     apps-kommander                              4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cert-manager                                4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cert-manager-namespace                      4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cert-manager-priorityclass-resource-quota   4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cert-manager-release                        4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cert-manager-root-ca                        4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cluster                                     4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     cluster-observer-3995310324                 4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     dex                                         4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     dex-k8s-authenticator                       4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     external-secrets                            4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     external-secrets-namespace                  4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     external-secrets-release                    4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     flux-configuration                          4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     gatekeeper                                  4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     gatekeeper-config                           4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     gatekeeper-constraint-templates             4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     gatekeeper-constraints                      4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     gatekeeper-release                          4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     gateway-api-crds                            4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     git-operator                                4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kommander                                   4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kommander-appmanagement                     4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kommander-flux                              4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kommander-operator                          4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kommander-ui                                4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kube-federation-system-namespace            4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kube-oidc-proxy                             4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kubefed                                     4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kubefed-federatedtypeconfigs                4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     kubefed-release                             4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     logging-stack-operator                      4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     management-plane-operator                   4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     nkpcluster-operator                         4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     release-metadata                            4d8h   True    Applied revision: latest@sha256:7c51a1fc4b0e78893502ef1d1d79e43ae8ed72a6d631f1f5e660765acb7e3b75
+kommander                     release-operator                            4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     reloader                                    4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     traefik                                     4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     traefik-crd-helmrelease                     4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     traefik-forward-auth-mgmt                   4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     upgrade-plan-operator                       4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     workspace                                   4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+kommander                     workspace-tls-root-ca                       4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+=== kustomization traefik spec ===
+kustomization.kustomize.toolkit.fluxcd.io/traefik
+kustomization.kustomize.toolkit.fluxcd.io/traefik-crd-helmrelease
+kustomization.kustomize.toolkit.fluxcd.io/traefik-forward-auth-mgmt
+=== hr dex valuesFrom ===
+ConfigMap/dex-2.14.5-config-defaults optional=
+ConfigMap/dex-overrides optional=true
+ConfigMap/dex-cluster-overrides optional=
+=== hr kube-oidc-proxy valuesFrom ===
+ConfigMap/kube-oidc-proxy-0.3.8-config-defaults optional=
+ConfigMap/kube-oidc-proxy-cluster-overrides optional=
+=== hr kommander valuesFrom ===
+ConfigMap/kommander-0.19.0-config-defaults optional=
+ConfigMap/kommander-overrides optional=true
+=== hr traefik-forward-auth-mgmt valuesFrom ===
+ConfigMap/traefik-forward-auth-mgmt-0.3.18-config-defaults optional=
+ConfigMap/traefik-forward-auth-mgmt-overrides optional=true
+ConfigMap/traefik-forward-auth-mgmt-cluster-overrides optional=
+=== hr cert-manager valuesFrom ===
+ConfigMap/cert-manager-1.20.3-config-defaults optional=
+ConfigMap/cert-manager-gateway-api-crds-kommander-overrides optional=true
+=== ad dex spec ===
+{"appRef":{"appID":"dex","kind":"ClusterApp","name":"dex-2.14.5"},"clusterConfigOverrides":[{"appVersion":"2.14.5","clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]},"configMapName":"dex-kommander-overrides"}]}
+=== ad kube-oidc-proxy spec ===
+{"appRef":{"appID":"kube-oidc-proxy","kind":"ClusterApp","name":"kube-oidc-proxy-0.3.8"},"clusterConfigOverrides":[{"appVersion":"0.3.8","clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]},"configMapName":"kube-oidc-proxy-<mgmt-cluster>"}],"clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]}}
+=== ad kommander spec ===
+{"appRef":{"appID":"kommander","kind":"ClusterApp","name":"kommander-0.19.0"},"clusterConfigOverrides":[{"appVersion":"0.19.0","clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]},"configMapName":""}]}
+=== ad traefik-forward-auth-mgmt spec ===
+{"appRef":{"appID":"traefik-forward-auth-mgmt","kind":"ClusterApp","name":"traefik-forward-auth-mgmt-0.3.18"},"clusterConfigOverrides":[{"appVersion":"0.3.18","clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]},"configMapName":"traefik-forward-auth-mgmt-<mgmt-cluster>"}],"clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]}}
+=== cm labels/annotations of overrides cms ===
+-- dex-cluster-overrides
+{"apps.kommander.mesosphere.io/app-id":"dex","apps.kommander.mesosphere.io/app-version":"2.14.5","apps.kommander.mesosphere.io/appdeployment-name":"dex","kustomize.toolkit.fluxcd.io/name":"apps-kommander","kustomize.toolkit.fluxcd.io/namespace":"kommander"}
+{"config.kubernetes.io/origin":"path: management/dex/dex-cluster-overrides.yaml\n"}
+
+['values.yaml']
+-- dex-kommander-overrides
+{"kommander.d2iq.io/managed-by-kind":"AppDeployment"}
+
+
+['values.yaml']
+-- kube-oidc-proxy-cluster-overrides
+{"apps.kommander.mesosphere.io/app-id":"kube-oidc-proxy","apps.kommander.mesosphere.io/app-version":"0.3.8","apps.kommander.mesosphere.io/appdeployment-name":"kube-oidc-proxy","kustomize.toolkit.fluxcd.io/name":"apps-kommander","kustomize.toolkit.fluxcd.io/namespace":"kommander"}
+{"config.kubernetes.io/origin":"path: management/kube-oidc-proxy/kube-oidc-proxy-cluster-overrides.yaml\n"}
+
+['values.yaml']
+-- traefik-forward-auth-mgmt-<mgmt-cluster>
+{"kommander.d2iq.io/managed-by-kind":"AppDeployment"}
+
+
+['values.yaml']
+-- kommander-overrides
+
+
+
+['values.yaml']
+=== kustomization traefik spec ===
+{
+    "force": false,
+    "interval": "6h0m0s",
+    "patches": [
+        {
+            "patch": "- op: replace\n  path: /metadata/name\n  value: traefik\n- op: add\n  path: /metadata/labels\n  value:\n    kommander.d2iq.io/managed-by-kind: AppDeployment\n",
+            "target": {
+                "kind": "HelmRelease",
+                "name": "traefik"
+            }
+        },
+        {
+            "patch": "- op: add\n  path: /metadata/labels\n  value: {}\n- op: add\n  path: /metadata/labels/nkp.nutanix.com~1kustomization-has-patches\n  value: \"true\"\n- op: add\n  path: /spec/patches\n  value: []\n- op: add\n  path: /spec/patches/-\n  value:\n    patch: |\n      - op: replace\n        path: /metadata/name\n        value: traefik\n      - op: add\n        path: /metadata/labels\n        value:\n          kommander.d2iq.io/managed-by-kind: AppDeployment\n    target:\n      kind: HelmRelease\n      name: traefik\n",
+            "target": {
+                "kind": "Kustomization",
+                "name": ".*-(helm)?release"
+            }
+        },
+        {
+            "patch": "\nkind: OCIRepository\nmetadata:\n  name: not-used\n  labels:\n    nkp.nutanix.com/oci-config-patched: \"true\"\nspec:\n  secretRef:\n    name: <mgmt-cluster>-oci-creds\n  proxySecretRef:\n    name: nkp-oci-proxy\n  certSecretRef:\n    name: nkp-oci-proxy-ca",
+            "target": {
+                "kind": "OCIRepository"
+            }
+        },
+        {
+            "patch": "- op: add\n  path: /spec/patches\n  value: []\n",
+            "target": {
+                "kind": "Kustomization",
+                "labelSelector": "!nkp.nutanix.com/kustomization-has-patches"
+            }
+        },
+        {
+            "patch": "- op: add\n  path: /spec/patches/-\n  value:\n    patch: |2-\n\n      kind: OCIRepository\n      metadata:\n        name: not-used\n        labels:\n          nkp.nutanix.com/oci-config-patched: \"true\"\n      spec:\n        secretRef:\n          name: <mgmt-cluster>-oci-creds\n        proxySecretRef:\n          name: nkp-oci-proxy\n        certSecretRef:\n          name: nkp-oci-proxy-ca\n    target:\n      kind: OCIRepository\n",
+            "target": {
+                "kind": "Kustomization"
+            }
+        },
+        {
+            "patch": "kind: Kustomization\nmetadata:\n  name: not-used-in-patch\nspec:\n  postBuild:\n    substitute:\n      appName: traefik\n      appVersion: 39.0.7\n      clusterName: <mgmt-cluster>\n      clusterType: NutanixCluster\n      clusterUUID: <uuid>\n      releaseName: traefik\n      releaseNamespace: kommander\n      workspaceName: kommander-workspace\n      workspaceNamespace: kommander\n",
+            "target": {
+                "kind": "Kustomization"
+            }
+        }
+    ],
+    "path": "./applications/traefik/39.0.7",
+    "postBuild": {
+        "substitute": {
+            "appName": "traefik",
+            "appVersion": "39.0.7",
+            "clusterName": "<mgmt-cluster>",
+            "clusterType": "NutanixCluster",
+            "clusterUUID": "<uuid>",
+            "releaseName": "traefik",
+            "releaseNamespace": "kommander",
+            "workspaceName": "kommander-workspace",
+            "workspaceNamespace": "kommander"
+        },
+        "substituteFrom": [
+            {
+                "kind": "ConfigMap",
+path ./applications/dex/2.14.5
+sourceRef {'kind': 'GitRepository', 'name': 'management', 'namespace': 'kommander-flux'}
+prune True sa None targetNs None kubeConfig None
+substituteFrom [{'kind': 'ConfigMap', 'name': 'substitution-vars', 'optional': False}, {'kind': 'ConfigMap', 'name': 'kommander-vars', 'optional': False}, {'kind': 'ConfigMap', 'name': 'helm-repository-vars', 'optional': False}]
+PATCH target {'kind': 'HelmRelease', 'name': 'dex'}
+- op: replace
+  path: /metadata/name
+  value: dex
+- op: add
+  path: /metadata/labels
+  value:
+    kommander.d2iq.io/managed-by-kind: AppDeployment
+- op: add
+  path: /spec/valuesFrom/-
+  value:
+    kind: ConfigMap
+    name: dex-cluster-overrides
+
+PATCH target {'kind': 'Kustomization', 'name': '.*-(helm)?release'}
+- op: add
+  path: /metadata/labels
+  value: {}
+- op: add
+  path: /metadata/labels/nkp.nutanix.com~1kustomization-has-patches
+  value: "true"
+- op: add
+  path: /spec/patches
+  value: []
+- op: add
+  path: /spec/patches/-
+  value:
+    patch: |
+      - op: replace
+        path: /metadata/name
+        value: dex
+      - op: add
+        path: /metadata/labels
+        value:
+          kommander.d2iq.io/managed-by-kind: AppDeployment
+      - op: add
+        path: /spec/valuesFrom/-
+        value:
+          kind: ConfigMap
+          name: dex-cluster-overrides
+    target:
+      kind: HelmRelease
+      name: dex
+
+=== cm dex-overrides anywhere ===
+=== appdeploymentinstance dex spec ===
+{"appRef":{"kind":"ClusterApp","name":"dex-2.14.5"},"configOverrides":[{"source":{"apiGroup":"","kind":"ConfigMap","name":"dex-kommander-overrides"},"target":{"name":"dex-cluster-overrides"}}],"kommanderClusterRef":{"name":"<mgmt-cluster>","namespace":"kommander"}}
+{"conditions":[{"lastTransitionTime":"2026-10-29T08:33:33Z","message":"Successfully reconciled content hash a447f99cbee992e7f5e490a2573fae90c6772ba82e03796663c30d26cd769415","observedGeneration":2,"reason":"Reconciled","status":"True","type":"GitReconciled"},{"lastTransitionTime":"2026-11-02T14:31:16Z","message":"Health check passed in 17.127931ms","observedGeneration":3,"reason":"Succeeded","status":"True","type":"KustomizationHealthy"},{"lastTransitionTime":"2026-11-02T14:31:16Z","message":"Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f","observedGeneration":3,"reason":"ReconciliationSucceeded","status":"True","type":"KustomizationReady"}],"contentHash":"a447f99cbee992e7f5e490a2573fae90c6772ba82e03796663c30d26cd769415","directories":["management/dex"],"observedContentHash":"a447f99cbee992e7f5e490a2573fae90c6772ba82e03796663c30d26cd769415"}
+=== kustomization traefik in default ws? ===
+NAME                                                              AGE    READY   STATUS
+kustomization.kustomize.toolkit.fluxcd.io/workspace-tls-root-ca   4d8h   True    Applied revision: main@sha1:dee6eb560e846a1e9bda8bb21d49d8fb3a6b7b0f
+
+NAME                                                          AGE    READY   STATUS
+helmrelease.helm.toolkit.fluxcd.io/karma-traefik-certs        4d8h   True    Helm install succeeded for release kommander-default-workspace/karma-traefik-certs.v1 with chart kommander-cert-federation@0.0.13
+helmrelease.helm.toolkit.fluxcd.io/prometheus-traefik-certs   4d8h   True    Helm install succeeded for release kommander-default-workspace/prometheus-traefik-certs.v1 with chart kommander-cert-federation@0.0.13
+=== hr dex suspend field/ status.failures ===
+   
+=== explain app.spec ===
+DESCRIPTION:
+    GenericAppSpec defines the actual Application spec.
+    
+FIELDS:
+  appId	<string> -required-
+  gitRepositoryRef	<Object>
+    apiVersion	<string>
+    kind	<string> -required-
+    enum: GitRepository, Bucket, OCIRepository
+    name	<string> -required-
+    namespace	<string>
+  sourceRef	<Object> -required-
+    apiVersion	<string>
+    kind	<string> -required-
+    enum: GitRepository, Bucket, OCIRepository
+    name	<string> -required-
+    namespace	<string>
+  version	<string> -required-
+
+=== explain gitopsrepository.spec ===
+=== explain kommandercluster.spec (top) ===
+DESCRIPTION:
+    KommanderClusterSpec defines the desired state of Cluster.
+    
+FIELDS:
+  clusterRef	<Object>
+    ClusterReference holds a single reference to clusters provisioned via
+    Kommander.
+    Only one field is allowed to be set. Currently, only CAPI clusters are
+    creatable,
+    but this is left extensible for other provider types in the future.
+
+  clusterTunnelConnectorRef	<Object>
+    ClusterTunnelConnectorRef is a reference to TunnelConnector that should
+    be used for connecting to cluster.
+
+  clusterTunnelProxyConnectorRef	<Object>
+    ClusterTunnelProxyConnectorRef is a reference to TunnelProxy that should be
+    used for connecting to the cluster.
+
+  ingress	<Object>
+    Ingress configures the Kommander managed Ingress.
+    If no value is provided, the default ingress will be provisioned.
+
+  kubeconfigRef	<Object>
+    LocalObjectReference contains enough information to let you locate the
+    referenced object inside the same namespace.
+
+  namespaceRef	<Object>
+    NamespaceRef will override the namespace on target cluster for the given
+    Workspace.
+    This is used in special circumstances such as when an essential cluster is
+    attached and thus
+    implicitly demoted from being a management cluster to a managed cluster thus
+    forcing the kommander
+    namespace to be recycled as the underlying workspace namespace.
+
+  ociRegistry	<Object>
+    OCIRegistry holds the configuration for the image registry used by the Flux.
+
+  platform	<Object>
+    Platform contains platform configuration.
+
+
+=== kommandercluster conditions (mgmt) ===
+IngressAddressReady=True IngressServiceAddressFound
+IngressCertificateReady=True Ready
+PlatformAppDeploymentsReady=True Succeeded
+LoggingStackVersionReconciled=True ReconciliationSucceeded
+PlatformVersionReconciled=True ReconciliationSucceeded
+OCIRegistryConfigSynced=True Succeeded
+AttachmentCompleted=True Skipped
+WorkspaceKustomizationCreated=True Succeeded
+ClusterKustomizationCreated=True Succeeded
+Joined
+=== project CRD spec ===
+DESCRIPTION:
+    ProjectSpec describes the attributes on a Project.
+    
+FIELDS:
+  namespaceName	<string>
+    NamespaceName specifies the optional namespace name to use for the project.
+    This field is immutable, only
+    settable on create.
+
+  placement	<Object>
+    PlacementSelector defines the fields to select clusters where to apply the
+    project.
+
+  workspaceRef	<Object>
+    LocalObjectReference contains enough information to let you locate the
+    referenced object inside the same namespace.
+
+
+=== flux cli? ===
+NOTICES
+nkp
+=== hr remediation fields ===
+DESCRIPTION:
+    Remediation holds the remediation configuration for when the Helm upgrade
+    action for the HelmRelease fails. The default is to not perform any action.
+    
+FIELDS:
+  ignoreTestFailures	<boolean>
+    IgnoreTestFailures tells the controller to skip remediation when the Helm
+    tests are run after an upgrade action but fail.
+    Defaults to 'Test.IgnoreFailures'.
+
+  remediateLastFailure	<boolean>
+    RemediateLastFailure tells the controller to remediate the last failure,
+    when
+    no retries remain. Defaults to 'false' unless 'Retries' is greater than 0.
+
+  retries	<integer>
+    Retries is the number of retries that should be attempted on failures before
+    bailing. Remediation, using 'Strategy', is performed between each attempt.
+    Defaults to '0', a negative integer equals to unlimited retries.
+
+  strategy	<string>
+  enum: rollback, uninstall
+    Strategy to use for failure remediation. Defaults to 'rollback'.
+
+
+
+## Server dry runs and client dry runs (log)
+DR1/DR1b: HelmRelease spec.suspend true by json patch and merge patch -> accepted (prints true).
+DR2: AppDeployment configOverrides to a missing ConfigMap -> accepted (no webhook check of the ConfigMap).
+DR3: AppDeployment for headlamp-0.45.0 (licensing pro,ultimate) on a Starter cluster -> accepted by the API.
+DR4: AppDeployment appRef velero-99.0.0 (no such ClusterApp) -> accepted by the API.
+DR5: override ConfigMap with bad YAML in values.yaml -> accepted by the API (no YAML check on ConfigMaps).
+DR6: nkp create appdeployment ... --dry-run prints YAML, then also an INF line 'AppDeployment ... created'. Checked after: nothing was created.
+DR7: nkp create appdeployment --clusters c1 --dry-run -> ERR kommanderCluster "c1" not found (the CLI checks the cluster names).
+DR8: nkp create catalog-app --dry-run -> OCIRepository with label catalog.nkp.nutanix.com/catalog-source-artifact: "true" in the workspace namespace. Nothing created (checked).
+DR9: merge patch AppDeployment traefik (kommander) spec.configOverrides.name -> accepted (Starter).
+DR10: json patch spec.clusterConfigOverrides/0/configMapName -> accepted.
+DR11: workspace AppDeployment clusterSelector to an unknown cluster -> accepted by the API.
+DR12: GitopsRepository (v1alpha2) in kommander-default-workspace -> denied: 'GitopsRepository can only be created in project namespace'.
+
+=== DR1: patch helmrelease reloader suspend true (server dry run) ===
+true
+=== DR1b: merge patch suspend (server dry run) ===
+true
+=== DR2: AppDeployment with configOverrides to a missing ConfigMap (server dry run) ===
+Warning: resource appdeployments/reloader is missing the kubectl.kubernetes.io/last-applied-configuration annotation which is required by kubectl apply. kubectl apply should only be used on resources created declaratively by either kubectl create --save-config or kubectl apply. The missing annotation will be patched automatically.
+appdeployment.apps.kommander.d2iq.io/reloader configured (server dry run)
+=== DR3: new AppDeployment for a Pro app on Starter (headlamp) (server dry run) ===
+appdeployment.apps.kommander.d2iq.io/headlamp
+=== DR4: AppDeployment with wrong appRef name (server dry run) ===
+appdeployment.apps.kommander.d2iq.io/velero
+=== DR5: override ConfigMap with bad YAML (server dry run) ===
+configmap/traefik-overrides
+=== DR6: nkp create appdeployment --dry-run (client) ===
+apiVersion: apps.kommander.d2iq.io/v1alpha3
+kind: AppDeployment
+metadata:
+  name: headlamp
+  namespace: kommander-default-workspace
+spec:
+  appRef:
+    kind: ClusterApp
+    name: headlamp-0.45.0
+  configOverrides:
+    name: headlamp-overrides
+status: {}
+2026-11-02 17:24:41 INF AppDeployment "kommander-default-workspace/headlamp" created in namespace "kommander-default-workspace".
+=== DR7: nkp create appdeployment --clusters --add-cluster-config-overrides --dry-run ===
+2026-11-02 17:24:42 ERR     err="could not create AppDeployment: failed to populate clusterSelector field: failed to get kommanderCluster "c1": kommanderclusters.kommander.mesosphere.io "c1" not found"
+=== DR8: nkp create catalog-app --dry-run ===
+---
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: OCIRepository
+metadata:
+  labels:
+    catalog.nkp.nutanix.com/catalog-source-artifact: "true"
+  name: x-collection
+  namespace: kommander-default-workspace
+spec:
+  interval: 6h0m0s
+  ref:
+    tag: "1.0"
+  timeout: 1m0s
+  url: oci://registry.example/x/collection
+status: {}
+
+=== clusterapp sourceRef (3) ===
+NAME                                       KIND            SRC          NS
+centralized-grafana-87.16.0                GitRepository   management   kommander-flux
+centralized-opencost-2.5.28                GitRepository   management   kommander-flux
+cert-manager-1.20.3                        GitRepository   management   kommander-flux
+=== clusterapp traefik annotations ===
+{"apps.kommander.d2iq.io/category":"foundation","apps.kommander.d2iq.io/certifications":"qualified,airgapped","apps.kommander.d2iq.io/dependencies":"cert-manager,reloader","apps.kommander.d2iq.io/description":"Provides an HTTP reverse proxy and load balancer. Requires cert-manager and Reloader.","apps.kommander.d2iq.io/display-name":"Traefik","apps.kommander.d2iq.io/icon":"<cut>","apps.kommander.d2iq.io/licensing":"starter,pro,ultimate,essential,enterprise","apps.kommander.d2iq.io/overview":"<cut>","apps.kommander.d2iq.io/scope":"workspace","apps.kommander.d2iq.io/type":"nkp-core-platform","apps.kommander.nutanix.com/applications-dir-name":"applications"}
+
+=== DR9 (Starter): merge patch traefik AD configOverrides (server dry run) ===
+{"name":"traefik-overrides-test"}
+=== DR10 (Starter): json patch clusterConfigOverrides[0].configMapName (server dry run) ===
+[{"appVersion":"39.0.7","clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["<mgmt-cluster>"]}]},"configMapName":"traefik-mgmt-test"}]
+=== DR11: workspace AD patch clusterSelector to unknown cluster (server dry run) ===
+appdeployment.apps.kommander.d2iq.io/traefik
+=== local YAML check (kubectl client) ===
+-- bad
+cm-ok
+error: error parsing /tmp/<dir>/bad.yaml: error converting YAML to JSON: yaml: line 2: did not find expected ',' or ']'
+-- good
+cm-ok
+error: unable to decode "/tmp/<dir>/good.yaml": Object 'Kind' is missing in '{"service":{"type":"NodePort"}}'
+=== python yaml? ===
+6.0.1
+=== gatekeeper constraint match ===
+error: the server doesn't have a resource type "k8srequiredserviceaccountname"
+NAME                         ENFORCEMENT-ACTION   TOTAL-VIOLATIONS
+helmrelease-must-have-sa     deny                 0
+kustomization-must-have-sa   deny                 0
+azureserviceoperator-validating-webhook-configuration validate.v1api20201201.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+azureserviceoperator-validating-webhook-configuration validate.v1api20230401.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+azureserviceoperator-validating-webhook-configuration validate.v1api20230801.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+azureserviceoperator-validating-webhook-configuration validate.v1api20241101.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+gatekeeper-validating-webhook-configuration validation.gatekeeper.sh None ['*/*']
+kommander-validating webhook.federation.kommander.mesosphere.io NoneOnDryRun ['workspaces.kommander.mesosphere.io/projects', 'workspaces.kommander.mesosphere.io/workspaces', 'workspaces.kommander.mesosphere.io/virtualgroupprojectrolebindings', 'workspaces.kommander.mesosphere.io/virtualgroupkommanderclusterrolebinding']
+azureserviceoperator-mutating-webhook-configuration default.v1api20201201.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+azureserviceoperator-mutating-webhook-configuration default.v1api20230401.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+azureserviceoperator-mutating-webhook-configuration default.v1api20230801.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+azureserviceoperator-mutating-webhook-configuration default.v1api20241101.redispatchschedules.cache.azure.com None ['cache.azure.com/redispatchschedules']
+gatekeeper-mutating-webhook-configuration mutation.gatekeeper.sh None ['*/*']
+kommander-defaulting webhook.federation.kommander.mesosphere.io NoneOnDryRun ['workspaces.kommander.mesosphere.io/workspaces', 'workspaces.kommander.mesosphere.io/projects', 'workspaces.kommander.mesosphere.io/kommanderworkspaceroles', 'workspaces.kommander.mesosphere.io/kommanderprojectroles']
+=== nkp create project --dry-run ===
+apiVersion: workspaces.kommander.mesosphere.io/v1alpha1
+kind: Project
+metadata:
+  annotations:
+    kommander.mesosphere.io/display-name: demo
+  name: demo
+  namespace: kommander-default-workspace
+spec:
+  placement: {}
+  workspaceRef:
+    name: default-workspace
+status: {}
+=== DR12 GitopsRepository v1alpha2 in kommander-default-workspace (server dry run) ===
+Error from server (NotAcceptable): error when creating "STDIN": admission webhook "webhook.federation.kommander.mesosphere.io" denied the request: metadata.namespace: Internal error: GitopsRepository can only be created in project namespace. "kommander-default-workspace" is not a Project namespace
+
+## More dry runs (2026-11-03; same webhook check)
+YAML check with kubectl client: a values file with bad YAML gives 'error converting YAML to JSON'; a good values file gives 'apiVersion not set, kind not set'.
+DR13: json patch add /spec/clusterConfigOverrides/- -> accepted. DR14: json patch add /spec/clusterConfigOverrides on an AD without the field -> accepted. DR15: configmap create --from-file values.yaml | apply --dry-run=server -> 'created (server dry run)'.
+-- bad
+error: error parsing /tmp/<dir>/bad.yaml: error converting YAML to JSON: yaml: line 2: did not find expected ',' or ']'
+-- good
+error: error validating "/tmp/<dir>/good.yaml": error validating data: [apiVersion not set, kind not set]; if you choose to ignore these errors, turn validation off with --validate=false
+-- empty
+error: no objects passed to create
+ws: default-workspace
+=== DR13 json patch add clusterConfigOverrides/- (server dry run) ===
+kube-oidc-proxy-<mgmt-cluster> x-test 
+=== DR14 json patch add whole clusterConfigOverrides on AD without it (server dry run) ===
+[{"clusterSelector":{"matchExpressions":[{"key":"kommander.d2iq.io/cluster-name","operator":"In","values":["c2"]}]},"configMapName":"r-test"}]
+=== DR15 configmap create from file (server dry run) ===
+configmap/traefik-overrides created (server dry run)
+=== helm-controller flags ===
+["--events-addr=http://notification-controller.$(RUNTIME_NAMESPACE).svc.cluster.local.","--watch-all-namespaces=true","--log-level=info","--log-encoding=json","--enable-leader-election","--feature-gates=OOMWatch=true","--feature-gates=AdditiveCELDependencyCheck=true","--feature-gates=DisableChartDigestTracking=true"]
+=== hr helmreleases on mgmt with history count ===
+deployed
+2.2.14
+
+=== Batch 3 fix pass (gitops), 2026-11-03 ===
+Read-only reads and one server dry run. No Secret read. ConfigMap values were read only through the O2 awk mask, and only counts and key names were saved.
+
+O2 mask test (awk in overrides.md O2) on the lab override ConfigMaps in kommander (counts only):
+dex-k8s-authenticator-cluster-overrides: 38 lines out, 1 hidden (client_secret); the other long lines are PEM CA bodies (trusted_root_ca, k8s_ca_pem; BEGIN CERTIFICATE), not secret
+dex-k8s-authenticator-kommander-overrides: same as above
+dex-kommander-overrides: 2 lines, 0 hidden, 1 issuer line
+dex-cluster-overrides: 2 lines, 0 hidden, 1 issuer line
+traefik-forward-auth-mgmt-cluster-overrides: 7 lines, 2 hidden (clientSecret with nested value:, caCertificate)
+kube-oidc-proxy-cluster-overrides: 17 lines, 0 hidden; keys oidc.caPEM (PEM CA), clientId, groupsClaim, groupsPrefix, issuerUrl, usernameClaim
+traefik-overrides: not present (HelmRelease valuesFrom lists it, optional=true)
+
+hr traefik valuesFrom: traefik-39.0.7-config-defaults; traefik-overrides optional=true
+AppDeployments with an NKP cluster override (configMapName *-kommander-overrides): dex (dex-kommander-overrides), dex-k8s-authenticator (dex-k8s-authenticator-kommander-overrides). No configOverrides on either.
+
+Webhooks that match appdeployments: gatekeeper validating/mutating sideEffects=None; kommander-appmanagement-validating and -defaulting sideEffects=NoneOnDryRun.
+DR16: json patch appdeployment dex with test op on clusterConfigOverrides/0/clusterSelector/matchExpressions/0/values/0 = <mgmt-cluster>, then replace configMapName with the same name (server dry run) -> "patched (no change)".
+DR17: same patch with test value wrong-cluster (server dry run) -> "The request is invalid" (the API refuses; nothing changes).
+O2 mask, final version (no "cert" key match: a CA certificate is not secret; BEGIN hi=-1): dex-k8s-authenticator-cluster-overrides hidden=1, traefik-forward-auth-mgmt-cluster-overrides hidden=1 (clientSecret and its nested value line), kube-oidc-proxy-cluster-overrides hidden=0, dex-cluster-overrides hidden=0. No unhidden *secret*/*password* key with a value in any of them.
+NKPCluster KommanderClusterReady jsonpath (gitops SKILL.md step 4) on the lab -> {"...","reason":"KommanderClusterCreated","status":"True","type":"KommanderClusterReady"}
