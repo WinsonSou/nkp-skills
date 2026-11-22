@@ -79,6 +79,7 @@ kubectl --kubeconfig "$CLUSTER_KUBECONFIG" get helmreleases -A
 ```
 
 - The first line is the license tier (`Starter`, `Pro`, `Ultimate`). [live 2.19.0]
+- `nkp get clusters` without a workspace stops on a self-managed cluster with `failed to determine target namespace: please provide the name of the targeted Workspace`. Keep `-A`, or give `--namespace "$WORKSPACE_NS"`. [live 2.19.1]
 - `workspaces` shows NAME and WORKSPACE NAMESPACE. Use them as the note above says.
 - `nkp get appdeployments -w <workspace name>` gives the same list with a CLUSTERS column. [live 2.19.0]
 

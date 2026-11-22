@@ -221,15 +221,79 @@ Done when: the READ-ONLY block prints `NotFound` for both.
 
 Order: **delete the cluster first, then the volume groups.** Before the delete, the groups are attached to the node VMs and hold live data.
 
-Use skill `nutanix-storage`, RECIPES.md:
-1. "What an NKP cluster leaves behind" (READ-ONLY): it lists the groups of the cluster. It keeps a group only when the description has `for <cluster>,` (with the comma) and `K8sClusterID`, and `vm-attachments` is empty. It never takes a Prism Central group (`isHidden` or `INTERNAL`).
-2. Compare the result with the D2 PV list (the `<uuid>` of `HANDLE` = `extId`). Show the plan: the count, and for each group the name, `extId`, PVC, and namespace. The delete destroys the PVC data. Stop for "yes".
-3. "Delete a volume group" (CHANGES), for each group of the plan, after "yes".
-4. Run step 1 again. Done when: it returns no group.
+**Never match a group by name.** Every Nutanix CSI volume group is named `pvc-<pvc-uid>`, and one Prism Central holds the groups of every cluster that uses it. Measured on a lab Prism Central with 4 clusters: 75 groups, all named `pvc-…`, 21 of them this cluster's. A search for the cluster name finds nothing, because the group `name` does not contain it. [live 2.19.1]
 
-For a full check (VMs, volume groups, floating IPs, IP reservations, categories), use skill `nutanix-nkp`, RECIPES.md "Leftover audit for a cluster" (READ-ONLY). The recipes run on the operator host and read `PC_ENDPOINT`, `NUTANIX_USER`, `NUTANIX_PASSWORD` from `~/nkp-site.env`.
+The group `description` is the key. It has this form: [live 2.19.1]
 
-If skill `nutanix-storage` is not installed, the user does it in Prism Central: Storage, Volume Groups, search for the cluster name, check that each group has no VM attached, then delete. Give the user the D2 PV list.
+```text
+FS:ext4, K8sClusterID:<uid>, CSIVersion:v3.9.0, DeploymentType:non-bare-metal,
+CSI StorageClass nutanix-volume for <cluster>, PVC:<pvc>, NS:<ns>, POD:<pod>, SA:<default>
+```
+
+`<uid>` is the `kube-system` namespace UID of the cluster. It and the `for <cluster>,` marker survive the delete, so the full set can be found **after** the cluster is gone. Check all four gates:
+
+| Gate | Check | Why |
+|---|---|---|
+| A. Cluster identity | `K8sClusterID:<uid>` in the description equals the `kube-system` UID recorded before the delete | The complete set. It also catches PVCs made after any list was captured |
+| B. Name marker | `for <cluster>,` in the description (with the comma) | A second, independent identity key |
+| C. Not internal | `isHidden` and `usageType` `INTERNAL` are false | A Prism Central group is never a PVC group |
+| D. Detached | the `attachments` field is an empty list | A group with a VM attachment belongs to a live VM |
+
+**Do not use the PV list as the primary source.** A PVC made after the capture leaves a group that the PV list does not have. Seen: 12 PVs at the capture, 21 groups after a license upgrade deployed more platform apps. The PV list is a **cross-check**: each PV id must be in the identity set, and a group in the identity set that is not in the PV list is normal, not a fault.
+
+1. Record the UID and the PV list **immediately before** the delete of D4. The cluster is the only place that holds the UID.
+
+```bash
+# CHANGES  (writes the volume-group whitelist file; run before the delete; changes nothing in the cluster)
+source ~/nkp-<cluster>.env 2>/dev/null
+wl="$HOME/nkp-$CLUSTER_NAME-vg-whitelist.txt"
+{
+  echo "# $CLUSTER_NAME kube-system-uid: $(kubectl --kubeconfig "$CLUSTER_KUBECONFIG" get ns kube-system -o jsonpath='{.metadata.uid}')"
+  kubectl --kubeconfig "$CLUSTER_KUBECONFIG" get pv -o jsonpath='{range .items[*]}{.spec.csi.volumeHandle}{" "}{.spec.claimRef.namespace}{"/"}{.spec.claimRef.name}{"\n"}{end}' \
+    | sed -n 's/^NutanixVolumes-\([0-9a-f-]*\) /\1 /p' | sort
+} > "$wl"
+cat "$wl"
+```
+
+2. After the delete, list the groups that pass gates A, B, C, and D. Show the plan: the count, and for each group the `extId`, the PVC, and the namespace. Stop for "yes".
+
+```bash
+# READ-ONLY  (lists this cluster's volume groups; deletes nothing)
+source ~/nkp-<cluster>.env 2>/dev/null
+curl -sk --netrc-file <(printf 'machine %s login %s password %s\n' "${PC_ENDPOINT#https://}" "$(printenv NUTANIX_USER)" "$(printenv NUTANIX_PASSWORD)") "${PC_ENDPOINT%/}/api/volumes/v4.0/config/volume-groups?\$limit=100" -o /tmp/vg.json
+python3 - "$HOME/nkp-$CLUSTER_NAME-vg-whitelist.txt" "$CLUSTER_NAME" <<'PY'
+import json,re,sys
+wl,cl=sys.argv[1],sys.argv[2]
+uid=re.search(r'kube-system-uid: (\S+)',open(wl).read()).group(1)
+pv={l.split()[0] for l in open(wl) if not l.startswith('#') and l.strip()}
+for g in json.load(open('/tmp/vg.json'))["data"]:
+    desc=g.get("description") or ""
+    if uid not in desc or f"for {cl}," not in desc: continue
+    if g.get("isHidden") or (g.get("attachments") or []): continue
+    pvc=re.search(r'PVC:(\S+?),',desc); ns=re.search(r'NS:(\S+?),',desc)
+    print(g["extId"], "in-pv-list" if g["extId"] in pv else "late", pvc.group(1) if pvc else "-", ns.group(1) if ns else "-")
+PY
+```
+
+`$limit` has a maximum of 100; a larger value gives `400`. On a 2.19 Prism Central the `v2.0` group endpoints do not answer: `volume_groups/list` gives `405` and `volumes/list` gives `404`. [live 2.19.1]
+
+3. Delete one group at a time. The `DELETE` needs the `If-Match` ETag of a fresh `GET` **and** an `NTNX-Request-Id` header; without it the API gives `400 Missing Request Id header`. It answers `202` with a task, and the group stays until the task ends, about 3 s. Poll the `GET` until `404`. A `200` right after the `DELETE` is not a failure. [live 2.19.1]
+
+```bash
+# CHANGES  (deletes one volume group and its data; cannot be undone)
+source ~/nkp-site.env 2>/dev/null
+: "${vgext:?}"
+u="${PC_ENDPOINT%/}/api/volumes/v4.0/config/volume-groups/$vgext"
+et=$(curl -sk --netrc-file <(printf 'machine %s login %s password %s\n' "${PC_ENDPOINT#https://}" "$(printenv NUTANIX_USER)" "$(printenv NUTANIX_PASSWORD)") -D - -o /tmp/vg1.json "$u" | tr -d '\r' | awk -F': ' 'tolower($1)=="etag"{print $2}')
+grep -q 'K8sClusterID:' /tmp/vg1.json && grep -q '"attachments": \[\]' /tmp/vg1.json && echo "gates ok" || echo "STOP: gate failed"
+curl -sk --netrc-file <(printf 'machine %s login %s password %s\n' "${PC_ENDPOINT#https://}" "$(printenv NUTANIX_USER)" "$(printenv NUTANIX_PASSWORD)") -X DELETE -H "If-Match: $et" -H "NTNX-Request-Id: $(cat /proc/sys/kernel/random/uuid)" -o /dev/null -w 'delete: %{http_code}\n' "$u"
+sleep 5
+curl -sk --netrc-file <(printf 'machine %s login %s password %s\n' "${PC_ENDPOINT#https://}" "$(printenv NUTANIX_USER)" "$(printenv NUTANIX_PASSWORD)") -o /dev/null -w 'after: %{http_code}\n' "$u"
+```
+
+4. Run step 2 again, once for each group of the plan. Done when it prints nothing, and the total count of `GET …/volume-groups?$limit=100` fell by exactly the number of groups in the plan.
+
+The companion skill `nutanix-storage` has the same procedure as Python recipes, under "What an NKP cluster leaves behind" and "Delete a volume group". For a wider check (VMs, floating IPs, IP reservations, categories), use skill `nutanix-nkp`, RECIPES.md "Leftover audit for a cluster" (READ-ONLY).
 
 ### D5.3 VPC objects
 

@@ -64,9 +64,15 @@ Then read the controller log for the name ([controllers.md](controllers.md), log
 | `chart ... version ... not found` during an upgrade | A field note: run the upgrade again. [field] | skill `nkp-upgrade` |
 | `admission webhook "validation.gatekeeper.sh" denied`, constraint `helmrelease-must-have-sa` or `kustomization-must-have-sa` | A HelmRelease or Kustomization without a service account. [live 2.19.0] | skill `nkp-identity-security`, file `gatekeeper.md` G2 |
 | `spec.topology: Forbidden: CAPI Cluster topology spec is managed by NKPCluster` | A Kustomization applies a CAPI `Cluster`. [pdf p.1048] | skill `nkp-upgrade` (GitOps migration) |
+| `timeout waiting for: [Deployment/<ns>/<name> status: 'InProgress']` on a `HelmRelease` of a create, then `UninstallSucceeded` on the same object | The image pull of the app was slower than the install timeout of that chart. Flux remediated (uninstall) and installs it again. This is normal during a create. [live 2.19.1] | wait. Act only on `ImagePullBackOff`, `ErrImagePull`, or `x509` (skill `nkp-airgap`) |
 | Helm `context deadline exceeded`, pods not Ready | The app pods do not start. | rung 5 of the ladder; the app skill (step 3 of SKILL.md) |
 | `values` or schema error | A bad override ConfigMap. | skill `nkp-platform-apps-gitops`, file `overrides.md` O5 |
 | AppDeployment ok, no HelmRelease on the target cluster | The workspace or the cluster attach is the problem. | F4 |
+
+**A HelmRelease that fails and then succeeds during a create is normal.** [live 2.19.1] Example: on a site-mirror create, `traefik-forward-auth-mgmt` came out `Ready=False InstallFailed` with `timeout waiting for: [Deployment/kommander/traefik-forward-auth-mgmt status: 'InProgress']`. Flux then ran `UninstallSucceeded` (remediation) and installed the chart again, and the Deployment was `1/1` 2 min 28 s later. The create ended `RC=0` with 26 of 26 HelmReleases Ready. The pod was `ContainerCreating` with the event `Pulling image ...` the whole time. Two traps:
+
+- After a remediation the Deployment does not exist, so `kubectl get deploy` prints `NotFound`. That is not a second fault. Read the pods and their events, not the Deployment.
+- The last core app can retry for about 5 min. Act only after the create log ends, and only on `ImagePullBackOff`, `ErrImagePull`, or an `x509` error. [live 2.19.1]
 
 ## F4. Workspace and attached cluster
 

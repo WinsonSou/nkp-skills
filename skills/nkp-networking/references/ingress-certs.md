@@ -19,7 +19,8 @@ Use this file from skill `nkp-networking` for Traefik, the NKP UI domain, the in
 - The KommanderCluster (management cluster, workspace namespace) holds the ingress state. Its NKPCluster field is `spec.kommanderCluster.spec.ingress` with `hostname`, `certificateSecretRef`, `issuerRef`. [live 2.19.0] Without a domain, `hostname` is the Traefik IP. [live 2.19.0]
 - The Issuer, ClusterIssuer, or certificate Secret is on the target cluster (the workload cluster for a workload cluster). The NKPCluster is on the management cluster. [pdf p.492, p.494]
 - ACME (Let's Encrypt and other public CAs) does not work air-gapped, and does not work with an IP as hostname. [pdf p.491, p.978] Air-gapped: keep the default certificate or use your own certificate (I3).
-- At create time on Nutanix, the flags `--cluster-hostname`, `--ingress-certificate`, `--ingress-private-key`, `--ingress-ca` set the same values. [live 2.19.0] The create script: skill `nkp-install`.
+- At create time on Nutanix, the flags `--cluster-hostname`, `--ingress-certificate`, `--ingress-private-key`, `--ingress-ca` set the same values. [live 2.19.0] The create script: skill `nkp-install`. A workload create drops `--cluster-hostname` [live 2.19.0]: patch the NKPCluster after the create (I3).
+- A hostname patch also changes `AUTH_HOST` of `traefik-forward-auth` on the target cluster (about 3 min), so the app login returns to the new hostname. An IP as hostname works without your own certificate: `kommander-ca` issues one with the IP as an IP SAN. [live 2.19.1]
 
 Read the state:
 

@@ -32,6 +32,8 @@ Done when: the URL is correct, `hosts.toml` points to the mirror, and there are 
 
 ## Check that the site mirror has an image
 
+A mirror host can answer `/v2/` while the project in `REGISTRY_URL` has no repositories, and then every pull fails, including the pulls of a create. [live 2.19.1] Check the project before you rely on the mirror: the tags/list check with `repo='mesosphere/kommander-applications-server'` must give `http=200`. On Harbor, `GET /api/v2.0/projects` with the pull account lists each project with its `repo_count`, and the project of `REGISTRY_URL` must not be `0`. [live 2.19.1] Skill `nkp-install`, file `preflight.md` section N3, gives the ready block.
+
 Use this before you put an image in a manifest on an air-gapped site (for example a smoke test). Do not guess an image path, and never pull from the internet. The mirror project is the path part of `REGISTRY_URL`. An image `docker.io/<path>:<tag>` is at `<project>/<path>` in the mirror. [live 2.19.0] Example: `docker.io/library/nginx` → 404, but `docker.io/nginxinc/nginx-unprivileged` (tag `1.29.5-alpine`) and `docker.io/library/busybox` (tag `1`) are there, from the NKP bundle. [live 2.19.0] So use an image that a pushed bundle has. In a manifest, write the image as `docker.io/<path>:<tag>`: the node mirror config sends `docker.io` pulls to the mirror. [live 2.19.0]
 
 UNKNOWN (A-30): the mirror path of an image from a registry other than `docker.io` (for example `registry.k8s.io/pause`): with or without the registry host. Find out with: `repo='registry.k8s.io/pause'`, then `repo='pause'`, in the first block below (the `http=200` line gives the path).

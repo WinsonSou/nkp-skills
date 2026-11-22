@@ -1,6 +1,6 @@
 # Install NKP on Nutanix AHV (Prism Central)
 
-Use this file from skill `nkp-install`. It covers a management cluster and a workload cluster, connected and air-gapped. The flags match `nkp create cluster nutanix --help` of NKP 2.19.0. [live 2.19.0] Sections have N-labels so that they do not mix with the steps in `SKILL.md`.
+Use this file from skill `nkp-install`. It covers a management cluster and a workload cluster, connected and air-gapped. The flags match `nkp create cluster nutanix --help` of NKP 2.19.0 and 2.19.1. [live 2.19.0] Sections have N-labels so that they do not mix with the steps in `SKILL.md`.
 
 ## N1. Collect the values
 
@@ -9,7 +9,7 @@ Ask the user for each value. Append each known value to the file in the "File" c
 | Variable | File | Req | Rule |
 |---|---|---|---|
 | `CLUSTER_NAME` | cluster | all | only `a-z`, `0-9`, `.`, `-` [pdf p.718] |
-| `CP_VIP` | cluster | all | a static IP in the node subnet CIDR, **outside** the IPAM or DHCP pool. No other host uses it. [pdf p.720] |
+| `CP_VIP` | cluster | all | a static IP in the node subnet CIDR, **outside** the IPAM or DHCP pool. No other host uses it. [pdf p.720] Reserve it, and every address of `LB_IP_RANGE`, in Prism IPAM on an IPAM subnet: the create makes no reservation, so a later cluster can take `CP_VIP` from the pool and the API endpoint of this cluster then stops. [live 2.19.1] |
 | `LB_IP_RANGE` | cluster | all | `<first-ip>-<last-ip>` on the same Layer 2 subnet as the workers, outside the pool. MetalLB gives the first **free** IP to the first `LoadBalancer` Service. The NKP UI gets the first IP only when no other Service took it first. [pdf p.694, p.721][live 2.19.0] So create other `LoadBalancer` Services only after the platform apps are ready (skill `nkp-storage-backup`, `csi.md` C12 "When"). An annotation on `kommander-traefik` is not in the skills. |
 | `WORKSPACE_NS` | cluster | all | `kommander` for a management cluster. For case 5, the WORKSPACE NAMESPACE of the workspace (N5 step 1). [live 2.19.0] |
 | `PC_ENDPOINT` | site | all | for example `https://<host>:9440` [live 2.19.0] |
@@ -45,6 +45,7 @@ Secret lines that the user adds with an editor (`SKILL.md` step "Prepare the env
 ### Node size
 
 - CLI defaults: 3 control-plane nodes with 4 vCPU, 16 GiB, and an 80 GiB disk; 4 workers with 8 vCPU, 32 GiB, and an 80 GiB disk. [live 2.19.0] These are the Pro and Ultimate minimums. [pdf p.696]
+- The default 7 nodes need **44 vCPU, 176 GiB RAM, and 7 × 80 GiB of disk** in `PE_CLUSTER`. Read the capacity of the PE first (N3 of [preflight.md](preflight.md)): the create does not check it. [live 2.19.1]
 - Starter minimum for a management cluster: add `--control-plane-vcpus 2 --control-plane-memory 8 --worker-replicas 2 --worker-vcpus 4 --worker-memory 8`. [pdf p.695]
 - Starter minimum for a workload cluster: add `--control-plane-vcpus 2 --control-plane-memory 6 --worker-replicas 2 --worker-vcpus 3 --worker-memory 6`. [pdf p.695-696]
 - With 2 workers, the Pro and Ultimate apps fail after a license upgrade. Tell the user this. [pdf p.695]
@@ -97,34 +98,7 @@ Done when: each block prints `set: syntax` (first block) and `set: <name>` for e
 
 ## N3. Check the infrastructure
 
-```bash
-# READ-ONLY
-source ~/nkp-<cluster>.env 2>/dev/null
-nkp version
-curl -sk -o /dev/null -w 'pc: %{http_code}\n' "$PC_ENDPOINT"
-pc=${PC_ENDPOINT#https://}; pc=${pc%%[:/]*}
-curl -sk --netrc-file <(printf 'machine %s login %s password %s\n' "$pc" "$(printenv NUTANIX_USER)" "$(printenv NUTANIX_PASSWORD)") -o /dev/null -w 'pc login: %{http_code}\n' "$PC_ENDPOINT/api/clustermgmt/v4.0/config/clusters"
-openssl s_client -connect "$pc:9440" -servername "$pc" </dev/null 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName
-ping -c 2 "$CP_VIP"
-first=${LB_IP_RANGE%-*}; last=${LB_IP_RANGE#*-}
-for i in $(seq "${first##*.}" "${last##*.}"); do ping -c 1 -W 1 "${first%.*}.$i" >/dev/null && echo "IN USE: ${first%.*}.$i" || echo "no reply: ${first%.*}.$i"; done
-test -f "$SSH_PUBKEY_FILE" && echo "ssh key file found"
-```
-
-`--netrc-file <(...)` keeps the password out of the process list. A password with a space or a `"` fails in a netrc line: then the user checks the login in the UI. The LB loop expects the first and the last IP in the same /24. Site mirror (4C, 5 mirror): a `401` without credentials also proves that the registry answers. [live 2.19.0]
-
-```bash
-# READ-ONLY
-source ~/nkp-site.env 2>/dev/null
-reg=${REGISTRY_URL#https://}; reg=${reg%%/*}
-curl -s --cacert "$REGISTRY_CA_FILE" -o /dev/null -w 'mirror: %{http_code}\n' "https://$reg/v2/"
-curl -s --cacert "$REGISTRY_CA_FILE" --netrc-file <(printf 'machine %s login %s password %s\n' "${reg%%:*}" "$(printenv REGISTRY_MIRROR_USERNAME)" "$(printenv REGISTRY_MIRROR_PASSWORD)") -o /dev/null -w 'mirror login: %{http_code}\n' "https://$reg/v2/"
-```
-
-Done when:
-- `pc:` is not `000` (`302` is normal). `pc login:` is `200` (`401` = wrong user or password). [live 2.19.0] More credential checks: skill `nutanix-iam`, RECIPES.md "Read-only credential check". If skill `nutanix-iam` is not installed, the user does it in Prism Central.
-- `openssl` shows the PC certificate: see N4 "PC certificate". `ping` of `CP_VIP` gets no reply, and the loop prints `no reply` for each LB IP. If the network blocks ICMP, "no reply" proves nothing. Use the free-IP check of N1 "IP plan", or ask the user to confirm that no host uses these IPs.
-- The output has "ssh key file found". On a mirror site, `mirror:` is `200` or `401`, and `mirror login:` is `200`.
+Use [preflight.md](preflight.md), section N3. It tests Prism Central, the PC certificate, `CP_VIP`, the LB range, the SSH key, the capacity of the PE cluster, and the site mirror (host and project).
 
 ## N4. Create the management cluster
 
@@ -136,19 +110,13 @@ Choose one case:
 | Air-gapped, no site registry: NKP puts the bundle images in an internal registry in the new cluster | N4B |
 | Site registry mirror (Harbor, Nexus, Artifactory) that is already seeded | N4C |
 
-Use only one registry method: `--bundle` (internal mirror) or `--registry-mirror-*` (site mirror). [pdf p.725] The flags `--registry-url`, `--registry-username`, `--registry-password`, and `--registry-cacert` do not make a mirror. They give credentials for one upstream registry, for example Docker Hub. [pdf p.723]
+Use only one registry method: `--bundle` (internal mirror) or `--registry-mirror-*` (site mirror). [pdf p.725]
 
-Each case writes a create script: `~/nkp-<name>-create.sh` (mode 700). The dry run and the real create run the same script (section N4D). The script ends with `"$@"`, so the dry run adds its flags at the end.
+`--registry-url`, `--registry-username`, `--registry-password`, and `--registry-cacert` are a **third, separate** setting, not a mirror: they render CAREN `imageRegistries[]` (that registry's CA and credentials, applied on every node through the kubelet dynamic credential provider, so a Pod pulling `<registry>/<project>/<image>` needs no namespace `imagePullSecret`). They are allowed together with `--registry-mirror-*` (mirror becomes `globalImageRegistryMirror`, registry becomes `imageRegistries[]`) and never replace it: alone on a connected management create the CLI stops with `--nutanix-registry-username and --nutanix-registry-password are required … unless it is air-gapped or --registry-mirror-url is set`. They are needed only for **private** registry projects: without them such a pull gets `401`, while public projects still work, because the mirror CA also lands in `certs.d/<registry-host>/ca.crt` and an explicit `<registry>/<project>/<image>` reference is not rewritten to the mirror path. The credentials reach a Secret (`<cluster>-image-registry-credentials`), the `KubeadmConfig` of every machine, and a file on every node (`/etc/kubernetes/static-image-credentials.json`): use a read-only robot account, not an administrator. A create writes the same CA bytes into that Secret and into `<cluster>-image-registry-mirror-credentials`, so the flags are safe together. When you add `imageRegistries` to a **running** cluster by hand, put only `username` and `password` in the Secret: if the CA in the two Secrets differs at all, the CAPI reconcile stops with `conflicting CA certificate specified for registry host: "<host>" (from secrets A and B)`, and the mirror entry already supplies the CA for that host. [live 2.19.1]
 
-The script adds optional flags only when their variable has a value: `PC_PROJECT` adds `--pc-project`. `PC_CA_FILE` adds `--additional-trust-bundle` with the certificate as Base64 text. [pdf p.719]
-- UNKNOWN (P-07): the format that `--additional-trust-bundle` accepts. The key is in the dry run also when it is empty, so count the value, not the key. Run it only with `PC_CA_FILE` set. Find out with: `source ~/nkp-<cluster>.env 2>/dev/null && grep -E '^ *additionalTrustBundle:' "$PWD/$CLUSTER_NAME-dryrun.yaml" | awk '{print length($2)}'` (`2` = `""` = empty).
-- Use only the Prism Central certificate, not a full CA bundle. A large file exceeds the 16 KB cloud-init limit. [pdf p.719]
-- **PC certificate** (the `openssl` line of N3). No `subjectAltName`, or a SAN without the host or IP of `PC_ENDPOINT`: a CA file cannot work, because the hostname check fails. Use `--insecure` (it skips the check [pdf p.719]) after the user agrees. A SAN with that host or IP: append `PC_CA_FILE`. The Nutanix default PC certificate has no SAN. `--insecure` does not change the mirror CA check. [live 2.19.0] More: skill `nutanix-api`, REFERENCE.md "PC certificate check".
-- Management cluster: add `--timeout 60m`. The create takes 22–24 min, and the CLI default is `30m0s`. A workload create takes 3–13 min: the default is enough. [live 2.19.0]
-- Other flags (`--fips`, `--onboard-to-prism-central=false`, `--insecure`, `--timeout 60m`, the size flags in N1): add them as lines before `"$@"` in the script block before you write it. [live 2.19.0] For a proxy, add the lines from skill `nkp-networking`, its file `proxy.md`, X3.
-- Cluster in a Flow VPC: add the lines from skill `nkp-vpc`, step 4.
-- Custom domain and ingress certificate at create time (`--cluster-hostname`, `--ingress-certificate`, `--ingress-private-key`, `--ingress-ca`): skill `nkp-networking`, its file `ingress-certs.md`, I1.
-- The CLI takes the mirror password and the Docker Hub token only as flags. Other users on the host can see them in the process list. [live 2.19.0] Tell the user this.
+| File | Site variables |
+|---|---|
+| `~/nkp-site.env` | `REGISTRY_HOST` `REGISTRY_USERNAME` `REGISTRY_PASSWORD` |
 
 ### N4A. Connected, no registry mirror
 
@@ -253,6 +221,10 @@ nkp create cluster nutanix \
   --registry-mirror-cacert "$REGISTRY_CA_FILE" \
   ${REGISTRY_MIRROR_USERNAME:+--registry-mirror-username "$REGISTRY_MIRROR_USERNAME"} \
   ${REGISTRY_MIRROR_PASSWORD:+--registry-mirror-password "$REGISTRY_MIRROR_PASSWORD"} \
+  ${REGISTRY_HOST:+--registry-url "$REGISTRY_HOST"} \
+  ${REGISTRY_USERNAME:+--registry-username "$REGISTRY_USERNAME"} \
+  ${REGISTRY_PASSWORD:+--registry-password "$REGISTRY_PASSWORD"} \
+  ${REGISTRY_HOST:+--registry-cacert "$REGISTRY_CA_FILE"} \
   --cluster-name "$CLUSTER_NAME" \
   --endpoint "$PC_ENDPOINT" \
   --control-plane-endpoint-ip "$CP_VIP" \
@@ -277,7 +249,7 @@ EOF
 
 The dry run writes the objects into a local file with mode 600. The file holds Secrets. Never print it. Never apply it with `kubectl`: an applied `--self-managed` file needs manual pivot steps. [pdf p.729]
 
-- Management cluster (`--self-managed`): the dry run is also the preflight test. It makes a kind bootstrap cluster (4 CPU and 4 GB free), installs CAPI, runs the preflight checks against Prism Central, prints the objects, and deletes the bootstrap cluster. About 3 min, 7 Secrets. It creates no VMs. If it stops before the end, run `nkp delete bootstrap` (`SKILL.md` "If the install fails"). [live 2.19.0]
+- Management cluster (`--self-managed`): the dry run is also the preflight test. It loads the bootstrap image (about 1 min for a 3.4 GB file), makes a real kind bootstrap cluster (4 CPU and 4 GB free), installs CAPI, runs the preflight checks against Prism Central, prints the objects, and deletes the bootstrap cluster. 4 to 6 min, 7 Secrets. It creates no VMs. **Run it in tmux. Never put a short `timeout` around it:** a kill in the middle leaves the kind cluster on the operator host, and the next create then fails on the name. After a kill, remove it with `nkp delete bootstrap --kind-cluster-name konvoy-capi-bootstrapper` (`SKILL.md` "If the install fails"). [live 2.19.0, 2.19.1]
 - Workload cluster: no kind cluster. It runs the preflight checks and prints the objects in less than 20 s, 5 Secrets. [live 2.19.0]
 
 Show the plan (the file path, and that the file holds Secrets) and stop for "yes".
@@ -295,7 +267,7 @@ source ~/nkp-<cluster>.env 2>/dev/null
 grep -n -E '^kind:|^  name:|image:|host:|addressRanges:|start:|end:|url:|replicas:|vcpuSockets:|memorySize:|systemDiskSize:|servers:|insecure:' "$PWD/$CLUSTER_NAME-dryrun.yaml"
 ```
 
-The worker autoscaler annotations are min = max = `--worker-replicas`. [live 2.19.0] Done when: the dry run ends without an error, and the user agrees with the shown lines. Then the create. It runs in tmux on the operator host, so that a lost terminal does not stop it. The plan for "yes" includes the kubeconfig block of the `SKILL.md` step "Set the kubeconfig variables" (management or workload). Run that block after `RC=0` with no new approval. Durations: management 22–24 min, workload 3–13 min. [live 2.19.0]
+The worker autoscaler annotations are min = max = `--worker-replicas`. [live 2.19.0] Done when: the dry run ends without an error, and the user agrees with the shown lines. Then the create. It runs in tmux on the operator host, so that a lost terminal does not stop it. The plan for "yes" includes the kubeconfig block of the `SKILL.md` step "Set the kubeconfig variables" (management or workload). Run that block after `RC=0` with no new approval. Durations: management 22–35 min, workload 3–13 min. A site mirror with a 3.4 GB bootstrap image and the 7 default nodes took 34 min 38 s: bootstrap image 1 min, kind 1 min, CAPI 2 min, VMs 2 min, control planes 4 min, pivot 4 min, Kommander 19 min. [live 2.19.1] `--timeout 60m` is the safe value; the 30m default is not enough for a slow mirror. Do not act on a HelmRelease before the log says `Cluster was created successfully!`: the last core app can retry for about 5 min (skill `nkp-troubleshooting`, file `flux.md` F3).
 
 ```bash
 # CHANGES  (creates the cluster in a tmux session named after the cluster: VMs in Prism Central; management: kind, pivot, Kommander)

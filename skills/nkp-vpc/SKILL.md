@@ -7,8 +7,8 @@ description: >
   floating IP, subnet and VPC cleanup after a cluster delete.
 metadata:
   nkp_versions: "2.17-2.19"
-  last_verified: "2026-11-04"
-  sources: "live 2.19.0, pdf 2.19, portal TN-2207 v2.0"
+  last_verified: "2026-11-15"
+  sources: "live 2.19.0, live 2.19.1, pdf 2.19, portal TN-2207 v2.0"
 ---
 
 # NKP in a Flow VPC
@@ -38,7 +38,7 @@ Use this skill for an NKP cluster whose nodes are on a Nutanix Flow Virtual Netw
 | `~/nkp-<cluster>.env` | `VPC_NAME` `FIP_API` `FIP_API_ID` `FIP_UI` `FIP_UI_ID` `API_EXTERNAL_ENDPOINT` `UI_HOSTNAME` |
 
 - `VPC_NAME`: the VPC of the cluster nodes. `SUBNET` is the **overlay** subnet in that VPC (which file: step 2). `FIP_API`: the floating IP of the API, from the external subnet of the VPC. `API_EXTERNAL_ENDPOINT`: `FIP_API`, or a DNS name that resolves to `FIP_API`. `FIP_API_ID`, `FIP_UI_ID`: the Prism Central extIds of the floating IPs (the delete in step 7 needs them).
-- **Management cluster only**: `FIP_UI` (the floating IP of the UI) and `UI_HOSTNAME` (`FIP_UI`, or a DNS name that resolves to `FIP_UI`). A workload cluster does not use them (Facts).
+- `FIP_UI` (the floating IP of Traefik) and `UI_HOSTNAME` (`FIP_UI`, or a DNS name that resolves to `FIP_UI`): a management cluster sets them at create time. A workload cluster sets them only after the create, when users outside the VPC must open its apps (step 6). (Facts)
 
 ## Facts
 
@@ -49,6 +49,7 @@ Use this skill for an NKP cluster whose nodes are on a Nutanix Flow Virtual Netw
 - The API certificate has the external endpoint in its names, without `--extra-sans`. `CP_VIP` is not in the names. [live 2.19.0] To use `https://CP_VIP:6443` with TLS checks inside the VPC, add `CP_VIP` to the API certificate names at create time (skill `nkp-networking`, step 3, row "API server certificate SANs").
 - `--cluster-hostname` works on a **management cluster** only: it gives the UI certificate `kommander-traefik-tls` the `UI_HOSTNAME` name. Traefik keeps its IP from `LB_IP_RANGE`. [live 2.19.0] The ingress field: skill `nkp-networking`, `ingress-certs.md` I1.
 - A **workload** create accepts `--cluster-hostname` and drops it without an error: no object holds the name, and the workload Traefik certificate has only its LB IP. The Kommander dashboard is on the management cluster: on a workload cluster `/dkp/kommander/dashboard` gives 404. [live 2.19.0]
+- After a workload create, the NKPCluster patch `spec.kommanderCluster.spec.ingress.hostname` works (step 6). The KommanderCluster `status.ingress.address` becomes the hostname. The workload certificate `kommander-traefik-tls` gets the hostname as its name (an IP becomes an IP SAN). The workload `traefik-forward-auth` gets `AUTH_HOST=<hostname>` in about 3 min. The app login then sends the browser to the dex of the management cluster with `redirect_uri=https://<hostname>/_oauth_kommander`. [live 2.19.1]
 - Without a UI hostname, Traefik sends `/_oauth_kommander` (the login) to the **private** LB IP with a 307 redirect. A browser outside the VPC cannot follow it. This is why a management cluster with users outside the VPC needs `--cluster-hostname`. [live 2.19.0]
 - VPC overlay NICs have MTU 1442. Cilium Geneve makes the pod route MTU 1392. [live 2.19.0][pdf p.711] Docker on the operator host uses 1500 by default. [portal]
 - Cilium keeps `bpf-lb-mode: dsr` with `bpf-lb-dsr-dispatch: geneve` in a VPC. On two lab clusters in a VPC (NAT floating IPs), a floating IP to an LB IP answered. [live 2.19.0] Network Controller VLANs and no-NAT: skill `nkp-networking`, `cni.md` C4 (N-01).
@@ -70,7 +71,8 @@ Ask the user:
 | Only VMs in the VPC use the cluster | isolated | 0 | none [portal] |
 | Management cluster, users outside the VPC, NAT external subnet | exposed | 2: `FIP_API` → `CP_VIP`, `FIP_UI` → the Traefik IP (first IP of `LB_IP_RANGE`) | `--control-plane-external-endpoint`, `--cluster-hostname` [portal][live 2.19.0] |
 | Workload cluster in a VPC, management cluster outside the VPC | exposed | 1: `FIP_API` → `CP_VIP` (the management cluster and the nodes reach the API through it) | `--control-plane-external-endpoint` only. No `--cluster-hostname`. [live 2.19.0] |
-| Each more `LoadBalancer` Service that outside users need (also the Traefik of a workload cluster) | — | +1 for each Service | none (step 6) [portal] |
+| Users outside the VPC open the apps of a workload cluster (Grafana, Headlamp) | — | +1: `FIP_UI` → the workload Traefik IP | none at create; the hostname patch after the create (step 6) [live 2.19.1] |
+| Each more `LoadBalancer` Service that outside users need | — | +1 for each Service | none (step 6) [portal] |
 
 - With a no-NAT external subnet, the VPC can advertise the overlay range. Then outside hosts reach `CP_VIP` and the LB IPs directly and need no floating IP. [portal] Ask the network team if the overlay range is routed.
 - The guide asks for 3 floating IPs: bastion, `--extra-sans`, UI. [pdf p.721] These skills use the form of TN-2207: the external endpoint already puts the API floating IP in the certificate [live 2.19.0], so a separate `--extra-sans` floating IP gives nothing. Add a bastion floating IP only when users reach the bastion from outside.
@@ -88,7 +90,7 @@ First read what exists (READ-ONLY): skill `nutanix-networking`, RECIPES.md "Subn
 4. Exposed layout: the floating IPs of step 1.
    - Address: choose it from the external subnet pool. Skip the addresses of other floating IPs and the VPC gateway addresses (`externalIps` of the VPC). A NAT external subnet has no VM NICs, so these two lists are all the addresses to skip. [live 2.19.0]
    - Select floating IPs by address, not by name: bulk floating IPs all have one name.
-   - Create each one with its private-IP association in one call: RECIPES.md "Floating IPs" → "Create and associate in one call", the "Virtual IP" association. `FIP_API` → `CP_VIP` [pdf p.720-721]. Management cluster only: `FIP_UI` → the first IP of `LB_IP_RANGE` [portal][live 2.19.0].
+   - Create each one with its private-IP association in one call: RECIPES.md "Floating IPs" → "Create and associate in one call", the "Virtual IP" association. `FIP_API` → `CP_VIP` [pdf p.720-721]. Management cluster: `FIP_UI` → the first IP of `LB_IP_RANGE` [portal][live 2.19.0]. Workload cluster: the same, only when users outside the VPC open its apps (step 6) [live 2.19.1].
    - Do this **before the create**: the nodes join through `FIP_API`. [live 2.19.0]
    - Done when each one has `associationStatus` `ASSOCIATED_TO_PRIVATE_IP` (not `ASSOCIATED_TO_VNIC`).
    - Record its address and its extId (`FIP_API`, `FIP_API_ID`; `FIP_UI`, `FIP_UI_ID`).
@@ -180,11 +182,27 @@ Done when [live 2.19.0]:
 - `traefik=` is an IP of `LB_IP_RANGE` (an overlay IP, usually the first). All nodes are `Ready` with overlay IPs (not in order).
 - `api 200`. `000` means no answer: see "Common failures".
 - Management cluster: `ui=` is `UI_HOSTNAME` (exposed) and `ui 302` (redirect to the login). Then the user runs `nkp get dashboard` (skill `nkp-install`, USER-TERMINAL). The URL uses `UI_HOSTNAME`.
-- Workload cluster: `ui=` is empty and `ui` gives 404 or `000`. This is normal: the UI is on the management cluster.
+- Workload cluster: `ui=` is empty and `ui` gives 404 or `000`. This is normal: the UI is on the management cluster. After the step 6 hostname patch, `ui=` is `UI_HOSTNAME`.
 
 ## Step 6: Day-2 changes
 
-**Set the UI hostname later** (management cluster only; the create had no `--cluster-hostname`, or the user adds a DNS name). The KommanderCluster is owned by the NKPCluster, so patch the NKPCluster, not the KommanderCluster. [live 2.19.0] Append `UI_HOSTNAME` first (rule 4), and `INGRESS_HOSTNAME` with the same value. Then use skill `nkp-networking`, `ingress-certs.md` I3, the hostname-only patch (dry run, plan, stop for "yes", apply). Then run step 5. Your own certificate for a DNS name: the same I3 steps 1-4.
+**Set the UI hostname later**: a management cluster created without `--cluster-hostname`, a new DNS name, or a **workload** cluster whose apps users outside the VPC open. The KommanderCluster is owned by the NKPCluster, so patch the NKPCluster, not the KommanderCluster. [live 2.19.0]
+
+1. Workload cluster: wait until `kommander-traefik` in `WORKSPACE_NS` has an IP (step 5), and the workload Certificate `kommander-traefik-tls` exists. The platform apps come 10-15 min after the create. [live 2.19.1]
+2. `FIP_UI` → the Traefik IP, as in step 2 item 4 (plan, stop for "yes"). Record `FIP_UI` and `FIP_UI_ID`. You can make it before the create (the first IP of `LB_IP_RANGE`). [live 2.19.1]
+3. Append `UI_HOSTNAME` (rule 4), and `INGRESS_HOSTNAME` with the same value. Then use skill `nkp-networking`, `ingress-certs.md` I3, the hostname-only patch (dry run, plan, stop for "yes", apply). Your own certificate for a DNS name: the same I3 steps 1-4.
+4. Check (READ-ONLY), 3 min after the patch:
+
+```bash
+# READ-ONLY
+source ~/nkp-<cluster>.env 2>/dev/null
+kubectl --kubeconfig "$MGMT_KUBECONFIG" -n "$WORKSPACE_NS" get kommandercluster "$CLUSTER_NAME" -o jsonpath='address={.status.ingress.address}{"\n"}'
+kubectl --kubeconfig "$CLUSTER_KUBECONFIG" -n "$WORKSPACE_NS" get certificate kommander-traefik-tls -o jsonpath='dns={.spec.dnsNames} ips={.spec.ipAddresses}{"\n"}'
+kubectl --kubeconfig "$CLUSTER_KUBECONFIG" -n "$WORKSPACE_NS" get deploy traefik-forward-auth -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="AUTH_HOST")].value}{"\n"}'
+curl -sk -o /dev/null -m 10 -w '%{http_code} %{redirect_url}\n' "https://$UI_HOSTNAME/dkp/grafana/"
+```
+
+Done when [live 2.19.1]: `address=` is `UI_HOSTNAME`; `dns=` or `ips=` has `UI_HOSTNAME`; `AUTH_HOST` is `UI_HOSTNAME`; `curl` gives `302` to the dex of the management cluster with `redirect_uri=https%3A%2F%2F<UI_HOSTNAME>%2F_oauth_kommander`. A `307` to the private LB IP means that `traefik-forward-auth` has not rolled out yet: wait 2 min and check again. A management cluster: run step 5.
 
 **Another `LoadBalancer` Service for outside users** (also the Traefik of a workload cluster). List the Service IPs:
 
@@ -194,9 +212,7 @@ source ~/nkp-<cluster>.env 2>/dev/null
 kubectl --kubeconfig "$CLUSTER_KUBECONFIG" get svc -A --field-selector spec.type=LoadBalancer -o custom-columns=NS:.metadata.namespace,NAME:.metadata.name,IP:.status.loadBalancer.ingress[0].ip
 ```
 
-Make one floating IP for each Service, associated with the Service IP, as in step 2 item 4 (plan, stop for "yes"). [portal] No NKP object does this. Keep a list of these floating IPs (address, extId, Service) for step 7. More LB IPs: skill `nkp-networking`, `metallb.md`.
-
-UNKNOWN (N-50): how to give the Traefik of a workload cluster an outside hostname, so that the `/_oauth_kommander` redirect does not use the private LB IP (`--cluster-hostname` has no effect on a workload cluster). Find out with: `source ~/nkp-<cluster>.env 2>/dev/null && kubectl --kubeconfig "$CLUSTER_KUBECONFIG" -n "$WORKSPACE_NS" get ingress -o custom-columns=NAME:.metadata.name,HOSTS:.spec.rules[*].host`.
+Make one floating IP for each Service, associated with the Service IP, as in step 2 item 4 (plan, stop for "yes"). [portal] No NKP object does this. Keep a list of these floating IPs (address, extId, Service) for step 7. More LB IPs: skill `nkp-networking`, `metallb.md`. The Traefik of a cluster also needs the hostname patch above.
 
 **Change `FIP_API` or `API_EXTERNAL_ENDPOINT` after the create**: do not. See [references/layouts.md](references/layouts.md), L7 (N-42).
 
@@ -235,6 +251,7 @@ Done when: the audit shows no VM, each floating IP of the cluster gives 404 (or 
 | `ui 000`, `api 200`, management cluster | `FIP_UI` is not associated with the Traefik IP, or Cilium DSR (N-01). | Check the association. Then skill `nkp-networking`, `cni.md` C4. |
 | `namespaces "kommander" not found` on a workload cluster | The workload Traefik is in `WORKSPACE_NS`. [live 2.19.0] | Use `-n "$WORKSPACE_NS"` (step 5). |
 | Workload cluster: `ui=` empty, `ui 404` | Normal: no UI on a workload cluster. [live 2.19.0] | None. |
+| Workload cluster: an app URL on `FIP_UI` gives `307` to the private LB IP | No hostname on the workload NKPCluster, or `traefik-forward-auth` has not rolled out yet. [live 2.19.1] | Step 6, "Set the UI hostname later". |
 | `nkp get dashboard` shows a private IP | No `--cluster-hostname` on the management cluster. | Step 6, UI hostname. |
 | TLS name error on `https://CP_VIP:6443` | `CP_VIP` is not in the API certificate. [live 2.19.0] | Use `API_EXTERNAL_ENDPOINT`. |
 | Floating IPs answer `000` after a cluster delete | Normal: they point to a private IP that no VM holds. [live 2.19.0] | Step 7 item 4. |

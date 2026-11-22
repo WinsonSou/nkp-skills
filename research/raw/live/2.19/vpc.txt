@@ -61,3 +61,26 @@ Other: kubectl explain nutanixcluster.spec / nutanixmachinetemplate: no floating
 5. CAPI Cluster merge patch spec.controlPlaneEndpoint.host -> 192.0.2.10 --dry-run=server -> accepted.
    The API does not block a change of the external endpoint after the create. The effect (API cert SANs, kubeconfigs,
    cilium KUBERNETES_SERVICE_HOST, node join) is not tested. Not for the skills as a procedure (N-42).
+
+=== Workload cluster in a VPC, UI hostname after the create (2026-11-15, NKP 2.19.1, PC 7.5) ===
+Setup: management cluster on a VLAN; operator host on the VLAN (outside the VPC); workload cluster in a VPC overlay
+  (NAT external subnet). FIP_API -> CP_VIP and FIP_UI -> first LB IP, both made before the create with
+  PrivateIpAssociation (status ASSOCIATED_TO_PRIVATE_IP). Create flags: workload N5 + --control-plane-external-endpoint
+  <fip-api> + --insecure + site mirror and --registry-url/-username/-password/-cacert.
+Dry run: host: <fip-api>, address: <cp-vip>. Create RC=0 in 6 min (3 CP + 4 workers). KommanderCluster Joined at +7 min.
+During the create: Cluster TopologyReconciled=False "failed to call extension handler caren-acpi ...
+  aftercontrolplaneinitialized ... context deadline exceeded" for some minutes; it cleared without action, all
+  HelmChartProxies deployed.
+server=https://<fip-api>:6443, api 200 through <fip-api>. kommander-traefik got <lb-ip-1> about 12 min after RC=0.
+Before the patch: NKPCluster spec.kommanderCluster.spec.ingress empty, KommanderCluster status.ingress {}.
+Patch (NKPCluster merge, server dry run first): spec.kommanderCluster.spec.ingress.hostname = <fip-ui> (an IP, no certificateSecretRef).
+After the patch:
+  KommanderCluster spec.ingress {"hostname":"<fip-ui>"}, status.ingress.address = <fip-ui>.
+  Workload Certificate kommander-traefik-tls re-issued at once: ipAddresses [<fip-ui>], SAN "IP Address:<fip-ui>"; Traefik serves it on <fip-ui>.
+  Mgmt ConfigMap traefik-forward-auth-kommander-<cluster> -> workload ConfigMap traefik-forward-auth-kommander-cluster-overrides
+    has authHost: <fip-ui>; oidcUri stays https://<mgmt-traefik-ip>/dex.
+  HelmRelease traefik-forward-auth-kommander upgraded; deploy traefik-forward-auth env AUTH_HOST <lb-ip-1> -> <fip-ui> in about 3 min.
+  Before rollout: https://<fip-ui>/dkp/grafana/ -> 307 https://<lb-ip-1>/dkp/grafana/.
+  After rollout:  https://<fip-ui>/dkp/grafana/ and /dkp/headlamp/ -> 302 https://<mgmt-traefik-ip>/dex/auth?...redirect_uri=https://<fip-ui>/_oauth_kommander
+=> N-50 closed. Browser login not tested.
+PC 7.5: /api/networking/v4.4 -> 404; v4.0-v4.3 answer. vmm v4.0 used for VM NIC reads.

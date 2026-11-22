@@ -88,7 +88,7 @@ kubectl --kubeconfig "$MGMT_KUBECONFIG" -n "$WORKSPACE_NS" get nkpcluster "$CLUS
 ```
 
 - Healthy: only the `phase=Reconciled` line. The types `RollingOut`, `ScalingUp`, `ScalingDown`, `Remediating`, `Paused`, and `Deleting` are healthy when `False`. All other types are healthy when `True`. Each line that the block prints is a problem. [live 2.19.0]
-- `TopologyReconciled` not `True`: the message names the topology or CAREN patch error. Read the CAREN log ([references/controllers.md](references/controllers.md)).
+- `TopologyReconciled` not `True`: the message names the topology or CAREN patch error. Read the CAREN log ([references/controllers.md](references/controllers.md)). During a create, `failed to call extension handler "caren-acpi" ... aftercontrolplaneinitialized ... context deadline exceeded` can show for some minutes and clear without action. Wait for the create to end before you act on it. [live 2.19.1]
 - The guide gives two common causes of a long `Reconciling`: a missing credential Secret, or an image that is not in the infrastructure. [pdf p.1048]
 
 **Rung 2. CAPI objects.**

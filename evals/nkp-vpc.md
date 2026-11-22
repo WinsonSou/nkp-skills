@@ -114,5 +114,6 @@ General FAIL for every eval: the same list as in `evals/nkp-install.md` (web loo
 - Step 3: a bastion outside the VPC works through `FIP_API`; no Docker MTU change (no kind cluster for a workload create).
 - `WORKSPACE_NS` is read back from `kubectl get workspaces` (the namespace is `team-z-ws-` + 5 characters), not guessed.
 - Step 5 with `-n "$WORKSPACE_NS"` for `kommander-traefik` on `CLUSTER_KUBECONFIG`; Done when `api=`/`server=` use `API_EXTERNAL_ENDPOINT`, `vip=` is `CP_VIP`, `api 200`; `ui=` empty and `ui 404` are normal on a workload cluster.
+- Users outside open only the API, so no `FIP_UI`. If the user also wants the apps (Grafana) from outside: `FIP_UI` to the Traefik IP and the NKPCluster hostname patch **after** the create (step 6).
 
-**FAIL if:** it asks for 2 floating IPs or a `FIP_UI` as required; it adds `--cluster-hostname`; it runs step 5 with `-n kommander` on the workload cluster; it expects `ui 302` or `ui=UI_HOSTNAME` on the workload cluster; it says the bastion must be in the VPC.
+**FAIL if:** it asks for 2 floating IPs or a `FIP_UI` as required for kubectl access; it adds `--cluster-hostname`; it runs step 5 with `-n kommander` on the workload cluster; it expects `ui 302` or `ui=UI_HOSTNAME` on the workload cluster; it says the bastion must be in the VPC.
